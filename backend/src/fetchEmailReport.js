@@ -259,6 +259,48 @@ async function run() {
   } catch (err) {
     log(`Micky's leads ERROR: ${err.message}`);
   }
+
+  // Push processed data to cloud backend
+  await syncToCloud(yesterday());
+}
+
+async function syncToCloud(date) {
+  const cloudUrl = process.env.CLOUD_API_URL;
+  const pin = process.env.DAILYFLASH_PIN;
+  if (!cloudUrl || !pin) {
+    log('Cloud sync skipped — CLOUD_API_URL or DAILYFLASH_PIN not set.');
+    return;
+  }
+
+  const dataPath = path.resolve(__dirname, '..', 'data', `${date}.json`);
+  let localData;
+  try {
+    localData = JSON.parse(await fs.readFile(dataPath, 'utf8'));
+  } catch {
+    log(`Cloud sync skipped — no local data file for ${date}.`);
+    return;
+  }
+
+  log(`Syncing ${date} to ${cloudUrl} …`);
+  try {
+    const loginRes = await fetch(`${cloudUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+    if (!loginRes.ok) throw new Error(`Login failed: ${loginRes.status}`);
+    const { token } = await loginRes.json();
+
+    const pushRes = await fetch(`${cloudUrl}/api/data`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ date, data: localData })
+    });
+    if (!pushRes.ok) throw new Error(`Push failed: ${pushRes.status}`);
+    log(`Cloud sync done for ${date}.`);
+  } catch (err) {
+    log(`Cloud sync ERROR: ${err.message}`);
+  }
 }
 
 run().catch((err) => {
