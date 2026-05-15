@@ -212,4 +212,12 @@ app.use((err, req, res, _next) => {
 
 app.listen(port, () => {
   console.log(`CP Flash Report API running on http://localhost:${port}`);
+
+  // Keep Render free tier alive — ping self every 14 minutes.
+  const selfUrl = process.env.CLOUD_API_URL;
+  if (selfUrl) {
+    setInterval(() => {
+      fetch(`${selfUrl}/health`).catch(() => {});
+    }, 14 * 60 * 1000);
+  }
 });
