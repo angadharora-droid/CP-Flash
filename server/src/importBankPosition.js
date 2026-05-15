@@ -1,0 +1,105 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import XLSX from 'xlsx';
+import { buildSeedData } from './excel.js';
+
+const SHEET_ID = '1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf';
+
+const OUTLET_ACCOUNTS = [
+  { unit: 'CP Nagpur', account: 'HDFC Wardha', gid: 1969859912, cells: { actualBalance: 'F5', fdTotal: 'J20', chequesIssued: 'G19', chequeTotalAmount: 'E19', netBalance: 'G28' } },
+  { unit: 'CP Nagpur', account: 'HDFC Dhantoli', gid: 556642800, cells: { actualBalance: 'E5', fdTotal: 'J16', chequesIssued: 'F16', chequeTotalAmount: 'E16', netBalance: 'F24' } },
+  { unit: 'Pablo', account: 'UFO HDFC', gid: 543029293, cells: { actualBalance: 'C5', chequesIssued: 'D20', chequeTotalAmount: 'C20', netBalance: 'D27' } },
+  { unit: 'Dali', account: 'DALI SCB', gid: 366389011, cells: { actualBalance: 'C5', chequesIssued: 'D22', chequeTotalAmount: 'C22', netBalance: 'D30' } },
+  { unit: "Micky's", account: 'C P FOODS 36961', gid: 1945926804, cells: { actualBalance: 'C5', chequesIssued: 'D13', chequeTotalAmount: 'C13', netBalance: 'D17' } },
+  { unit: 'Purosoul', account: 'AFVPL YES Bank', gid: 146782452, cells: { actualBalance: 'C5', chequesIssued: 'D11', chequeTotalAmount: 'C11', netBalance: 'D19' } },
+  { unit: 'Purosoul', account: 'AFVPL IDBI', gid: 1150494269, cells: { actualBalance: 'C5', chequesIssued: 'D13', chequeTotalAmount: 'C13', netBalance: 'D25' } },
+];
+
+function num(value) {
+  if (value == null) return null;
+  const normalized = String(value).replace(/[, \s]/g, '');
+  const parsed = parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function fmt(value) {
+  return value == null ? '' : String(Math.round(value * 100) / 100);
+}
+
+async function fetchSheetRows(gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching gid ${gid}`);
+  const csv = await res.text();
+  const wb = XLSX.read(csv, { type: 'string' });
+  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', blankrows: true });
+}
+
+function cellRefToIndexes(ref) {
+  const match = /^([A-Z]+)(\d+)$/i.exec(ref);
+  if (!match) throw new Error(`Invalid cell reference ${ref}`);
+  const col = [...match[1].toUpperCase()].reduce((sum, char) => sum * 26 + char.charCodeAt(0) - 64, 0) - 1;
+  return { row: Number(match[2]) - 1, col };
+}
+
+function cell(rows, ref) {
+  const { row, col } = cellRefToIndexes(ref);
+  return num(rows[row]?.[col]) ?? 0;
+}
+
+function extractAccount(rows, acct) {
+  const actualBalance = cell(rows, acct.cells.actualBalance);
+  const fdTotal = acct.cells.fdTotal ? cell(rows, acct.cells.fdTotal) : 0;
+  const chequesIssued = cell(rows, acct.cells.chequesIssued);
+  const chequeTotalAmount = cell(rows, acct.cells.chequeTotalAmount);
+  const chequesInHand = chequeTotalAmount - chequesIssued;
+  const netBalance = cell(rows, acct.cells.netBalance);
+
+  return { actualBalance, fdTotal, chequesIssued, chequeTotalAmount, chequesInHand, netBalance };
+}
+
+export async function importBankPosition(outDate) {
+  const mapped = [];
+
+  for (const acct of OUTLET_ACCOUNTS) {
+    const rows = await fetchSheetRows(acct.gid);
+    const vals = extractAccount(rows, acct);
+    mapped.push({
+      unit: acct.unit,
+      account: acct.account,
+      actualBalance: fmt(vals.actualBalance),
+      fdTotal: fmt(vals.fdTotal),
+      chequesIssued: fmt(vals.chequesIssued),
+      chequeTotalAmount: fmt(vals.chequeTotalAmount),
+      chequesInHand: fmt(vals.chequesInHand),
+      netBalance: fmt(vals.netBalance),
+    });
+  }
+
+  const dataPath = path.resolve(process.cwd(), 'data', `${outDate}.json`);
+  let data;
+  try {
+    data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+    data = buildSeedData();
+  }
+
+  data.bankPosition = mapped;
+  data.importSource = {
+    ...(data.importSource ?? {}),
+    bankPositionImportedAt: new Date().toISOString(),
+  };
+
+  await fs.mkdir(path.dirname(dataPath), { recursive: true });
+  await fs.writeFile(dataPath, JSON.stringify({ ...data, date: outDate, savedAt: new Date().toISOString() }, null, 2));
+
+  return { ok: true, date: outDate, mapped };
+}
+
+const isMain = process.argv[1] === fileURLToPath(import.meta.url);
+if (isMain) {
+  const outDate = process.argv[2] || new Date().toISOString().slice(0, 10);
+  importBankPosition(outDate).then((result) => console.log(JSON.stringify(result, null, 2)));
+}

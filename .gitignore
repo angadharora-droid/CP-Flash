@@ -1,0 +1,11 @@
+node_modules/
+client/node_modules/
+server/node_modules/
+client/dist/
+server/data/*.json
+server/data/attachments/
+.env
+server/.env
+.claude/
+*.log
+logs/
