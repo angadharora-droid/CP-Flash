@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import cors from 'cors';
 import express from 'express';
+import { MongoClient } from 'mongodb';
 import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
@@ -14,6 +15,17 @@ const port = process.env.PORT || 4000;
 const dataDir = path.resolve(process.cwd(), 'data');
 const accessPin = process.env.DAILYFLASH_PIN || process.env.ACCESS_PIN;
 const tokenSecret = process.env.JWT_SECRET || process.env.DAILYFLASH_PIN || 'change-me';
+
+// MongoDB — used when MONGODB_URI is set; falls back to local JSON files otherwise.
+let _mongoDb = null;
+async function getDb() {
+  if (!process.env.MONGODB_URI) return null;
+  if (_mongoDb) return _mongoDb;
+  const client = new MongoClient(process.env.MONGODB_URI);
+  await client.connect();
+  _mongoDb = client.db('dailyflash');
+  return _mongoDb;
+}
 
 app.use(cors());
 app.use(express.json({ limit: '4mb' }));
@@ -56,19 +68,32 @@ function dateKey(date = new Date()) {
 }
 
 async function readDailyData(date = dateKey()) {
+  const db = await getDb();
+  if (db) {
+    const doc = await db.collection('reports').findOne({ date });
+    return doc?.data ?? null;
+  }
   await ensureDataDir();
-  const filePath = path.join(dataDir, `${date}.json`);
   try {
-    return JSON.parse(await fs.readFile(filePath, 'utf8'));
+    return JSON.parse(await fs.readFile(path.join(dataDir, `${date}.json`), 'utf8'));
   } catch {
     return null;
   }
 }
 
 async function writeDailyData(date, payload) {
+  const record = { ...payload, date, savedAt: new Date().toISOString() };
+  const db = await getDb();
+  if (db) {
+    await db.collection('reports').updateOne(
+      { date },
+      { $set: { date, data: record } },
+      { upsert: true }
+    );
+    return;
+  }
   await ensureDataDir();
-  const filePath = path.join(dataDir, `${date}.json`);
-  await fs.writeFile(filePath, JSON.stringify({ ...payload, date, savedAt: new Date().toISOString() }, null, 2));
+  await fs.writeFile(path.join(dataDir, `${date}.json`), JSON.stringify(record, null, 2));
 }
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
