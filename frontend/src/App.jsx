@@ -10,6 +10,7 @@ import StatStrip from './components/StatStrip';
 const NOW = new Date().toISOString().slice(0, 10);
 const d = new Date(); d.setDate(d.getDate() - 1);
 const today = d.toISOString().slice(0, 10);
+const APP_BASE_PATH = '/flashreport';
 
 const pages = [
   ['sources', '00', 'Source Control'],
@@ -639,6 +640,12 @@ export default function App() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('Loading...');
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('dailyflashToken') || '');
+
+  useEffect(() => {
+    const { pathname, search, hash } = window.location;
+    if (pathname === APP_BASE_PATH || pathname.startsWith(`${APP_BASE_PATH}/`)) return;
+    window.history.replaceState(null, '', `${APP_BASE_PATH}${pathname === '/' ? '/' : pathname}${search}${hash}`);
+  }, []);
 
   useEffect(() => {
     if (!authToken) return;
