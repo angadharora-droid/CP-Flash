@@ -13,25 +13,32 @@ const app = express();
 const port = process.env.PORT || 4000;
 const dataDir = path.resolve(process.cwd(), 'data');
 const accessPin = process.env.DAILYFLASH_PIN || process.env.ACCESS_PIN;
-const sessions = new Map();
+const tokenSecret = process.env.JWT_SECRET || process.env.DAILYFLASH_PIN || 'change-me';
 
 app.use(cors());
 app.use(express.json({ limit: '4mb' }));
 
+// Stateless signed tokens — survive server restarts.
 function createSession() {
-  const token = crypto.randomUUID();
-  sessions.set(token, Date.now() + 12 * 60 * 60 * 1000);
-  return token;
+  const payload = Buffer.from(JSON.stringify({ exp: Date.now() + 12 * 60 * 60 * 1000 })).toString('base64url');
+  const sig = crypto.createHmac('sha256', tokenSecret).update(payload).digest('base64url');
+  return `${payload}.${sig}`;
 }
 
 function isValidSession(token) {
-  const expiresAt = sessions.get(token);
-  if (!expiresAt) return false;
-  if (Date.now() > expiresAt) {
-    sessions.delete(token);
+  if (!token || typeof token !== 'string') return false;
+  const dot = token.lastIndexOf('.');
+  if (dot < 1) return false;
+  const payload = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  const expected = crypto.createHmac('sha256', tokenSecret).update(payload).digest('base64url');
+  if (sig !== expected) return false;
+  try {
+    const { exp } = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    return Date.now() < exp;
+  } catch {
     return false;
   }
-  return true;
 }
 
 function authToken(req) {
