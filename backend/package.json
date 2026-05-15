@@ -1,5 +1,5 @@
 {
-  "name": "cp-flash-report-server",
+  "name": "cp-flash-report-backend",
   "version": "1.0.0",
   "type": "module",
   "main": "src/index.js",

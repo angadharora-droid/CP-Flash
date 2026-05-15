@@ -258,10 +258,14 @@ export function createDailyFlashPdf(data, date) {
   header();
   const hotelRevenue = pnl.filter((row) => row.unit === 'CP Nagpur' || row.unit === 'CP NM').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
   hero('Hotels', 'IDS (CP Nagpur) | Hotelogix (CP Navi Mumbai)', money(hotelRevenue), '');
+  const cpNmExclude = ['F&B Outlets', 'Banquets'];
   for (const unit of ['CP Nagpur', 'CP NM']) {
     const label = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
     const rows = (data.hotels ?? []).filter((row) => row.unit === unit);
-    for (const section of [...new Set(rows.map((row) => row.section))]) {
+    const sections = [...new Set(rows.map((row) => row.section))].filter(
+      (s) => unit !== 'CP NM' || !cpNmExclude.includes(s)
+    );
+    for (const section of sections) {
       kpiTable(`${label} - ${section}`, rows.filter((row) => row.section === section), false);
     }
   }

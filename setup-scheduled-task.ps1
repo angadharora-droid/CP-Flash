@@ -2,8 +2,8 @@
 # Usage: Right-click PowerShell -> "Run as administrator", then run this script.
 
 $taskName   = "DailyFlash-HotelEmailImport"
-$scriptDir  = "D:\a\DailyFlash\server"
-$scriptPath = "D:\a\DailyFlash\server\src\fetchEmailReport.js"
+$scriptDir  = "D:\a\DailyFlash\backend"
+$scriptPath = "D:\a\DailyFlash\backend\src\fetchEmailReport.js"
 $logDir     = "D:\a\DailyFlash\logs"
 $logFile    = "$logDir\hotel-import.log"
 $nodeExe    = (Get-Command node -ErrorAction Stop).Source
