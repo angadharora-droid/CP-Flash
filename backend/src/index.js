@@ -21,11 +21,19 @@ let _mongoDb = null;
 async function getDb() {
   if (!process.env.MONGODB_URI) return null;
   if (_mongoDb) return _mongoDb;
-  const client = new MongoClient(process.env.MONGODB_URI);
-  await client.connect();
-  _mongoDb = client.db('dailyflash');
-  return _mongoDb;
+  try {
+    const client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
+    await client.connect();
+    _mongoDb = client.db('dailyflash');
+    return _mongoDb;
+  } catch (err) {
+    console.error('MongoDB connection failed, falling back to JSON files:', err.message);
+    return null;
+  }
 }
+
+// Wrap async route handlers so Express 4 catches thrown errors.
+const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
 app.use(cors());
 app.use(express.json({ limit: '4mb' }));
@@ -120,41 +128,41 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-app.get('/api/seed', async (req, res) => {
+app.get('/api/seed', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
   const seed = buildSeedData();
   const saved = await readDailyData(date);
   res.json({ seed, saved, date });
-});
+}));
 
 for (const route of ['bank-position', 'pnl', 'hotels', 'fnb', 'rabbits', 'mickys', 'purosoul', 'settlement']) {
-  app.get(`/api/${route}`, async (req, res) => {
+  app.get(`/api/${route}`, wrap(async (req, res) => {
     const key = route.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
     const seed = buildSeedData();
     const saved = await readDailyData(req.query.date || dateKey());
     res.json(saved?.[key] ?? seed[key] ?? null);
-  });
+  }));
 }
 
-app.post('/api/data', async (req, res) => {
+app.post('/api/data', wrap(async (req, res) => {
   const date = req.body.date || dateKey();
   await writeDailyData(date, req.body.data ?? req.body);
   res.json({ ok: true, date });
-});
+}));
 
-app.get('/api/flags', async (req, res) => {
+app.get('/api/flags', wrap(async (req, res) => {
   const seed = buildSeedData();
   const saved = await readDailyData(req.query.date || dateKey());
   res.json(collectFlags({ ...seed, ...(saved ?? {}) }));
-});
+}));
 
-app.get('/api/source-status', async (req, res) => {
+app.get('/api/source-status', wrap(async (req, res) => {
   const seed = buildSeedData();
   const saved = await readDailyData(req.query.date || dateKey());
   res.json(buildSourceStatus({ ...seed, ...(saved ?? {}) }));
-});
+}));
 
-app.get('/api/report.pdf', async (req, res) => {
+app.get('/api/report.pdf', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
   const seed = buildSeedData();
   const saved = await readDailyData(date);
@@ -166,9 +174,9 @@ app.get('/api/report.pdf', async (req, res) => {
   const doc = createDailyFlashPdf(data, date);
   doc.pipe(res);
   doc.end();
-});
+}));
 
-app.post('/api/ai-notes', async (req, res) => {
+app.post('/api/ai-notes', wrap(async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     res.status(400).json({ error: 'ANTHROPIC_API_KEY is not configured on the backend.' });
     return;
@@ -194,6 +202,12 @@ app.post('/api/ai-notes', async (req, res) => {
     return;
   }
   res.json({ text: json.content?.map((part) => part.text).join('\n') ?? '' });
+}));
+
+// Global error handler — sends JSON instead of crashing.
+app.use((err, req, res, _next) => {
+  console.error(err.message);
+  res.status(500).json({ error: err.message });
 });
 
 app.listen(port, () => {
