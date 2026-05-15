@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/flashreport/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/flashreport/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
