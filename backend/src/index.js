@@ -68,7 +68,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.post('/api/login', (req, res) => {
   if (!accessPin) {
-    res.status(500).json({ error: 'DAILYFLASH_PIN is not configured on the server.' });
+    res.status(500).json({ error: 'DAILYFLASH_PIN is not configured on the backend.' });
     return;
   }
   const pin = String(req.body.pin ?? '').trim();
@@ -138,7 +138,7 @@ app.get('/api/report.pdf', async (req, res) => {
 
 app.post('/api/ai-notes', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
-    res.status(400).json({ error: 'ANTHROPIC_API_KEY is not configured on the server.' });
+    res.status(400).json({ error: 'ANTHROPIC_API_KEY is not configured on the backend.' });
     return;
   }
 

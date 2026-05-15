@@ -182,7 +182,7 @@ async function processMessage(msg, date) {
 
 async function run() {
   if (!EMAIL_PASS) {
-    log('ERROR: REPORT_EMAIL_PASSWORD not set in server/.env');
+    log('ERROR: REPORT_EMAIL_PASSWORD not set in backend/.env');
     process.exit(1);
   }
 
