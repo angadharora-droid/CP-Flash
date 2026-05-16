@@ -3,6 +3,13 @@ import { UNITS, settlementModes } from './schema.js';
 import { collectFlags } from './flags.js';
 import { buildSourceStatus } from './sources.js';
 
+const SHEET_URLS = {
+  bankPosition: 'https://docs.google.com/spreadsheets/d/1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf/',
+  pabloCost: 'https://docs.google.com/spreadsheets/d/1SliCSYQIhRekgYy-6YN0nn5nFtlZQooH/',
+  daliCost: 'https://docs.google.com/spreadsheets/d/1cgU6utD59v57HwlunQtSBCsVfpiMwX7F/',
+  mickysLeads: 'https://docs.google.com/spreadsheets/d/1jvnmwP4AaNQW54E3QVlzR9ZMj589HXZugJfhBOye_gs/'
+};
+
 const colors = {
   maroon: '#6f0e13',
   deepMaroon: '#4a0a0d',
@@ -180,7 +187,10 @@ export function createDailyFlashPdf(data, date) {
         const text = typeof cell === 'object' ? cell.text : cell;
         const fill = typeof cell === 'object' && cell.color ? cell.color : colors.ink;
         const font = typeof cell === 'object' && cell.bold ? 'Helvetica-Bold' : 'Helvetica';
-        doc.fillColor(fill).font(font).text(safeText(text), cursor + 6, y + 7, { width: colWidths[index] - 10, align, lineBreak: false });
+        const linkUrl = typeof cell === 'object' ? cell.link : null;
+        const textOptions = { width: colWidths[index] - 10, align, lineBreak: false };
+        if (linkUrl) { textOptions.link = linkUrl; textOptions.underline = true; }
+        doc.fillColor(fill).font(font).text(safeText(text), cursor + 6, y + 7, textOptions);
         cursor += colWidths[index];
       });
       y += rowHeight;
@@ -211,9 +221,18 @@ export function createDailyFlashPdf(data, date) {
     );
   }
 
+  function sheetRef(url) {
+    if (!url) return;
+    ensureSpace(14);
+    doc.fillColor('#1a6b9a').font('Helvetica').fontSize(6)
+      .text('View Source Sheet  ↗', 36, doc.y, { link: url, underline: true, lineBreak: false });
+    doc.y += 12;
+  }
+
   header();
 
   sectionTitle('1. Bank Position - Daily Cash Summary');
+  sheetRef(SHEET_URLS.bankPosition);
   const bankRows = data.bankPosition ?? [];
   table(
     ['Unit / Account', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheque Total', 'Cheques in Hand', 'Net Available'],
@@ -276,6 +295,7 @@ export function createDailyFlashPdf(data, date) {
   hero('Standalone F&B', 'Pet Pooja API | Pablo & Dali', money(fnbRevenue), '');
   for (const brand of ['Pablo', 'Dali']) {
     const rows = data.fnb?.[brand] ?? [];
+    sheetRef(brand === 'Pablo' ? SHEET_URLS.pabloCost : SHEET_URLS.daliCost);
     for (const section of [...new Set(rows.map((row) => row.section))]) {
       kpiTable(`${brand} - ${section}`, rows.filter((row) => row.section === section), false);
     }
@@ -293,6 +313,7 @@ export function createDailyFlashPdf(data, date) {
   header();
   const mickysRows = data.mickys ?? [];
   hero("Micky's by CP Foods", 'Google Sheet (Leads) | Tally Cloud (Day End)', money(revenueFor(mickysRows)), '');
+  sheetRef(SHEET_URLS.mickysLeads);
   for (const section of [...new Set(mickysRows.map((row) => row.section))]) {
     kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section), true);
   }
@@ -332,7 +353,12 @@ export function createDailyFlashPdf(data, date) {
   const sourceStatus = buildSourceStatus(data);
   table(
     ['Source', 'Type', 'Status', 'Last Import / File'],
-    sourceStatus.sources.map((source) => [source.label, source.type, flagCell(source.status === 'Pending' ? 'WATCH' : 'ON TRACK'), source.file || source.importedAt || '-']),
+    sourceStatus.sources.map((source) => [
+      source.sheetUrl ? { text: source.label, link: source.sheetUrl, color: '#1a6b9a' } : source.label,
+      source.type,
+      flagCell(source.status === 'Pending' ? 'WATCH' : 'ON TRACK'),
+      source.file || source.importedAt || '-'
+    ]),
     { widths: [180, 100, 82, 161], leftColumns: [0, 3], fontSize: 7 }
   );
 
