@@ -92,29 +92,31 @@ function hasKpiData(rows) {
 
 function FreshnessBadge({ label, cls }) {
   return (
-    <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-bold ${cls}`}>
+    <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
       {label}
     </span>
   );
 }
 
 function ReportValue({ value, className = '' }) {
+  const empty = value === '' || value == null;
   return (
-    <span className={`block min-w-24 rounded-md bg-app-panel px-2.5 py-1.5 text-app-text ${className}`}>
-      {value === '' || value == null ? '-' : value}
+    <span className={`block min-w-24 rounded-md px-2.5 py-1.5 text-sm ${empty ? 'text-slate-300' : 'bg-app-panel text-app-text'} ${className}`}>
+      {empty ? '—' : value}
     </span>
   );
 }
 
 function PageTitle({ title, subtitle, badge }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-app-border bg-white shadow-sm">
-      <div className="border-l-4 border-teal-600 px-6 py-5">
+    <div className="relative overflow-hidden rounded-xl border border-app-border bg-white shadow-sm">
+      <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-teal-400 to-teal-700" />
+      <div className="px-6 py-5">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight text-app-text">{title}</h1>
+          <h1 className="text-xl font-bold tracking-tight text-app-text">{title}</h1>
           {badge ? <FreshnessBadge {...badge} /> : null}
         </div>
-        {subtitle ? <p className="mt-0.5 text-sm text-app-muted">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-1 text-sm leading-relaxed text-app-muted">{subtitle}</p> : null}
       </div>
     </div>
   );
@@ -128,7 +130,7 @@ function KpiTable({ rows }) {
         <thead>
           <tr className="bg-slate-50 text-left">
             {headers.map((h, i) => (
-              <th key={h} className={`whitespace-nowrap border-b border-app-border px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-500 ${i === 2 ? 'bg-teal-50/60' : ''}`}>
+              <th key={h} className={`whitespace-nowrap border-b border-app-border px-4 py-3 text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-400 ${i === 2 ? 'bg-teal-50/50' : ''}`}>
                 {h}
               </th>
             ))}
@@ -161,14 +163,14 @@ function SheetLink({ url, label = 'View Source Sheet' }) {
 
 function ActionButton({ children, onClick, type = 'button', variant = 'secondary', disabled = false, className = '' }) {
   const cls = variant === 'primary'
-    ? 'border-teal-700 bg-teal-600 text-white shadow-sm hover:bg-teal-700'
-    : 'border-app-border bg-white text-app-text shadow-sm hover:border-app-borderStrong hover:bg-slate-50';
+    ? 'border-teal-700 bg-teal-600 text-white shadow-sm hover:bg-teal-500 hover:border-teal-600 active:bg-teal-700'
+    : 'border-app-border bg-white text-app-text shadow-sm hover:border-app-borderStrong hover:bg-slate-50 active:bg-slate-100';
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-bold transition disabled:opacity-50 sm:px-4 sm:text-sm ${cls} ${className}`}
+      className={`whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm ${cls} ${className}`}
     >
       {children}
     </button>
@@ -177,13 +179,13 @@ function ActionButton({ children, onClick, type = 'button', variant = 'secondary
 
 function SegmentedControl({ items, value, onChange }) {
   return (
-    <div className="flex max-w-full w-fit gap-1 overflow-x-auto rounded-xl border border-app-border bg-slate-100/70 p-1">
+    <div className="flex max-w-full w-fit gap-1 overflow-x-auto rounded-xl border border-app-border bg-slate-100/80 p-1">
       {items.map(({ key, label, badge }) => (
         <button
           key={key}
           type="button"
           onClick={() => onChange(key)}
-          className={`flex shrink-0 items-center gap-2.5 rounded-lg px-4 py-2 text-sm font-bold transition-all ${value === key ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+          className={`flex shrink-0 items-center gap-2.5 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 ${value === key ? 'bg-white text-teal-700 shadow-sm ring-1 ring-black/5' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'}`}
         >
           <span>{label}</span>
           {badge ? <FreshnessBadge {...badge} /> : null}
@@ -215,23 +217,103 @@ function PinGate({ onUnlock }) {
   };
 
   return (
-    <main className="grid min-h-screen place-items-center bg-app-bg px-4 text-app-text">
-      <form onSubmit={submit} className="w-full max-w-sm rounded-lg border border-app-border bg-app-surface p-6 shadow-card">
-        <div className="text-xs font-bold uppercase text-app-muted">DailyFlash</div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">Enter PIN</h1>
-        <input
-          autoFocus
-          inputMode="numeric"
-          type="password"
-          value={pin}
-          onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
-          className="mt-5 w-full rounded-md border border-app-border bg-white px-4 py-3 text-center text-2xl font-bold tracking-[0.35em] outline-none transition focus:border-app-accent focus:ring-2 focus:ring-app-accent/15"
-          placeholder="------"
-        />
-        {status ? <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-2 text-sm font-semibold text-red-700">{status}</div> : null}
-        <ActionButton type="submit" variant="primary" disabled={loading || pin.length < 4} className="mt-5 w-full">
-          {loading ? 'Checking...' : 'Unlock'}
-        </ActionButton>
+    <main
+      className="relative grid min-h-screen place-items-center overflow-hidden px-4"
+      style={{ background: 'linear-gradient(135deg, #0f172a 0%, #0d2420 55%, #0f172a 100%)' }}
+    >
+      {/* Background glow orbs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-teal-500/10 blur-[80px]" />
+        <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-teal-700/10 blur-[80px]" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-[600px] w-[600px] rounded-full bg-teal-500/4 blur-[120px]" />
+        </div>
+      </div>
+      {/* Subtle dot grid */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.03]"
+        style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '32px 32px' }}
+      />
+
+      <form onSubmit={submit} className="relative z-10 w-full max-w-sm">
+        {/* Brand header */}
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <div className="relative">
+            <div
+              className="flex items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-xl font-extrabold text-white ring-1 ring-white/15"
+              style={{ width: '4.5rem', height: '4.5rem', boxShadow: '0 20px 60px rgba(13, 148, 136, 0.4)' }}
+            >
+              CP
+            </div>
+            <div className="absolute -inset-2 rounded-[22px] bg-teal-500/20 blur-xl -z-10" />
+          </div>
+          <div>
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-teal-400">DailyFlash</div>
+            <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-white">CP Flash Report</h1>
+            <p className="mt-1 text-sm text-slate-400">Centre Point Hospitality Group</p>
+          </div>
+        </div>
+
+        {/* Glass auth card */}
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-2xl">
+          <div className="border-b border-white/8 px-6 py-3 text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Secure Access</p>
+          </div>
+          <div className="px-6 py-6">
+            {/* PIN dot indicator */}
+            <div className="mb-5 flex justify-center gap-3">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div
+                  key={i}
+                  className={`h-3 w-3 rounded-full transition-all duration-300 ${
+                    i < pin.length
+                      ? 'scale-125 bg-teal-400'
+                      : 'scale-100 bg-white/15'
+                  }`}
+                  style={i < pin.length ? { boxShadow: '0 0 8px rgba(45, 212, 191, 0.7)' } : {}}
+                />
+              ))}
+            </div>
+
+            <input
+              autoFocus
+              inputMode="numeric"
+              type="password"
+              value={pin}
+              onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
+              className="w-full rounded-xl border border-white/10 bg-white/8 px-4 py-3.5 text-center text-2xl font-bold tracking-[0.4em] text-white outline-none placeholder-white/20 transition-all duration-200 focus:border-teal-500/50 focus:bg-white/12 focus:ring-2 focus:ring-teal-500/20"
+              placeholder="••••••"
+            />
+
+            {status ? (
+              <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-sm font-medium text-red-300">
+                <svg className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                {status}
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={loading || pin.length < 4}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3.5 text-sm font-bold text-white transition-all duration-200 hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ boxShadow: '0 8px 24px rgba(13, 148, 136, 0.35)' }}
+            >
+              {loading ? (
+                <>
+                  <svg className="size-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Verifying...
+                </>
+              ) : 'Unlock Dashboard'}
+            </button>
+          </div>
+        </div>
+
+        <p className="mt-5 text-center text-xs text-slate-500">Contact your administrator if you need access.</p>
       </form>
     </main>
   );
@@ -425,7 +507,14 @@ function SourceControlPage({ date, authToken }) {
           <div className="text-sm text-app-muted">{loading ? 'Checking sources...' : `Status for ${date}`}</div>
           <ActionButton onClick={load} disabled={loading}>Refresh</ActionButton>
         </div>
-        {error ? <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{error}</div> : null}
+        {error ? (
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+            <svg className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            {error}
+          </div>
+        ) : null}
         <DataTable
           columns={['Source', 'Unit', 'Type', 'Status', 'Last Import', 'File / Notes']}
           rows={sources.map((source) => ({
@@ -658,9 +747,21 @@ Please summarize performance, call out concerns, highlight wins, and give 3 acti
         <div className="mb-4">
           <ActionButton onClick={run} disabled={loading} variant="primary">{loading ? 'Generating...' : 'Generate Report'}</ActionButton>
         </div>
-        {error ? <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{error}</div> : null}
-        <div className="min-h-96 whitespace-pre-wrap rounded-lg border border-app-border bg-app-panel p-5 leading-7 text-app-text">
-          {loading ? 'Claude is preparing the briefing...' : text || 'No report generated yet.'}
+        {error ? (
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+            <svg className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            {error}
+          </div>
+        ) : null}
+        <div className="min-h-96 whitespace-pre-wrap rounded-xl border border-app-border bg-app-panel p-6 leading-7 text-sm text-app-text">
+          {loading ? (
+            <div className="flex items-center gap-3 text-app-muted">
+              <div className="size-4 animate-spin rounded-full border-2 border-teal-600 border-t-transparent" />
+              Claude is preparing the briefing...
+            </div>
+          ) : text || <span className="text-app-muted">No report generated yet. Click Generate Report above.</span>}
         </div>
       </SectionCard>
     </>
@@ -850,23 +951,24 @@ export default function App() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-app-bg text-app-text">
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-white/8 bg-app-sidebar lg:flex xl:w-72">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-white/6 bg-app-sidebar lg:flex xl:w-72">
         {/* Brand */}
-        <div className="flex shrink-0 items-center gap-3 border-b border-white/8 px-5 py-5">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-sm font-extrabold text-white shadow-lg shadow-teal-900/40">
+        <div className="flex shrink-0 items-center gap-3 border-b border-white/6 px-5 py-5">
+          <div className="relative flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-sm font-extrabold text-white">
             CP
+            <div className="absolute -inset-0.5 rounded-[13px] bg-teal-500/25 blur-md -z-10" />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-widest text-teal-400/80">DailyFlash</div>
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-400/90">DailyFlash</div>
             <div className="text-sm font-bold leading-tight text-white">CP Flash Report</div>
-            <div className="text-[11px] text-slate-400">Centre Point Hospitality</div>
+            <div className="text-[11px] text-slate-500">Centre Point Hospitality</div>
           </div>
         </div>
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="mb-5">
-              <div className="mb-1.5 px-2 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
+            <div key={group.label} className="mb-6">
+              <div className="mb-2 px-2 text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-600">
                 {group.label}
               </div>
               <div className="space-y-0.5">
@@ -875,14 +977,18 @@ export default function App() {
                     key={key}
                     type="button"
                     onClick={() => setActive(key)}
-                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-all ${active === key ? 'bg-teal-600 text-white shadow-md shadow-teal-900/30' : 'text-slate-400 hover:bg-white/8 hover:text-white'}`}
+                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-all duration-150 ${
+                      active === key
+                        ? 'bg-teal-600/95 text-white shadow-lg shadow-teal-900/40 ring-1 ring-teal-500/30'
+                        : 'text-slate-400 hover:bg-white/6 hover:text-slate-200'
+                    }`}
                   >
-                    <svg className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+                    <svg className={`size-4 shrink-0 transition-colors ${active === key ? 'text-teal-100' : 'text-slate-500'}`} fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
                       {icon}
                     </svg>
                     <span className="truncate">{label}</span>
                     {key === 'flags' && riskCount > 0 ? (
-                      <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
                         {riskCount}
                       </span>
                     ) : null}
@@ -893,45 +999,65 @@ export default function App() {
           ))}
         </nav>
         {/* Footer */}
-        <div className="shrink-0 border-t border-white/8 px-5 py-3">
-          <div className="text-[11px] text-slate-500">
+        <div className="shrink-0 border-t border-white/6 px-5 py-3.5">
+          <div className="text-[11px] font-medium text-slate-500">
             {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
           </div>
+          <div className="mt-0.5 text-[10px] text-slate-600">Centre Point Hospitality Group</div>
         </div>
       </aside>
 
       {/* Main */}
       <main className="lg:pl-64 xl:pl-72">
         {/* Topbar */}
-        <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
+        <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/96 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-8">
+            {/* Left: breadcrumb + date */}
             <div className="flex min-w-0 flex-col gap-1.5">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400">
                 <svg className="size-3.5 text-teal-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   {NAV_GROUPS.flatMap(g => g.items).find(i => i.key === active)?.icon}
                 </svg>
-                {activePage[1]} · {activePage[2]}
+                <span className="text-slate-300">{activePage[1]}</span>
+                <span className="text-slate-300">·</span>
+                <span>{activePage[2]}</span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="rounded-lg border border-app-border bg-white px-3 py-1.5 text-sm font-bold text-app-text outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
+                  className="rounded-lg border border-app-border bg-white px-3 py-1.5 text-sm font-semibold text-app-text outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
                 />
-                {status ? <span className="max-w-xs truncate text-xs text-slate-400">{status}</span> : null}
+                {status ? (
+                  <span className="hidden max-w-xs truncate text-xs text-slate-400 sm:block">{status}</span>
+                ) : null}
                 {riskCount > 0 ? (
-                  <button onClick={() => setActive('flags')} className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600 transition hover:bg-red-100">
+                  <button
+                    onClick={() => setActive('flags')}
+                    className="flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600 transition-all hover:bg-red-100"
+                  >
+                    <span className="size-1.5 rounded-full bg-red-500" />
                     {riskCount} risks
                   </button>
                 ) : null}
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            {/* Right: actions */}
+            <div className="flex shrink-0 items-center gap-1.5">
               <ActionButton onClick={() => setActive('ai')} disabled={!data}>AI Report</ActionButton>
+              <ActionButton onClick={exportPdf} disabled={!data}>Export PDF</ActionButton>
               <ActionButton onClick={() => setActive('pdf')} disabled={!data} variant="primary">Preview PDF</ActionButton>
-              <ActionButton onClick={exportPdf} disabled={!data}>Download PDF</ActionButton>
-              <ActionButton onClick={lockApp}>Lock</ActionButton>
+              <div className="ml-1 h-5 w-px bg-slate-200" />
+              <button
+                onClick={lockApp}
+                className="flex items-center gap-1.5 rounded-lg border border-app-border bg-white px-3 py-2 text-xs font-semibold text-slate-500 shadow-sm transition-all hover:border-app-borderStrong hover:bg-slate-50 hover:text-slate-700"
+              >
+                <svg className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+                Lock
+              </button>
             </div>
           </div>
         </header>
@@ -943,16 +1069,21 @@ export default function App() {
             <select
               value={active}
               onChange={(e) => setActive(e.target.value)}
-              className="w-full rounded-xl border border-app-border bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
+              className="w-full rounded-xl border border-app-border bg-white px-4 py-3 text-sm font-semibold text-app-text shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
             >
-              {NAV_GROUPS.flatMap(g => g.items).map(({ key, label }) => (
-                <option key={key} value={key}>{label}</option>
+              {NAV_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.items.map(({ key, label }) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
           {page ?? (
-            <div className="rounded-xl border border-app-border bg-white p-8 text-center text-sm text-app-muted shadow-sm">
-              Loading dashboard...
+            <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-app-border bg-white py-20 text-center shadow-sm">
+              <div className="size-8 animate-spin rounded-full border-[2.5px] border-teal-600 border-t-transparent" />
+              <p className="text-sm font-medium text-app-muted">Loading dashboard data...</p>
             </div>
           )}
         </div>
