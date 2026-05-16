@@ -225,7 +225,7 @@ export function createDailyFlashPdf(data, date) {
     if (!url) return;
     ensureSpace(14);
     doc.fillColor('#1a6b9a').font('Helvetica').fontSize(6)
-      .text('View Source Sheet  ↗', 36, doc.y, { link: url, underline: true, lineBreak: false });
+      .text('View Source Sheet  [open]', 36, doc.y, { link: url, underline: true, lineBreak: false });
     doc.y += 12;
   }
 
