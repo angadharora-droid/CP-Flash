@@ -669,21 +669,88 @@ Please summarize performance, call out concerns, highlight wins, and give 3 acti
   );
 }
 
-function PdfPreviewPage({ date, authToken }) {
-  const url = reportPdfPreviewUrl(date, authToken);
+function PdfPreviewPage({ date, authToken, data, onSave }) {
+  const [pdfKey, setPdfKey] = useState(0);
+  const [frameState, setFrameState] = useState('loading'); // 'loading' | 'ready' | 'error'
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  const previewUrl = reportPdfPreviewUrl(date, authToken);
+  const downloadUrl = reportPdfUrl(date, authToken);
+
+  const handleSaveAndRefresh = async () => {
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onSave();
+      setFrameState('loading');
+      setPdfKey((k) => k + 1);
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <>
-      <PageTitle
-        title="PDF Preview"
-        subtitle={`Daily flash report · ${date}`}
-        badge={null}
-      />
-      <div className="overflow-hidden rounded-xl border border-app-border shadow-sm" style={{ height: 'calc(100vh - 200px)' }}>
+      <PageTitle title="PDF Preview" subtitle={`Daily flash report · ${date}`} badge={null} />
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-app-border bg-white px-5 py-3.5 shadow-sm">
+        <div className="flex items-center gap-2 text-sm text-app-muted">
+          <svg className="size-4 shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          Preview reflects the last <strong className="font-bold text-app-text">saved</strong> state — save first to see latest changes.
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {saveError ? <span className="self-center text-xs font-medium text-red-600">{saveError}</span> : null}
+          <ActionButton onClick={handleSaveAndRefresh} disabled={saving} variant="primary">
+            {saving ? 'Saving…' : 'Save & Refresh'}
+          </ActionButton>
+          <ActionButton onClick={() => window.open(previewUrl, '_blank')}>Open in New Tab</ActionButton>
+          <ActionButton onClick={() => { window.location.href = downloadUrl; }}>Download PDF</ActionButton>
+        </div>
+      </div>
+
+      {/* Frame container */}
+      <div
+        className="relative overflow-hidden rounded-xl border border-app-border shadow-sm"
+        style={{ height: 'calc(100vh - 320px)', minHeight: '480px' }}
+      >
+        {/* Loading overlay */}
+        {frameState === 'loading' && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-white">
+            <div className="size-9 animate-spin rounded-full border-[3px] border-teal-600 border-t-transparent" />
+            <p className="text-sm font-medium text-app-muted">Generating PDF preview…</p>
+          </div>
+        )}
+
+        {/* Error state */}
+        {frameState === 'error' && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-white p-8 text-center">
+            <svg className="size-14 text-slate-300" fill="none" stroke="currentColor" strokeWidth={1.25} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <div>
+              <p className="text-base font-bold text-app-text">Preview unavailable</p>
+              <p className="mt-1 text-sm text-app-muted">Your browser may not support inline PDF display. Use one of the options below.</p>
+            </div>
+            <div className="flex gap-2">
+              <ActionButton onClick={() => window.open(previewUrl, '_blank')} variant="primary">Open in New Tab</ActionButton>
+              <ActionButton onClick={() => { window.location.href = downloadUrl; }}>Download PDF</ActionButton>
+            </div>
+          </div>
+        )}
+
         <iframe
-          key={url}
-          src={url}
-          title="Daily Flash Report"
-          className="h-full w-full"
+          key={`${date}-${pdfKey}`}
+          src={previewUrl}
+          title="Daily Flash Report PDF"
+          className="h-full w-full bg-slate-100"
+          onLoad={() => setFrameState('ready')}
+          onError={() => setFrameState('error')}
         />
       </div>
     </>
@@ -734,7 +801,7 @@ export default function App() {
     if (active === 'mickys') return <GroupedKpiPage title="Micky's Data" subtitle="B2B HORECA lead, order, revenue, and SKU KPIs." dataKey="mickys" data={data} setData={setData} sections={[...new Set((data.mickys ?? []).map((row) => row.section))]} date={date} importedAt={data.importSource?.mickysLeadsImportedAt} sheetUrl={SHEET_URLS.mickysLeads} />;
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
-    if (active === 'pdf') return <PdfPreviewPage date={date} authToken={authToken} />;
+    if (active === 'pdf') return <PdfPreviewPage date={date} authToken={authToken} data={data} onSave={() => saveData(date, data, authToken)} />;
     return <AiPage data={data} authToken={authToken} />;
   }, [active, data, date, authToken]);
 
