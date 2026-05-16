@@ -675,6 +675,12 @@ function PdfPreviewPage({ date, authToken, data, onSave }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
+  useEffect(() => {
+    setFrameState('loading');
+    const timer = setTimeout(() => setFrameState((s) => s === 'loading' ? 'error' : s), 20000);
+    return () => clearTimeout(timer);
+  }, [pdfKey, date]);
+
   const previewUrl = reportPdfPreviewUrl(date, authToken);
   const downloadUrl = reportPdfUrl(date, authToken);
 
