@@ -187,10 +187,7 @@ export function createDailyFlashPdf(data, date) {
         const text = typeof cell === 'object' ? cell.text : cell;
         const fill = typeof cell === 'object' && cell.color ? cell.color : colors.ink;
         const font = typeof cell === 'object' && cell.bold ? 'Helvetica-Bold' : 'Helvetica';
-        const linkUrl = typeof cell === 'object' ? cell.link : null;
-        const textOptions = { width: colWidths[index] - 10, align, lineBreak: false };
-        if (linkUrl) { textOptions.link = linkUrl; textOptions.underline = true; }
-        doc.fillColor(fill).font(font).text(safeText(text), cursor + 6, y + 7, textOptions);
+        doc.fillColor(fill).font(font).text(safeText(text), cursor + 6, y + 7, { width: colWidths[index] - 10, align, lineBreak: false });
         cursor += colWidths[index];
       });
       y += rowHeight;
@@ -223,10 +220,11 @@ export function createDailyFlashPdf(data, date) {
 
   function sheetRef(url) {
     if (!url) return;
-    ensureSpace(14);
+    ensureSpace(16);
+    const y = doc.y;
     doc.fillColor('#1a6b9a').font('Helvetica').fontSize(6)
-      .text('View Source Sheet  [open]', 36, doc.y, { link: url, underline: true, lineBreak: false });
-    doc.y += 12;
+      .text('View Source Sheet', 36, y);
+    doc.y = y + 16;
   }
 
   header();
@@ -354,7 +352,7 @@ export function createDailyFlashPdf(data, date) {
   table(
     ['Source', 'Type', 'Status', 'Last Import / File'],
     sourceStatus.sources.map((source) => [
-      source.sheetUrl ? { text: source.label, link: source.sheetUrl, color: '#1a6b9a' } : source.label,
+      source.sheetUrl ? { text: source.label, color: '#1a6b9a' } : source.label,
       source.type,
       flagCell(source.status === 'Pending' ? 'WATCH' : 'ON TRACK'),
       source.file || source.importedAt || '-'
