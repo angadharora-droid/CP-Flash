@@ -1,4 +1,4 @@
-# Run this script once (as Administrator) to register the daily 8 AM import task.
+# Run this script once (as Administrator) to register the every-10-minute import task.
 # Usage: Right-click PowerShell -> "Run as administrator", then run this script.
 
 $taskName   = "DailyFlash-HotelEmailImport"
@@ -17,13 +17,14 @@ $action = New-ScheduledTaskAction `
     -Argument "/c `"$nodeExe`" `"$scriptPath`" >> `"$logFile`" 2>&1" `
     -WorkingDirectory $scriptDir
 
-# Trigger: every day at 08:00
-$trigger = New-ScheduledTaskTrigger -Daily -At "08:00"
+# Trigger: every 10 minutes, starting now, running indefinitely
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Minutes 10)
 
-# Settings: start if missed (e.g. PC was off at 8 AM), 10 min timeout
+# Settings: 9 min timeout (prevents overlap if a run stalls), skip if already running
 $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
-    -ExecutionTimeLimit (New-TimeSpan -Minutes 10) `
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 9) `
     -MultipleInstances IgnoreNew
 
 # Register (or overwrite) the task under the current user
@@ -32,13 +33,13 @@ Register-ScheduledTask `
     -Action      $action `
     -Trigger     $trigger `
     -Settings    $settings `
-    -Description "Fetch CP Nagpur night audit email and import into DailyFlash" `
+    -Description "Fetch CP DailyFlash email and sheet data every 10 minutes" `
     -RunLevel    Highest `
     -Force | Out-Null
 
 Write-Host ""
 Write-Host "Task '$taskName' registered successfully." -ForegroundColor Green
-Write-Host "  Runs: daily at 08:00 AM"
+Write-Host "  Runs: every 10 minutes"
 Write-Host "  Log:  $logFile"
 Write-Host ""
 Write-Host "To run it right now for testing:"
