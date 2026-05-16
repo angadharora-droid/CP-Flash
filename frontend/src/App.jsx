@@ -199,6 +199,7 @@ function PinGate({ onUnlock }) {
   const [pin, setPin] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -279,9 +280,18 @@ function PinGate({ onUnlock }) {
               autoFocus
               inputMode="numeric"
               type="password"
+              autoComplete="new-password"
               value={pin}
               onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
-              className="w-full rounded-xl border border-white/10 bg-white/8 px-4 py-3.5 text-center text-2xl font-bold tracking-[0.4em] text-white outline-none placeholder-white/20 transition-all duration-200 focus:border-teal-500/50 focus:bg-white/12 focus:ring-2 focus:ring-teal-500/20"
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              className="w-full rounded-xl border px-4 py-3.5 text-center text-2xl font-bold tracking-[0.4em] text-white outline-none placeholder-white/20 transition-all duration-200"
+              style={{
+                colorScheme: 'dark',
+                backgroundColor: focused ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.07)',
+                borderColor: focused ? 'rgba(20,184,166,0.5)' : 'rgba(255,255,255,0.1)',
+                boxShadow: focused ? '0 0 0 2px rgba(20,184,166,0.2)' : 'none',
+              }}
               placeholder="••••••"
             />
 
