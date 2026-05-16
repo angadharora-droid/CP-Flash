@@ -8,7 +8,8 @@ export const dailySources = [
     type: 'Google Sheet',
     paths: ['bankPosition'],
     meta: { importedAt: 'bankPositionImportedAt' },
-    cadence: 'Daily'
+    cadence: 'Daily',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf/'
   },
   {
     id: 'cpn-ids-night-audit',
@@ -35,7 +36,8 @@ export const dailySources = [
     type: 'Excel / Sheet',
     paths: ['fnb', 'pnl'],
     meta: { file: 'pabloCostFile', importedAt: 'pabloCostImportedAt', notes: 'pabloCostNotes' },
-    cadence: 'Daily'
+    cadence: 'Daily',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1SliCSYQIhRekgYy-6YN0nn5nFtlZQooH/'
   },
   {
     id: 'dali-cost',
@@ -44,7 +46,8 @@ export const dailySources = [
     type: 'Excel / Sheet',
     paths: ['fnb', 'pnl'],
     meta: { file: 'daliCostFile', importedAt: 'daliCostImportedAt', notes: 'daliCostNotes' },
-    cadence: 'Daily'
+    cadence: 'Daily',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1cgU6utD59v57HwlunQtSBCsVfpiMwX7F/'
   },
   {
     id: 'fnb-sales',
@@ -78,7 +81,8 @@ export const dailySources = [
     type: 'Google Sheet',
     paths: ['mickys'],
     meta: { file: 'mickysLeadsFile', importedAt: 'mickysLeadsImportedAt' },
-    cadence: 'Daily'
+    cadence: 'Daily',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1jvnmwP4AaNQW54E3QVlzR9ZMj589HXZugJfhBOye_gs/'
   },
   {
     id: 'purosoul-production',

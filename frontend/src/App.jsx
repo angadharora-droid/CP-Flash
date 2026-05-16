@@ -12,6 +12,13 @@ const d = new Date(); d.setDate(d.getDate() - 1);
 const today = d.toISOString().slice(0, 10);
 const APP_BASE_PATH = '/flashreport';
 
+const SHEET_URLS = {
+  bankPosition: 'https://docs.google.com/spreadsheets/d/1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf/',
+  pabloCost: 'https://docs.google.com/spreadsheets/d/1SliCSYQIhRekgYy-6YN0nn5nFtlZQooH/',
+  daliCost: 'https://docs.google.com/spreadsheets/d/1cgU6utD59v57HwlunQtSBCsVfpiMwX7F/',
+  mickysLeads: 'https://docs.google.com/spreadsheets/d/1jvnmwP4AaNQW54E3QVlzR9ZMj589HXZugJfhBOye_gs/'
+};
+
 const pages = [
   ['sources', '00', 'Source Control'],
   ['bank', '01', 'Bank Position'],
@@ -137,6 +144,23 @@ function KpiTable({ rows }) {
   );
 }
 
+function SheetLink({ url, label = 'View Source Sheet' }) {
+  if (!url) return null;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-app-border bg-white px-3 py-2 text-xs font-bold text-app-text shadow-sm transition hover:border-app-borderStrong hover:bg-slate-50 whitespace-nowrap"
+    >
+      <svg className="size-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+      </svg>
+      {label}
+    </a>
+  );
+}
+
 function ActionButton({ children, onClick, type = 'button', variant = 'secondary', disabled = false, className = '' }) {
   const cls = variant === 'primary'
     ? 'border-teal-700 bg-teal-600 text-white shadow-sm hover:bg-teal-700'
@@ -240,6 +264,9 @@ function BankPage({ data, date }) {
   return (
     <>
       <PageTitle title="Bank Position" subtitle="Daily account-wise cash visibility." badge={badge} />
+      <div className="flex justify-end">
+        <SheetLink url={SHEET_URLS.bankPosition} />
+      </div>
       <DataTable
         columns={['Unit / Account', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheque Total Amount', 'Cheques in Hand', 'Net Balance Available']}
         rows={rows.map((row) => ({
@@ -414,6 +441,7 @@ function SourceControlPage({ date, authToken }) {
               <div className="max-w-xl">
                 <div className="font-medium text-app-text">{source.file || '-'}</div>
                 {source.notes ? <div className="mt-1 text-xs leading-5 text-app-muted">{source.notes}</div> : null}
+                {source.sheetUrl ? <div className="mt-2"><SheetLink url={source.sheetUrl} label="Open Sheet" /></div> : null}
               </div>
             ]
           }))}
@@ -423,12 +451,13 @@ function SourceControlPage({ date, authToken }) {
   );
 }
 
-function GroupedKpiPage({ title, subtitle, dataKey, data, sections, date, importedAt }) {
+function GroupedKpiPage({ title, subtitle, dataKey, data, sections, date, importedAt, sheetUrl }) {
   const rows = data[dataKey] ?? [];
   const badge = getFreshness(importedAt ?? null, hasKpiData(rows), date);
   return (
     <>
       <PageTitle title={title} subtitle={subtitle} badge={badge} />
+      {sheetUrl && <div className="flex justify-end"><SheetLink url={sheetUrl} /></div>}
       {sections.map((section) => <SectionCard key={section} title={section}><KpiTable rows={rows.filter((row) => row.section === section)} /></SectionCard>)}
     </>
   );
@@ -482,6 +511,7 @@ function FnbPage({ data, date }) {
   const [tab, setTab] = useState('Pablo');
   const rows = data.fnb?.[tab] ?? [];
   const sections = [...new Set(rows.map((row) => row.section))];
+  const fnbSheetUrl = tab === 'Pablo' ? SHEET_URLS.pabloCost : SHEET_URLS.daliCost;
   return (
     <>
       <PageTitle title="F&B Outlet Data" subtitle="Pablo and Dali sales, cost, AOP, and top items." />
@@ -498,6 +528,9 @@ function FnbPage({ data, date }) {
           )
         }))}
       />
+      <div className="flex justify-end">
+        <SheetLink url={fnbSheetUrl} label={`View ${tab} Cost Sheet`} />
+      </div>
       {sections.map((section) => <SectionCard key={section} title={`${tab}: ${section}`}><KpiTable rows={rows.filter((row) => row.section === section)} /></SectionCard>)}
       <SectionCard title={`${tab}: Top 3 Items`}>
         <div className="grid gap-3 md:grid-cols-3">
@@ -698,7 +731,7 @@ export default function App() {
     if (active === 'hotels') return <HotelsPage {...common} />;
     if (active === 'fnb') return <FnbPage {...common} />;
     if (active === 'rabbits') return <GroupedKpiPage title="Rabbits Data" subtitle="Cloud kitchen sales, platform split, category, and cost KPIs." dataKey="rabbits" data={data} setData={setData} sections={[...new Set((data.rabbits ?? []).map((row) => row.section))]} date={date} />;
-    if (active === 'mickys') return <GroupedKpiPage title="Micky's Data" subtitle="B2B HORECA lead, order, revenue, and SKU KPIs." dataKey="mickys" data={data} setData={setData} sections={[...new Set((data.mickys ?? []).map((row) => row.section))]} date={date} importedAt={data.importSource?.mickysLeadsImportedAt} />;
+    if (active === 'mickys') return <GroupedKpiPage title="Micky's Data" subtitle="B2B HORECA lead, order, revenue, and SKU KPIs." dataKey="mickys" data={data} setData={setData} sections={[...new Set((data.mickys ?? []).map((row) => row.section))]} date={date} importedAt={data.importSource?.mickysLeadsImportedAt} sheetUrl={SHEET_URLS.mickysLeads} />;
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
     if (active === 'pdf') return <PdfPreviewPage date={date} authToken={authToken} />;
