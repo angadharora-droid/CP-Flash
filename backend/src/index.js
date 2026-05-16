@@ -173,8 +173,9 @@ app.get('/api/report.pdf', wrap(async (req, res) => {
   const data = { ...seed, ...(saved ?? {}) };
   const filename = `cp-daily-flash-${date}.pdf`;
 
+  const disposition = req.query.inline ? 'inline' : 'attachment';
   res.setHeader('content-type', 'application/pdf');
-  res.setHeader('content-disposition', `attachment; filename="${filename}"`);
+  res.setHeader('content-disposition', `${disposition}; filename="${filename}"`);
   const doc = createDailyFlashPdf(data, date);
   doc.pipe(res);
   doc.end();

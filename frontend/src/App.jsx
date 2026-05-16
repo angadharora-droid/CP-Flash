@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { generateAiNotes, getSeed, getSourceStatus, loginWithPin, reportPdfUrl, saveData } from './lib/api';
+import { generateAiNotes, getSeed, getSourceStatus, loginWithPin, reportPdfPreviewUrl, reportPdfUrl, saveData } from './lib/api';
 import { groupRevenue, money, numberValue, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from './lib/calculations';
 import DataTable from './components/DataTable';
 import FlagBadge from './components/FlagBadge';
@@ -23,7 +23,8 @@ const pages = [
   ['mickys', '07', "Micky's"],
   ['purosoul', '08', 'Purosoul'],
   ['settlement', '09', 'Settlement'],
-  ['ai', '10', 'AI Notes']
+  ['ai', '10', 'AI Notes'],
+  ['pdf', '11', 'PDF Preview']
 ];
 
 const NAV_GROUPS = [
@@ -51,6 +52,7 @@ const NAV_GROUPS = [
     items: [
       { key: 'settlement', label: 'Settlement', icon: <><path strokeLinecap="round" strokeLinejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185z" /></> },
       { key: 'ai',         label: 'AI Notes',   icon: <><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" /></> },
+      { key: 'pdf',        label: 'PDF Preview', icon: <><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></> },
     ]
   }
 ];
@@ -634,6 +636,27 @@ Please summarize performance, call out concerns, highlight wins, and give 3 acti
   );
 }
 
+function PdfPreviewPage({ date, authToken }) {
+  const url = reportPdfPreviewUrl(date, authToken);
+  return (
+    <>
+      <PageTitle
+        title="PDF Preview"
+        subtitle={`Daily flash report · ${date}`}
+        badge={null}
+      />
+      <div className="overflow-hidden rounded-xl border border-app-border shadow-sm" style={{ height: 'calc(100vh - 200px)' }}>
+        <iframe
+          key={url}
+          src={url}
+          title="Daily Flash Report"
+          className="h-full w-full"
+        />
+      </div>
+    </>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState('sources');
   const [date, setDate] = useState(today);
@@ -678,6 +701,7 @@ export default function App() {
     if (active === 'mickys') return <GroupedKpiPage title="Micky's Data" subtitle="B2B HORECA lead, order, revenue, and SKU KPIs." dataKey="mickys" data={data} setData={setData} sections={[...new Set((data.mickys ?? []).map((row) => row.section))]} date={date} importedAt={data.importSource?.mickysLeadsImportedAt} />;
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
+    if (active === 'pdf') return <PdfPreviewPage date={date} authToken={authToken} />;
     return <AiPage data={data} authToken={authToken} />;
   }, [active, data, date, authToken]);
 
@@ -785,7 +809,8 @@ export default function App() {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <ActionButton onClick={() => setActive('ai')} disabled={!data}>AI Report</ActionButton>
-              <ActionButton onClick={exportPdf} disabled={!data} variant="primary">Export PDF</ActionButton>
+              <ActionButton onClick={() => setActive('pdf')} disabled={!data} variant="primary">Preview PDF</ActionButton>
+              <ActionButton onClick={exportPdf} disabled={!data}>Download PDF</ActionButton>
               <ActionButton onClick={lockApp}>Lock</ActionButton>
             </div>
           </div>
