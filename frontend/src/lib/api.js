@@ -53,3 +53,9 @@ export function reportPdfUrl(date, token) {
   if (token) params.set('token', token);
   return `${API_BASE}/api/report.pdf?${params.toString()}`;
 }
+
+export function reportPdfPreviewUrl(date, token) {
+  const params = new URLSearchParams({ date, inline: '1' });
+  if (token) params.set('token', token);
+  return `${API_BASE}/api/report.pdf?${params.toString()}`;
+}
