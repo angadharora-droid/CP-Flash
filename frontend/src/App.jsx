@@ -669,11 +669,12 @@ Please summarize performance, call out concerns, highlight wins, and give 3 acti
   );
 }
 
-function PdfPreviewPage({ date, authToken, data, onSave }) {
+function PdfPreviewPage({ date, authToken, onSave }) {
   const [pdfKey, setPdfKey] = useState(0);
-  const [frameState, setFrameState] = useState('loading'); // 'loading' | 'ready' | 'error'
+  const [frameState, setFrameState] = useState('loading');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [lastRefreshed, setLastRefreshed] = useState('');
 
   useEffect(() => {
     setFrameState('loading');
@@ -682,7 +683,9 @@ function PdfPreviewPage({ date, authToken, data, onSave }) {
   }, [pdfKey, date]);
 
   const previewUrl = reportPdfPreviewUrl(date, authToken);
+  const appPreviewUrl = `${previewUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`;
   const downloadUrl = reportPdfUrl(date, authToken);
+  const previewStatus = frameState === 'ready' ? 'Ready' : frameState === 'error' ? 'Needs attention' : 'Loading';
 
   const handleSaveAndRefresh = async () => {
     setSaving(true);
@@ -691,6 +694,7 @@ function PdfPreviewPage({ date, authToken, data, onSave }) {
       await onSave();
       setFrameState('loading');
       setPdfKey((k) => k + 1);
+      setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
     } catch (err) {
       setSaveError(err.message);
     } finally {
@@ -700,64 +704,82 @@ function PdfPreviewPage({ date, authToken, data, onSave }) {
 
   return (
     <>
-      <PageTitle title="PDF Preview" subtitle={`Daily flash report · ${date}`} badge={null} />
+      <PageTitle title="PDF Preview" subtitle={`Daily flash report - ${date}`} badge={null} />
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-app-border bg-white px-5 py-3.5 shadow-sm">
-        <div className="flex items-center gap-2 text-sm text-app-muted">
+      <div className="overflow-hidden rounded-xl border border-app-border bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border bg-slate-50 px-4 py-3 lg:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-sm">
+              <svg className="size-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 12h3m-3 3h1.5m-6.375-15h4.5a9 9 0 019 9v9.375c0 .621-.504 1.125-1.125 1.125H5.625A1.125 1.125 0 014.5 20.625V3.375c0-.621.504-1.125 1.125-1.125z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="truncate text-sm font-bold text-app-text sm:text-base">Report preview</h2>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${frameState === 'ready' ? 'bg-emerald-50 text-emerald-700' : frameState === 'error' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                  {previewStatus}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-app-muted">
+                Save to refresh the in-app copy{lastRefreshed ? ` - refreshed ${lastRefreshed}` : ''}.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {saveError ? <span className="max-w-72 truncate text-xs font-medium text-red-600">{saveError}</span> : null}
+            <ActionButton onClick={handleSaveAndRefresh} disabled={saving} variant="primary">
+              {saving ? 'Saving...' : 'Save & Refresh'}
+            </ActionButton>
+            <ActionButton onClick={() => { window.location.href = downloadUrl; }}>Download PDF</ActionButton>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 border-b border-app-border bg-white px-4 py-2.5 text-xs text-app-muted lg:px-5">
           <svg className="size-4 shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3h.007M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
           </svg>
-          Preview reflects the last <strong className="font-bold text-app-text">saved</strong> state — save first to see latest changes.
+          <span>Preview reflects the last saved state. Unsaved edits will appear after refresh.</span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {saveError ? <span className="self-center text-xs font-medium text-red-600">{saveError}</span> : null}
-          <ActionButton onClick={handleSaveAndRefresh} disabled={saving} variant="primary">
-            {saving ? 'Saving…' : 'Save & Refresh'}
-          </ActionButton>
-          <ActionButton onClick={() => window.open(previewUrl, '_blank')}>Open in New Tab</ActionButton>
-          <ActionButton onClick={() => { window.location.href = downloadUrl; }}>Download PDF</ActionButton>
+
+        <div className="bg-slate-200/70 p-3 sm:p-4">
+          <div
+            className="relative mx-auto overflow-hidden rounded-lg border border-slate-300 bg-white shadow-card"
+            style={{ height: 'calc(100vh - 315px)', minHeight: '560px', maxWidth: '1180px' }}
+          >
+            {frameState === 'loading' && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-white">
+                <div className="size-9 animate-spin rounded-full border-[3px] border-teal-600 border-t-transparent" />
+                <p className="text-sm font-medium text-app-muted">Preparing in-app preview...</p>
+              </div>
+            )}
+
+            {frameState === 'error' && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-white p-8 text-center">
+                <svg className="size-14 text-slate-300" fill="none" stroke="currentColor" strokeWidth={1.25} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                <div>
+                  <p className="text-base font-bold text-app-text">Preview unavailable in this browser</p>
+                  <p className="mt-1 text-sm text-app-muted">The report is still ready to download.</p>
+                </div>
+                <div className="flex gap-2">
+                  <ActionButton onClick={handleSaveAndRefresh} disabled={saving} variant="primary">Try Again</ActionButton>
+                  <ActionButton onClick={() => { window.location.href = downloadUrl; }}>Download PDF</ActionButton>
+                </div>
+              </div>
+            )}
+
+            <iframe
+              key={`${date}-${pdfKey}`}
+              src={appPreviewUrl}
+              title="Daily Flash Report PDF"
+              className="h-full w-full bg-slate-100"
+              onLoad={() => setFrameState('ready')}
+              onError={() => setFrameState('error')}
+            />
+          </div>
         </div>
-      </div>
-
-      {/* Frame container */}
-      <div
-        className="relative overflow-hidden rounded-xl border border-app-border shadow-sm"
-        style={{ height: 'calc(100vh - 320px)', minHeight: '480px' }}
-      >
-        {/* Loading overlay */}
-        {frameState === 'loading' && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-white">
-            <div className="size-9 animate-spin rounded-full border-[3px] border-teal-600 border-t-transparent" />
-            <p className="text-sm font-medium text-app-muted">Generating PDF preview…</p>
-          </div>
-        )}
-
-        {/* Error state */}
-        {frameState === 'error' && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-white p-8 text-center">
-            <svg className="size-14 text-slate-300" fill="none" stroke="currentColor" strokeWidth={1.25} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-            </svg>
-            <div>
-              <p className="text-base font-bold text-app-text">Preview unavailable</p>
-              <p className="mt-1 text-sm text-app-muted">Your browser may not support inline PDF display. Use one of the options below.</p>
-            </div>
-            <div className="flex gap-2">
-              <ActionButton onClick={() => window.open(previewUrl, '_blank')} variant="primary">Open in New Tab</ActionButton>
-              <ActionButton onClick={() => { window.location.href = downloadUrl; }}>Download PDF</ActionButton>
-            </div>
-          </div>
-        )}
-
-        <iframe
-          key={`${date}-${pdfKey}`}
-          src={previewUrl}
-          title="Daily Flash Report PDF"
-          className="h-full w-full bg-slate-100"
-          onLoad={() => setFrameState('ready')}
-          onError={() => setFrameState('error')}
-        />
       </div>
     </>
   );
@@ -807,7 +829,7 @@ export default function App() {
     if (active === 'mickys') return <GroupedKpiPage title="Micky's Data" subtitle="B2B HORECA lead, order, revenue, and SKU KPIs." dataKey="mickys" data={data} setData={setData} sections={[...new Set((data.mickys ?? []).map((row) => row.section))]} date={date} importedAt={data.importSource?.mickysLeadsImportedAt} sheetUrl={SHEET_URLS.mickysLeads} />;
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
-    if (active === 'pdf') return <PdfPreviewPage date={date} authToken={authToken} data={data} onSave={() => saveData(date, data, authToken)} />;
+    if (active === 'pdf') return <PdfPreviewPage date={date} authToken={authToken} onSave={() => saveData(date, data, authToken)} />;
     return <AiPage data={data} authToken={authToken} />;
   }, [active, data, date, authToken]);
 
