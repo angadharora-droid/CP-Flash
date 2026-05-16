@@ -2,9 +2,13 @@ import 'dotenv/config';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import { MongoClient } from 'mongodb';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
@@ -219,5 +223,30 @@ app.listen(port, () => {
     setInterval(() => {
       fetch(`${selfUrl}/health`).catch(() => {});
     }, 14 * 60 * 1000);
+  }
+
+  // Hosted import scheduler — runs fetchEmailReport.js every 10 minutes on Render.
+  // Enable by setting ENABLE_CLOUD_IMPORT=true in Render environment variables.
+  // Also requires: REPORT_EMAIL_PASSWORD, REPORT_EMAIL, REPORT_IMAP_HOST on Render.
+  if (process.env.ENABLE_CLOUD_IMPORT === 'true') {
+    const importScript = path.join(__dirname, 'fetchEmailReport.js');
+    const backendDir = path.resolve(__dirname, '..');
+
+    const runImport = () => {
+      console.log(`[${new Date().toISOString()}] Running scheduled import…`);
+      const child = spawn(process.execPath, [importScript], {
+        env: process.env,
+        cwd: backendDir,
+        stdio: 'inherit'
+      });
+      child.on('exit', (code) => {
+        console.log(`[${new Date().toISOString()}] Import finished (exit ${code ?? 0})`);
+      });
+    };
+
+    // First run 90 seconds after startup (let the server fully boot), then every 10 minutes.
+    setTimeout(runImport, 90_000);
+    setInterval(runImport, 10 * 60 * 1000);
+    console.log('Hosted import scheduler enabled — runs every 10 minutes.');
   }
 });
