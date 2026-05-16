@@ -81,6 +81,7 @@ async function saveAttachment(attachment, label, date) {
 const HANDLERS = [
   {
     name: 'Night Audit (CP Nagpur)',
+    importSourceKey: 'importedAt',
     matches: (s) => subjectContains(s, 'night audit report', 'nagpur'),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
@@ -92,6 +93,7 @@ const HANDLERS = [
   },
   {
     name: 'Occupancy Analysis (CP Nagpur)',
+    importSourceKey: 'occupancyImportedAt',
     // actual subject has typo: "Occupency"
     matches: (s) => (subjectContains(s, 'occupancy analysis') || subjectContains(s, 'occupency analysis')) && subjectContains(s, 'nagpur'),
     run: async (parsed, date) => {
@@ -104,16 +106,19 @@ const HANDLERS = [
   },
   {
     name: 'Petpooja Billing – Pablo',
+    importSourceKey: 'pabloPetpoojaImportedAt',
     matches: (s) => subjectContains(s, 'report notification') && subjectContains(s, 'pablo') && !subjectContains(s, 'payment wise'),
     run: async (parsed, date) => importPetpoojaReport(parsed.html || '', 'Pablo', date)
   },
   {
     name: 'Petpooja Billing – Dali',
+    importSourceKey: 'daliPetpoojaImportedAt',
     matches: (s) => subjectContains(s, 'report notification') && subjectContains(s, 'dali') && !subjectContains(s, 'payment wise'),
     run: async (parsed, date) => importPetpoojaReport(parsed.html || '', 'Dali', date)
   },
   {
     name: 'Petpooja Payment Summary – Pablo',
+    importSourceKey: 'pabloPaymentImportedAt',
     matches: (s) => subjectContains(s, 'payment wise summary') && subjectContains(s, 'pablo'),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
@@ -125,6 +130,7 @@ const HANDLERS = [
   },
   {
     name: 'Petpooja Payment Summary – Dali',
+    importSourceKey: 'daliPaymentImportedAt',
     matches: (s) => subjectContains(s, 'payment wise summary') && subjectContains(s, 'dali'),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
@@ -136,6 +142,7 @@ const HANDLERS = [
   },
   {
     name: 'Purosoul Daily Sales Report',
+    importSourceKey: 'purosoulSalesImportedAt',
     matches: (s) => subjectContains(s, 'centre point foods') && subjectContains(s, 'daily sales report'),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
@@ -147,6 +154,7 @@ const HANDLERS = [
   },
   {
     name: "Micky's Daily Sales Report",
+    importSourceKey: 'mickysSalesImportedAt',
     matches: (s) => subjectContains(s, 'amarjit fiscal') && subjectContains(s, 'daily sales report'),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
@@ -158,7 +166,7 @@ const HANDLERS = [
   }
 ];
 
-async function processMessage(msg, date) {
+async function processMessage(msg, date, existingData) {
   const parsed = await simpleParser(msg.source);
   const subject = parsed.subject || '';
   log(`Processing: "${subject}"`);
@@ -170,6 +178,12 @@ async function processMessage(msg, date) {
   }
 
   log(`  → Handler: ${handler.name}`);
+
+  if (handler.importSourceKey && existingData?.importSource?.[handler.importSourceKey]) {
+    log(`  Already imported today — skipping.`);
+    return;
+  }
+
   try {
     const result = await handler.run(parsed, date);
     if (!result?.pending) {
@@ -194,6 +208,17 @@ async function run() {
     logger: false
   });
 
+  const date = yesterday();
+
+  // Load existing data once — used to skip sources already imported this run
+  const dataPath = path.resolve(__dirname, '..', 'data', `${date}.json`);
+  let existingData = null;
+  try {
+    existingData = JSON.parse(await fs.readFile(dataPath, 'utf8'));
+  } catch {
+    existingData = null;
+  }
+
   log(`Connecting to ${IMAP_HOST}:${IMAP_PORT} as ${EMAIL_USER}`);
   await client.connect();
   const lock = await client.getMailboxLock('INBOX');
@@ -208,13 +233,11 @@ async function run() {
 
     if (!seqs.length) {
       log('No emails in the period — nothing to import.');
-      return;
-    }
-
-    const date = yesterday();
-    for (const seq of seqs) {
-      const msg = await client.fetchOne(String(seq), { source: true });
-      await processMessage(msg, date);
+    } else {
+      for (const seq of seqs) {
+        const msg = await client.fetchOne(String(seq), { source: true });
+        await processMessage(msg, date, existingData);
+      }
     }
 
     log('All emails processed.');
@@ -225,43 +248,59 @@ async function run() {
   }
 
   // Fetch bank positions from Google Sheets (independent of email)
-  log('Fetching bank positions from Google Sheets…');
-  try {
-    const bankResult = await importBankPosition(yesterday());
-    log(`Bank positions imported: ${bankResult.mapped.map((row) => `${row.unit}/${row.account}: ${Math.round(Number(row.netBalance) || 0)}`).join(', ')}`);
-  } catch (err) {
-    log(`Bank position ERROR: ${err.message}`);
+  if (existingData?.importSource?.bankPositionImportedAt) {
+    log('Bank positions already imported today — skipping.');
+  } else {
+    log('Fetching bank positions from Google Sheets…');
+    try {
+      const bankResult = await importBankPosition(date);
+      log(`Bank positions imported: ${bankResult.mapped.map((row) => `${row.unit}/${row.account}: ${Math.round(Number(row.netBalance) || 0)}`).join(', ')}`);
+    } catch (err) {
+      log(`Bank position ERROR: ${err.message}`);
+    }
   }
 
   // Fetch Dali food + liquor cost from Google Sheet
-  log('Fetching Dali cost sheet from Google Sheets…');
-  try {
-    const daliResult = await importDaliCostHistory();
-    log(`Dali cost imported: ${daliResult.rowCount} rows → ${daliResult.written.join(', ')}`);
-  } catch (err) {
-    log(`Dali cost ERROR: ${err.message}`);
+  if (existingData?.importSource?.daliCostImportedAt) {
+    log('Dali cost already imported today — skipping.');
+  } else {
+    log('Fetching Dali cost sheet from Google Sheets…');
+    try {
+      const daliResult = await importDaliCostHistory();
+      log(`Dali cost imported: ${daliResult.rowCount} rows → ${daliResult.written.join(', ')}`);
+    } catch (err) {
+      log(`Dali cost ERROR: ${err.message}`);
+    }
   }
 
   // Fetch Pablo food + liquor cost from Google Sheet
-  log('Fetching Pablo cost sheet from Google Sheets…');
-  try {
-    const pabloResult = await importPabloCostHistory();
-    log(`Pablo cost imported: ${pabloResult.rowCount} rows → ${pabloResult.written.join(', ')}`);
-  } catch (err) {
-    log(`Pablo cost ERROR: ${err.message}`);
+  if (existingData?.importSource?.pabloCostImportedAt) {
+    log('Pablo cost already imported today — skipping.');
+  } else {
+    log('Fetching Pablo cost sheet from Google Sheets…');
+    try {
+      const pabloResult = await importPabloCostHistory();
+      log(`Pablo cost imported: ${pabloResult.rowCount} rows → ${pabloResult.written.join(', ')}`);
+    } catch (err) {
+      log(`Pablo cost ERROR: ${err.message}`);
+    }
   }
 
   // Fetch Micky's leads pipeline from Google Sheet
-  log("Fetching Micky's leads pipeline from Google Sheets…");
-  try {
-    const leadsResult = await importMickysLeads(yesterday());
-    log(`Micky's leads imported: ${leadsResult.total} total, ${leadsResult.active} active, ${leadsResult.converted} converted`);
-  } catch (err) {
-    log(`Micky's leads ERROR: ${err.message}`);
+  if (existingData?.importSource?.mickysLeadsImportedAt) {
+    log("Micky's leads already imported today — skipping.");
+  } else {
+    log("Fetching Micky's leads pipeline from Google Sheets…");
+    try {
+      const leadsResult = await importMickysLeads(date);
+      log(`Micky's leads imported: ${leadsResult.total} total, ${leadsResult.active} active, ${leadsResult.converted} converted`);
+    } catch (err) {
+      log(`Micky's leads ERROR: ${err.message}`);
+    }
   }
 
   // Push processed data to cloud backend
-  await syncToCloud(yesterday());
+  await syncToCloud(date);
 }
 
 async function syncToCloud(date) {
