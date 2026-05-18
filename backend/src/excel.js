@@ -34,6 +34,9 @@ export function buildSeedData() {
     bankPosition: [
       { unit: 'CP Nagpur', account: 'HDFC Wardha', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
       { unit: 'CP Nagpur', account: 'HDFC Dhantoli', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
+      { unit: 'CP Nagpur', account: 'IDBI BANK C AC 742', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
+      { unit: 'CP Nagpur', account: 'HAPL YES BANK', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
+      { unit: 'CP NM', account: 'VIJAN MOTORS SERVICE PVT. LTD.', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
       { unit: 'Pablo', account: 'UFO HDFC', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
       { unit: 'Dali', account: 'DALI SCB', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
       { unit: "Micky's", account: 'C P FOODS 36961', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },

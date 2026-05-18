@@ -9,6 +9,9 @@ const SHEET_ID = '1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf';
 const OUTLET_ACCOUNTS = [
   { unit: 'CP Nagpur', account: 'HDFC Wardha', gid: 1969859912, cells: { actualBalance: 'F5', fdTotal: 'J20', chequesIssued: 'G19', chequeTotalAmount: 'E19', netBalance: 'G28' } },
   { unit: 'CP Nagpur', account: 'HDFC Dhantoli', gid: 556642800, cells: { actualBalance: 'E5', fdTotal: 'J16', chequesIssued: 'F16', chequeTotalAmount: 'E16', netBalance: 'F24' } },
+  { unit: 'CP Nagpur', account: 'IDBI BANK C AC 742', gid: 1919634794, cells: { actualBalance: 'F5', chequesIssued: 'G20', chequeTotalAmount: 'E20', netBalance: 'G22' } },
+  { unit: 'CP Nagpur', account: 'HAPL YES BANK', gid: 1771716053, cells: { actualBalance: 'F5', chequesIssued: 'G17', chequeTotalAmount: 'E17', netBalance: 'G26' } },
+  { unit: 'CP NM', account: 'VIJAN MOTORS SERVICE PVT. LTD.', gid: 1599252269, cells: { actualBalance: 'C4', chequesIssued: 'D9', chequeTotalAmount: 'C9', netBalance: 'D17' } },
   { unit: 'Pablo', account: 'UFO HDFC', gid: 543029293, cells: { actualBalance: 'C5', chequesIssued: 'D20', chequeTotalAmount: 'C20', netBalance: 'D27' } },
   { unit: 'Dali', account: 'DALI SCB', gid: 366389011, cells: { actualBalance: 'C5', chequesIssued: 'D22', chequeTotalAmount: 'C22', netBalance: 'D30' } },
   { unit: "Micky's", account: 'C P FOODS 36961', gid: 1945926804, cells: { actualBalance: 'C5', chequesIssued: 'D13', chequeTotalAmount: 'C13', netBalance: 'D17' } },
