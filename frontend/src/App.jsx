@@ -899,25 +899,41 @@ export default function App() {
   const [date, setDate] = useState(today);
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('Loading...');
+  const [refreshing, setRefreshing] = useState(false);
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('dailyflashToken') || '');
 
+  const loadData = React.useCallback(async (currentDate, token, silent = false) => {
+    if (!token) return;
+    if (!silent) { setData(null); setStatus('Loading...'); }
+    setRefreshing(true);
+    try {
+      const { seed, saved } = await getSeed(currentDate, token);
+      setData({ ...seed, ...(saved ?? {}) });
+      setStatus(saved ? `Loaded saved data for ${currentDate}` : `Loaded seed data for ${currentDate}`);
+    } catch (err) {
+      if (/PIN|Unauthorized|Unable to load seed data/i.test(err.message)) {
+        localStorage.removeItem('dailyflashToken');
+        setAuthToken('');
+      }
+      setStatus(err.message);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!authToken) return;
-    setData(null);
-    setStatus('Loading...');
-    getSeed(date, authToken)
-      .then(({ seed, saved }) => {
-        setData({ ...seed, ...(saved ?? {}) });
-        setStatus(saved ? `Loaded saved data for ${date}` : `Loaded seed data for ${date}`);
-      })
-      .catch((err) => {
-        if (/PIN|Unauthorized|Unable to load seed data/i.test(err.message)) {
-          localStorage.removeItem('dailyflashToken');
-          setAuthToken('');
-        }
-        setStatus(err.message);
-      });
+    loadData(date, authToken);
   }, [date, authToken]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && authToken) {
+        loadData(date, authToken, true);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [date, authToken, loadData]);
 
   const page = useMemo(() => {
     if (!data) return null;
@@ -1055,6 +1071,9 @@ export default function App() {
             </div>
             {/* Right: actions */}
             <div className="flex shrink-0 items-center gap-1.5">
+              <ActionButton onClick={() => loadData(date, authToken)} disabled={refreshing || !authToken}>
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </ActionButton>
               <ActionButton onClick={() => setActive('ai')} disabled={!data}>AI Report</ActionButton>
               <ActionButton onClick={exportPdf} disabled={!data}>Export PDF</ActionButton>
               <ActionButton onClick={() => setActive('pdf')} disabled={!data} variant="primary">Preview PDF</ActionButton>
