@@ -1239,7 +1239,7 @@ Please summarize performance, call out concerns, highlight wins, and give 3 acti
   );
 }
 
-function PdfPreviewPage({ date, authToken, onSave }) {
+function PdfPreviewPage({ date, authToken, onSave, onClose }) {
   const [pdfKey, setPdfKey] = useState(0);
   const [frameState, setFrameState] = useState('loading');
   const [saving, setSaving] = useState(false);
@@ -1302,6 +1302,7 @@ function PdfPreviewPage({ date, authToken, onSave }) {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {saveError ? <span className="max-w-72 truncate text-xs font-medium text-red-600">{saveError}</span> : null}
+              <ActionButton onClick={onClose}>Close</ActionButton>
               <ActionButton onClick={handleSaveAndRefresh} disabled={saving} variant="primary">
                 {saving ? 'Saving...' : 'Save & Refresh'}
               </ActionButton>
@@ -1317,7 +1318,7 @@ function PdfPreviewPage({ date, authToken, onSave }) {
           </div>
 
           <div className="min-h-0 flex-1 overflow-hidden bg-slate-200/70 p-3 sm:p-4">
-            <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[1180px] overflow-hidden rounded-lg border border-slate-300 bg-white shadow-card">
+            <div className="relative flex h-full min-h-0 w-full overflow-hidden rounded-lg border border-slate-300 bg-white shadow-card">
               {frameState === 'loading' && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-white">
                   <div className="size-9 animate-spin rounded-full border-[3px] border-teal-600 border-t-transparent" />
@@ -1369,6 +1370,7 @@ export default function App() {
   const [sourceReportPreview, setSourceReportPreview] = useState(null);
   const [sourceReportPreviewLoading, setSourceReportPreviewLoading] = useState(false);
   const [sourceReportPreviewError, setSourceReportPreviewError] = useState('');
+  const [pdfReturnTo, setPdfReturnTo] = useState('sources');
   const loadRequestRef = React.useRef(0);
   const loadedDateRef = React.useRef('');
 
@@ -1528,7 +1530,14 @@ export default function App() {
   }
 
   if (active === 'pdf') {
-    return <PdfPreviewPage date={date} authToken={authToken} onSave={() => saveData(date, data, authToken)} />;
+    return (
+      <PdfPreviewPage
+        date={date}
+        authToken={authToken}
+        onSave={() => saveData(date, data, authToken)}
+        onClose={() => setActive(pdfReturnTo)}
+      />
+    );
   }
 
   const renderSidebar = (collapsed, { onItemClick, asDrawer = false } = {}) => (
@@ -1731,7 +1740,7 @@ export default function App() {
             </div>
             {/* Right: actions */}
             <div className="flex shrink-0 items-center gap-1.5">
-              <ActionButton onClick={() => setActive('pdf')} disabled={!data} variant="primary">Preview PDF</ActionButton>
+              <ActionButton onClick={() => { setPdfReturnTo(active); setActive('pdf'); }} disabled={!data} variant="primary">Preview PDF</ActionButton>
               <div className="ml-1 h-5 w-px bg-app-border" />
               <button
                 onClick={lockApp}
