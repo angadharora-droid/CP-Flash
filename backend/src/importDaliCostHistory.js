@@ -41,10 +41,10 @@ async function fetchRows(gid) {
   return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', blankrows: true });
 }
 
-function setKpi(data, name, actual, mtd) {
+function setKpi(data, name, actual, mtd, { preserveActual = false } = {}) {
   const row = data.fnb?.Dali?.find((r) => r.name === name);
   if (!row) return;
-  row.actual = String(actual);
+  if (!preserveActual || String(row.actual ?? '').trim() === '') row.actual = String(actual);
   row.mtd = String(mtd);
 }
 
@@ -97,7 +97,7 @@ export async function importDaliCostHistory() {
     const dataPath = path.resolve(process.cwd(), 'data', `${row.date}.json`);
     const data = await readData(dataPath);
 
-    setKpi(data, 'Gross Sales',           round(totalSales),              round(cumTotalSales));
+    setKpi(data, 'Gross Sales',           round(totalSales),              round(cumTotalSales), { preserveActual: true });
     setKpi(data, 'Food Cost %',           costPct(row.foodPurchase, row.foodSales), costPct(cumFP, cumFS));
     setKpi(data, 'Liquor Cost %',         costPct(row.liquorPurchase, row.liquorSales), costPct(cumLP, cumLS));
     setKpi(data, 'Food Purchase Today',   round(row.foodPurchase),        round(cumFP));
@@ -106,7 +106,7 @@ export async function importDaliCostHistory() {
 
     data.pnl = (data.pnl ?? []).map((r) =>
       r.unit === 'Dali'
-        ? { ...r, revenueToday: round(totalSales), purchasesToday: round(totalPurchase) }
+        ? { ...r, revenueToday: String(r.revenueToday ?? '').trim() ? r.revenueToday : round(totalSales), purchasesToday: round(totalPurchase) }
         : r
     );
     data.importSource = {

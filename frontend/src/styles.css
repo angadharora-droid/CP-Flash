@@ -9,7 +9,7 @@
 }
 
 html {
-  background: #f1f5f9;
+  background: #f5f7fb;
 }
 
 body {
@@ -21,10 +21,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background:
-    radial-gradient(1100px 540px at 92% -10%, rgba(20, 184, 166, 0.18) 0%, rgba(20, 184, 166, 0) 60%),
-    radial-gradient(900px 480px at -10% 5%, rgba(99, 102, 241, 0.14) 0%, rgba(99, 102, 241, 0) 55%),
-    radial-gradient(700px 480px at 50% 110%, rgba(45, 212, 191, 0.10) 0%, rgba(45, 212, 191, 0) 60%),
-    linear-gradient(180deg, #f6f9fd 0%, #eef2f8 100%);
+    linear-gradient(135deg, rgba(13, 148, 136, 0.08) 0%, rgba(30, 58, 95, 0.07) 46%, rgba(180, 83, 9, 0.07) 100%),
+    linear-gradient(180deg, #fbfcfe 0%, #edf2f8 100%);
   background-attachment: fixed;
 }
 
@@ -44,6 +42,15 @@ textarea {
 
 button {
   cursor: pointer;
+}
+
+a,
+button,
+input,
+textarea,
+select {
+  outline-color: #0d9488;
+  outline-offset: 2px;
 }
 
 button:disabled {
@@ -105,7 +112,7 @@ input[type='date'] {
 
   .num {
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
   }
 
   .chip {
