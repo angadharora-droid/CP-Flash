@@ -16,7 +16,10 @@ export async function loginWithPin(pin) {
 }
 
 export async function getSeed(date, token) {
-  const res = await fetch(`${API_BASE}/api/seed?date=${date}`, { headers: authHeaders(token) });
+  const res = await fetch(`${API_BASE}/api/seed?date=${date}`, {
+    headers: authHeaders(token),
+    cache: 'no-store'
+  });
   if (!res.ok) throw new Error('Unable to load seed data');
   return res.json();
 }
