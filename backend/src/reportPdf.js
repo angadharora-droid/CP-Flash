@@ -233,16 +233,16 @@ export function createDailyFlashPdf(data, date) {
   sheetRef(SHEET_URLS.bankPosition);
   const bankRows = data.bankPosition ?? [];
   table(
-    ['Unit / Account', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheque Total', 'Cheques in Hand', 'Net Available'],
+    ['Unit / Account', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'],
     bankRows.map((row) => {
       const net = String(row.netBalance ?? '').trim() !== ''
         ? numberValue(row.netBalance)
         : numberValue(row.actualBalance) + numberValue(row.fdTotal)
           - numberValue(row.chequesIssued) + numberValue(row.chequesInHand);
       const label = row.account ? `${row.unit} - ${row.account}` : row.unit;
-      return [label, money(row.actualBalance), money(row.fdTotal ?? ''), money(row.chequesIssued), money(row.chequeTotalAmount ?? ''), money(row.chequesInHand), { text: money(net), color: colors.green, bold: true }];
+      return [label, money(row.actualBalance), money(row.fdTotal ?? ''), money(row.chequesIssued), money(row.chequesInHand), { text: money(net), color: colors.green, bold: true }];
     }),
-    { widths: [105, 70, 55, 72, 72, 72, 77], fontSize: 6.7 }
+    { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 }
   );
 
   sectionTitle('2. Unit-wise Estimated P&L');
