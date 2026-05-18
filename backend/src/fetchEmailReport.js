@@ -27,6 +27,7 @@ import { importDaliCostHistory } from './importDaliCostHistory.js';
 import { importPabloCostHistory } from './importPabloCostHistory.js';
 import { importPurosoulSalesReport, importMickysSalesReport } from './importDailySalesReport.js';
 import { importMickysLeads } from './importMickysLeads.js';
+import { attachReportPreviews } from './attachmentPreview.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
@@ -367,7 +368,8 @@ async function syncToCloud(date) {
       headers: { authorization: `Bearer ${token}` }
     });
     const existingJson = existingRes.ok ? await existingRes.json() : null;
-    const dataToPush = mergeReportData(existingJson?.saved, localData);
+    const dataWithPreviews = await attachReportPreviews(localData, ATTACH_DIR, log);
+    const dataToPush = mergeReportData(existingJson?.saved, dataWithPreviews);
 
     const pushRes = await fetch(`${cloudUrl}/api/data`, {
       method: 'POST',

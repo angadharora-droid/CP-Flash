@@ -138,13 +138,14 @@ function hasEnteredValue(value) {
 function pickMeta(importSource, source) {
   if (!source.meta) return {};
 
-  const reportFiles = [
+  const files = [
     source.meta.file ? importSource[source.meta.file] : '',
     ...(source.meta.files ?? []).map((key) => importSource[key])
   ].filter((file) => isFilled(file));
+  const reportFiles = files.filter((file) => /\.(xlsx|xls|csv)$/i.test(String(file)));
 
   return {
-    file: reportFiles[0] ?? '',
+    file: files[0] ?? '',
     reportFiles,
     importedAt: importSource[source.meta.importedAt] ?? '',
     notes: importSource[source.meta.notes] ?? ''

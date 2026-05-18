@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import { MongoClient } from 'mongodb';
-import XLSX from 'xlsx';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { readAttachmentPreview } from './attachmentPreview.js';
 import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
@@ -42,7 +42,7 @@ async function getDb() {
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
 app.use(cors());
-app.use(express.json({ limit: '4mb' }));
+app.use(express.json({ limit: '10mb' }));
 
 // Stateless signed tokens — survive server restarts.
 function createSession() {
@@ -145,52 +145,6 @@ function mergeDailyData(seed, saved) {
     pnl: mergePnlRows(seed.pnl, saved.pnl)
   };
   return { ...merged, pnl: derivePnlRows(merged) };
-}
-
-function trimSheetRows(rows, maxRows = 100, maxColumns = 40) {
-  const trimmed = rows
-    .slice(0, maxRows)
-    .map((row) => row.slice(0, maxColumns).map((cell) => String(cell ?? '').trimEnd()));
-
-  let lastRow = trimmed.length - 1;
-  while (lastRow >= 0 && trimmed[lastRow].every((cell) => !String(cell).trim())) lastRow -= 1;
-
-  let lastColumn = 0;
-  for (let r = 0; r <= lastRow; r += 1) {
-    for (let c = trimmed[r].length - 1; c >= 0; c -= 1) {
-      if (String(trimmed[r][c]).trim()) {
-        lastColumn = Math.max(lastColumn, c + 1);
-        break;
-      }
-    }
-  }
-
-  return trimmed.slice(0, lastRow + 1).map((row) => row.slice(0, lastColumn));
-}
-
-async function readAttachmentPreview(fileName) {
-  const safeName = path.basename(String(fileName ?? ''));
-  if (!safeName || !/\.(xlsx|xls|csv)$/i.test(safeName)) {
-    throw new Error('Preview is available only for spreadsheet attachments.');
-  }
-
-  const filePath = path.resolve(attachmentsDir, safeName);
-  if (!filePath.startsWith(`${attachmentsDir}${path.sep}`)) {
-    throw new Error('Invalid report file.');
-  }
-
-  await fs.access(filePath);
-  const workbook = XLSX.readFile(filePath, { cellDates: true, raw: false });
-  const sheets = workbook.SheetNames.map((sheetName) => ({
-    name: sheetName,
-    rows: trimSheetRows(XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-      header: 1,
-      defval: '',
-      raw: false
-    }))
-  })).filter((sheet) => sheet.rows.length);
-
-  return { file: safeName, sheets };
 }
 
 async function readDailyData(date = dateKey()) {
@@ -302,10 +256,15 @@ app.get('/api/source-report-preview', wrap(async (req, res) => {
   }
 
   try {
-    res.json(await readAttachmentPreview(file));
+    res.json(await readAttachmentPreview(file, attachmentsDir));
   } catch (err) {
     if (err.code === 'ENOENT') {
-      res.status(404).json({ error: 'The original email attachment is not available on this server.' });
+      const embeddedPreview = saved?.importSource?.reportPreviews?.[file];
+      if (embeddedPreview) {
+        res.json(embeddedPreview);
+        return;
+      }
+      res.status(404).json({ error: 'The report preview was not synced yet. Run the email import/push again for this date.' });
       return;
     }
     throw err;

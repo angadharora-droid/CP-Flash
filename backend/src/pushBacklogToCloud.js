@@ -10,9 +10,11 @@ import 'dotenv/config';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { attachReportPreviews } from './attachmentPreview.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, '..', 'data');
+const ATTACH_DIR = path.resolve(DATA_DIR, 'attachments');
 
 const cloudUrl = process.env.CLOUD_API_URL;
 const pin = process.env.DAILYFLASH_PIN;
@@ -58,10 +60,11 @@ async function run() {
     const date = file.replace('.json', '');
     try {
       const data = JSON.parse(await fs.readFile(path.join(DATA_DIR, file), 'utf8'));
+      const dataWithPreviews = await attachReportPreviews(data, ATTACH_DIR, (message) => console.log(`  ${message}`));
       const res = await fetch(`${cloudUrl}/api/data`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-        body: JSON.stringify({ date, data })
+        body: JSON.stringify({ date, data: dataWithPreviews })
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       console.log(`  ✓ ${date}`);
