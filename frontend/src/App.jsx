@@ -548,16 +548,14 @@ function PinGate({ onUnlock }) {
 
 function BankPage({ data, date }) {
   const rows = data.bankPosition ?? [];
-  const [selectedBank, setSelectedBank] = useState('All');
-  const accounts = Array.from(new Set(rows.map((r) => (r.account || 'Unspecified')).filter(Boolean)));
-  const showSelector = accounts.length > 1;
-  const filteredRows = selectedBank && selectedBank !== 'All' ? rows.filter((r) => (r.account || 'Unspecified') === selectedBank) : rows;
+  const [expandedUnits, setExpandedUnits] = useState({});
+  const units = Array.from(new Set(rows.map((r) => r.unit || 'Unspecified')));
   const badge = getFreshness(
     data.importSource?.bankPositionImportedAt,
     rows.some((r) => String(r.actualBalance ?? '').trim() !== ''),
     date
   );
-  const totals = filteredRows.reduce((acc, row) => {
+  const totals = rows.reduce((acc, row) => {
     acc.actual += numberValue(row.actualBalance);
     acc.issued += numberValue(row.chequesIssued);
     acc.hand += numberValue(row.chequesInHand);
@@ -569,7 +567,7 @@ function BankPage({ data, date }) {
       ? numberValue(row.netBalance)
       : numberValue(row.actualBalance) + numberValue(row.fdTotal)
         - numberValue(row.chequesIssued) + numberValue(row.chequesInHand);
-  const netTotal = filteredRows.reduce((sum, row) => sum + net(row), 0);
+  const netTotal = rows.reduce((sum, row) => sum + net(row), 0);
 
   return (
     <>
@@ -578,24 +576,7 @@ function BankPage({ data, date }) {
         subtitle="Daily unit-wise cash visibility."
         badge={badge}
         activeKey="bank"
-        actions={
-          <div className="flex items-center gap-2">
-            <SheetLink url={SHEET_URLS.bankPosition} />
-            {showSelector ? (
-              <select
-                value={selectedBank}
-                onChange={(e) => setSelectedBank(e.target.value)}
-                className="rounded-lg border border-app-border bg-white px-3 py-1 text-sm"
-                aria-label="Select bank account"
-              >
-                <option value="All">All banks</option>
-                {accounts.map((a) => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-              </select>
-            ) : null}
-          </div>
-        }
+        actions={<SheetLink url={SHEET_URLS.bankPosition} />}
       />
       <StatStrip items={[
         {
@@ -627,20 +608,56 @@ function BankPage({ data, date }) {
       <DataTable
         columns={['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Balance Available']}
         numericFrom={1}
-        rows={rows.map((row) => ({
-          key: `${row.unit}-${row.account ?? row.unit}`,
-          cells: [
-            <div>
-              <div className="font-semibold text-app-text">{row.unit}</div>
-              {row.account ? <div className="text-xs font-medium text-app-muted">{row.account}</div> : null}
-            </div>,
-            <ReportValue value={row.actualBalance} numeric />,
-            <ReportValue value={row.fdTotal ?? ''} numeric />,
-            <ReportValue value={row.chequesIssued} numeric />,
-            <ReportValue value={row.chequesInHand} numeric />,
-            <span className={`num font-bold ${net(row) >= 0 ? 'text-app-text' : 'text-rose-700'}`}>{money(net(row))}</span>
-          ]
-        }))}
+        rows={(() => {
+          const built = [];
+          units.forEach((unit) => {
+            const unitRows = rows.filter((r) => r.unit === unit);
+            const unitTotals = unitRows.reduce((acc, row) => {
+              acc.actual += numberValue(row.actualBalance);
+              acc.fd += numberValue(row.fdTotal);
+              acc.issued += numberValue(row.chequesIssued);
+              acc.hand += numberValue(row.chequesInHand);
+              return acc;
+            }, { actual: 0, fd: 0, issued: 0, hand: 0 });
+            const expanded = !!expandedUnits[unit];
+            built.push({
+              key: `unit-${unit}`,
+              cells: [
+                <button type="button" onClick={() => setExpandedUnits((s) => ({ ...s, [unit]: !s[unit] }))} className="text-left w-full">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-app-text">{unit}</div>
+                      <div className="text-xs text-app-muted">{unitRows.length} account{unitRows.length > 1 ? 's' : ''}</div>
+                    </div>
+                    <div className="text-sm text-app-muted">{money(unitTotals.actual)}</div>
+                  </div>
+                </button>,
+                <span className="num">{money(unitTotals.actual)}</span>,
+                <span className="num">{money(unitTotals.fd)}</span>,
+                <span className="num">{money(unitTotals.issued)}</span>,
+                <span className="num">{money(unitTotals.hand)}</span>,
+                <span className={`num font-bold ${unitTotals.actual >= 0 ? 'text-app-text' : 'text-rose-700'}`}>{money(unitTotals.actual)}</span>
+              ]
+            });
+            if (expanded) {
+              unitRows.forEach((row, idx) => built.push({
+                key: `unit-${unit}-row-${idx}`,
+                cells: [
+                  <div>
+                    <div className="text-sm font-medium text-app-text">{row.account || unit}</div>
+                    <div className="text-xs text-app-muted">{row.unit}</div>
+                  </div>,
+                  <ReportValue value={row.actualBalance} numeric />,
+                  <ReportValue value={row.fdTotal ?? ''} numeric />,
+                  <ReportValue value={row.chequesIssued} numeric />,
+                  <ReportValue value={row.chequesInHand} numeric />,
+                  <span className={`num font-bold ${net(row) >= 0 ? 'text-app-text' : 'text-rose-700'}`}>{money(net(row))}</span>
+                ]
+              }));
+            }
+          });
+          return built;
+        })()}
         footer={
           <tr>
             <td className="px-4 py-3">GROUP TOTAL</td>
