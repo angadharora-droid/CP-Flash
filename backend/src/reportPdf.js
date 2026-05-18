@@ -11,25 +11,21 @@ const SHEET_URLS = {
 };
 
 const colors = {
-  navy: '#17233b',
-  navy2: '#243b63',
-  teal: '#0f766e',
-  tealSoft: '#dff7f3',
-  gold: '#c8892d',
-  goldSoft: '#fff4dd',
-  cream: '#fbf7ef',
-  panel: '#f7f9fc',
-  line: '#dbe3ee',
-  lineDark: '#c7d2e2',
+  header: '#1f2937',
+  headerSoft: '#374151',
+  accent: '#6b7280',
+  accentSoft: '#f3f4f6',
+  page: '#ffffff',
+  panel: '#f8fafc',
+  panelAlt: '#f3f6fa',
+  line: '#d7dee8',
+  lineDark: '#b7c1cf',
   ink: '#111827',
   muted: '#64748b',
   subtle: '#94a3b8',
-  green: '#15803d',
-  greenSoft: '#e7f7ee',
-  amber: '#b7791f',
-  amberSoft: '#fff7e6',
-  red: '#be123c',
-  redSoft: '#fff1f2',
+  green: '#166534',
+  amber: '#92400e',
+  red: '#9f1239',
   white: '#ffffff'
 };
 
@@ -111,26 +107,23 @@ export function createDailyFlashPdf(data, date) {
   const doc = new PDFDocument({ size: 'A4', margins: { top: 36, right: 36, bottom: 24, left: 36 }, bufferPages: true });
   let pageNo = 0;
 
-  const contentTop = 116;
+  const contentTop = 104;
   const contentBottom = 786;
   const width = doc.page.width - 72;
 
   function header() {
     pageNo += 1;
     doc.save();
-    doc.rect(0, 0, doc.page.width, doc.page.height).fill(colors.cream);
-    doc.rect(0, 0, doc.page.width, 96).fill(colors.navy);
-    doc.rect(0, 96, doc.page.width, 4).fill(colors.gold);
-    doc.circle(478, 8, 118).fill('#20365d');
-    doc.circle(548, 76, 72).fill('#0f766e');
-    doc.roundedRect(36, 28, 34, 34, 6).fill(colors.white);
-    doc.fillColor(colors.navy).font('Helvetica-Bold').fontSize(11).text('CP', 45, 39, { width: 16, align: 'center' });
-    doc.fillColor(colors.gold).font('Helvetica-Bold').fontSize(7).text('CENTRE POINT HOSPITALITY', 82, 29);
-    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(21).text('Daily Flash Report', 82, 44);
-    doc.fillColor('#d8e3f2').font('Helvetica').fontSize(7).text('Internal management review copy', 83, 70);
-    doc.roundedRect(430, 29, 129, 42, 6).fill('#ffffff14').strokeColor('#ffffff28').lineWidth(0.6).stroke();
-    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(10).text(niceDate(date), 442, 39, { width: 104, align: 'right' });
-    doc.fillColor('#d8e3f2').font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} | Page ${pageNo}`, 442, 55, { width: 104, align: 'right' });
+    doc.rect(0, 0, doc.page.width, doc.page.height).fill(colors.page);
+    doc.rect(0, 0, doc.page.width, 82).fill(colors.white);
+    doc.strokeColor(colors.lineDark).lineWidth(0.7).moveTo(36, 82).lineTo(559, 82).stroke();
+    doc.rect(36, 31, 26, 26).fill(colors.header);
+    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(8).text('CP', 42, 40, { width: 14, align: 'center' });
+    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6.5).text('CENTRE POINT HOSPITALITY', 74, 29);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(17).text('Daily Flash Report', 74, 43);
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text('Internal management report', 74, 64);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(niceDate(date), 430, 34, { width: 129, align: 'right' });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} | Page ${pageNo}`, 430, 50, { width: 129, align: 'right' });
     doc.strokeColor(colors.lineDark).lineWidth(0.5).moveTo(36, 802).lineTo(559, 802).stroke();
     doc.fillColor(colors.subtle).fontSize(6.5).text('Centre Point Hospitality | Daily Flash Report | Internal Use Only', 36, 810, { lineBreak: false });
     doc.restore();
@@ -148,45 +141,42 @@ export function createDailyFlashPdf(data, date) {
     ensureSpace(28);
     doc.moveDown(0.2);
     const y = doc.y;
-    doc.roundedRect(36, y, 523, 24, 4).fill(colors.white).strokeColor(colors.line).lineWidth(0.5).stroke();
-    doc.rect(36, y, 4, 24).fill(colors.teal);
-    doc.fillColor(colors.navy).font('Helvetica-Bold').fontSize(8).text(safeText(title).toUpperCase(), 48, y + 8, { width: 490 });
-    doc.y = y + 34;
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(safeText(title), 36, y);
+    doc.strokeColor(colors.line).lineWidth(0.7).moveTo(36, y + 15).lineTo(559, y + 15).stroke();
+    doc.y = y + 28;
   }
 
   function hero(title, source, value, change = '') {
-    ensureSpace(70);
+    ensureSpace(54);
     const y = doc.y;
-    doc.roundedRect(36, y, 523, 56, 8).fill(colors.navy);
-    doc.rect(36, y, 6, 56).fill(colors.gold);
-    doc.circle(530, y + 7, 66).fill('#20365d');
-    doc.fillColor(colors.gold).font('Helvetica-Bold').fontSize(7).text('OPERATING UNIT', 54, y + 13);
-    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(17).text(safeText(title), 54, y + 27, { width: 190, lineBreak: false });
-    doc.fillColor('#d8e3f2').font('Helvetica').fontSize(7).text(safeText(source), 256, y + 18, { width: 138 });
-    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(18).text(safeText(value), 398, y + 16, { width: 140, align: 'right' });
+    doc.roundedRect(36, y, 523, 42, 3).fill(colors.panel).strokeColor(colors.line).lineWidth(0.6).stroke();
+    doc.rect(36, y, 3, 42).fill(colors.headerSoft);
+    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6).text('OPERATING UNIT', 50, y + 9);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(12).text(safeText(title), 50, y + 21, { width: 190, lineBreak: false });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(source), 256, y + 15, { width: 138 });
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(13).text(safeText(value), 398, y + 14, { width: 140, align: 'right' });
     if (change) {
-      doc.fillColor(change.startsWith('-') ? '#fecdd3' : '#bbf7d0').font('Helvetica-Bold').fontSize(8).text(safeText(change), 398, y + 38, { width: 140, align: 'right' });
+      doc.fillColor(change.startsWith('-') ? colors.red : colors.green).font('Helvetica-Bold').fontSize(7).text(safeText(change), 398, y + 29, { width: 140, align: 'right' });
     }
-    doc.y = y + 72;
+    doc.y = y + 56;
   }
 
-  function summaryCard(x, y, w, label, value, tone = colors.teal, caption = '') {
-    doc.roundedRect(x, y, w, 54, 7).fill(colors.white).strokeColor(colors.line).lineWidth(0.6).stroke();
-    doc.rect(x, y, w, 4).fill(tone);
+  function summaryCard(x, y, w, label, value, tone = colors.header, caption = '') {
+    doc.roundedRect(x, y, w, 48, 3).fill(colors.white).strokeColor(colors.line).lineWidth(0.6).stroke();
     doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6.5).text(safeText(label).toUpperCase(), x + 10, y + 15, { width: w - 20 });
-    doc.fillColor(tone).font('Helvetica-Bold').fontSize(13).text(safeText(value), x + 10, y + 29, { width: w - 20, lineBreak: false });
-    if (caption) doc.fillColor(colors.subtle).font('Helvetica').fontSize(6).text(safeText(caption), x + 10, y + 43, { width: w - 20, lineBreak: false });
+    doc.fillColor(tone).font('Helvetica-Bold').fontSize(11).text(safeText(value), x + 10, y + 28, { width: w - 20, lineBreak: false });
+    if (caption) doc.fillColor(colors.subtle).font('Helvetica').fontSize(5.8).text(safeText(caption), x + 10, y + 40, { width: w - 20, lineBreak: false });
   }
 
   function summaryCards(items) {
-    ensureSpace(68);
+    ensureSpace(62);
     const gap = 9;
     const cardW = (width - gap * (items.length - 1)) / items.length;
     const y = doc.y;
     items.forEach((item, index) => {
       summaryCard(36 + index * (cardW + gap), y, cardW, item.label, item.value, item.tone, item.caption);
     });
-    doc.y = y + 70;
+    doc.y = y + 62;
   }
 
   function table(columns, rows, options = {}) {
@@ -200,7 +190,7 @@ export function createDailyFlashPdf(data, date) {
     let y = doc.y;
 
     function drawHeader() {
-      doc.roundedRect(x, y, width, headerHeight, 4).fill(colors.navy);
+      doc.rect(x, y, width, headerHeight).fill(colors.header);
       doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(6.8);
       let cursor = x;
       columns.forEach((column, index) => {
@@ -220,7 +210,7 @@ export function createDailyFlashPdf(data, date) {
         drawHeader();
       }
 
-      doc.rect(x, y, width, rowHeight).fill(rowIndex % 2 ? colors.panel : colors.white);
+      doc.rect(x, y, width, rowHeight).fill(rowIndex % 2 ? colors.panelAlt : colors.white);
       doc.fillColor(colors.ink).font('Helvetica').fontSize(fontSize);
       let cursor = x;
       row.forEach((cell, index) => {
@@ -235,13 +225,13 @@ export function createDailyFlashPdf(data, date) {
       y += rowHeight;
     });
 
-    doc.strokeColor(colors.line).lineWidth(0.6).roundedRect(x, doc.y, width, y - doc.y, 4).stroke();
+    doc.strokeColor(colors.line).lineWidth(0.6).rect(x, doc.y, width, y - doc.y).stroke();
     doc.y = y + 14;
   }
 
   function flagCell(label) {
     const normalized = String(label).includes('ACTION') ? 'ACTION' : String(label);
-    const color = normalized === 'ACTION' ? colors.red : normalized === 'WATCH' ? colors.amber : normalized === 'OUTPERFORM' ? colors.green : colors.teal;
+    const color = normalized === 'ACTION' ? colors.red : normalized === 'WATCH' ? colors.amber : normalized === 'OUTPERFORM' ? colors.green : colors.headerSoft;
     return { text: normalized, color, bold: true };
   }
 
@@ -264,9 +254,8 @@ export function createDailyFlashPdf(data, date) {
     if (!url) return;
     ensureSpace(16);
     const y = doc.y;
-    doc.roundedRect(36, y, 86, 15, 4).fill(colors.tealSoft).strokeColor('#bae6df').lineWidth(0.4).stroke();
-    doc.fillColor(colors.teal).font('Helvetica-Bold').fontSize(6.5)
-      .text('View Source Sheet', 45, y + 4.5);
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5)
+      .text('Source sheet available', 36, y);
     doc.y = y + 16;
   }
 
@@ -296,9 +285,9 @@ export function createDailyFlashPdf(data, date) {
   const settlementDiff = groupRevenue(data) - settlement.groupTotal;
 
   summaryCards([
-    { label: 'Group Revenue', value: money(pnlTotals.revenue), tone: colors.teal, caption: 'Today' },
+    { label: 'Group Revenue', value: money(pnlTotals.revenue), tone: colors.header, caption: 'Today' },
     { label: 'Est. Net Profit', value: money(pnlTotals.net), tone: pnlTotals.net >= 0 ? colors.green : colors.red, caption: 'After fixed cost' },
-    { label: 'Bank Net Available', value: money(bankTotals.net), tone: colors.navy2, caption: `${bankRows.length} accounts` },
+    { label: 'Bank Net Available', value: money(bankTotals.net), tone: colors.headerSoft, caption: `${bankRows.length} accounts` },
     { label: 'Open Risks', value: String(flagCount), tone: flagCount ? colors.amber : colors.green, caption: 'Watch / action flags' }
   ]);
 
@@ -407,7 +396,7 @@ export function createDailyFlashPdf(data, date) {
   );
   sectionTitle('Reconciliation');
   summaryCards([
-    { label: 'Total Revenue', value: money(groupRevenue(data)), tone: colors.teal },
+    { label: 'Total Revenue', value: money(groupRevenue(data)), tone: colors.header },
     { label: 'Total Settled', value: money(settlement.groupTotal), tone: colors.green },
     { label: 'Difference', value: money(settlementDiff), tone: settlementDiff === 0 ? colors.green : colors.red },
     { label: 'Status', value: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', tone: settlementDiff === 0 ? colors.green : colors.red }
@@ -467,30 +456,28 @@ function notesPage(doc, data) {
     'Use this report as the daily morning review copy for unit heads.'
   ].filter(Boolean);
 
-  doc.roundedRect(36, 122, 523, 330, 10).fill(colors.navy);
-  doc.rect(36, 122, 8, 330).fill(colors.gold);
-  doc.circle(520, 120, 120).fill('#20365d');
-  doc.fillColor(colors.gold).font('Helvetica-Bold').fontSize(8).text('MANAGEMENT READOUT', 56, 148);
-  doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(22).text('Notes by AI', 56, 164);
-  doc.fillColor('#d8e3f2').font('Helvetica').fontSize(8).text('Quick talking points for the daily review meeting.', 56, 193);
-  doc.fillColor(colors.white).font('Helvetica').fontSize(8);
-  let y = 226;
+  doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(13).text('Management Notes', 36, 122);
+  doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5).text('Prepared from the current daily flash data.', 36, 141);
+  doc.strokeColor(colors.line).lineWidth(0.7).moveTo(36, 158).lineTo(559, 158).stroke();
+  doc.roundedRect(36, 178, 523, 250, 3).fill(colors.white).strokeColor(colors.line).lineWidth(0.6).stroke();
+  doc.fillColor(colors.ink).font('Helvetica').fontSize(8);
+  let y = 198;
   for (const note of notes) {
-    doc.circle(60, y + 3, 2.4).fill(colors.gold);
-    doc.fillColor('#eef4ff').font('Helvetica').fontSize(8).text(safeText(note), 72, y, { width: 450, lineGap: 3 });
-    y += 31;
+    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(8).text(String(notes.indexOf(note) + 1).padStart(2, '0'), 54, y, { width: 18 });
+    doc.fillColor(colors.ink).font('Helvetica').fontSize(8).text(safeText(note), 84, y, { width: 430, lineGap: 3 });
+    y += 28;
   }
 
-  doc.roundedRect(36, 480, 523, 96, 8).fill(colors.white).strokeColor(colors.line).lineWidth(0.6).stroke();
-  doc.fillColor(colors.navy).font('Helvetica-Bold').fontSize(9).text('Close-of-day checklist', 56, 502);
+  doc.roundedRect(36, 462, 523, 96, 3).fill(colors.panel).strokeColor(colors.line).lineWidth(0.6).stroke();
+  doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text('Close-of-day checklist', 56, 484);
   doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5);
   [
     'Confirm all pending source feeds before circulation.',
     'Review WATCH and ACTION flags with unit owners.',
     'Resolve settlement mismatch before final archive.'
   ].forEach((item, index) => {
-    const rowY = 524 + index * 16;
-    doc.roundedRect(56, rowY - 1, 10, 10, 2).strokeColor(colors.lineDark).lineWidth(0.7).stroke();
+    const rowY = 506 + index * 16;
+    doc.rect(56, rowY - 1, 9, 9).strokeColor(colors.lineDark).lineWidth(0.7).stroke();
     doc.text(item, 74, rowY - 1, { width: 440 });
   });
 }
