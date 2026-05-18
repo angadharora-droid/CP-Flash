@@ -548,12 +548,16 @@ function PinGate({ onUnlock }) {
 
 function BankPage({ data, date }) {
   const rows = data.bankPosition ?? [];
+  const [selectedBank, setSelectedBank] = useState('All');
+  const accounts = Array.from(new Set(rows.map((r) => (r.account || 'Unspecified')).filter(Boolean)));
+  const showSelector = accounts.length > 1;
+  const filteredRows = selectedBank && selectedBank !== 'All' ? rows.filter((r) => (r.account || 'Unspecified') === selectedBank) : rows;
   const badge = getFreshness(
     data.importSource?.bankPositionImportedAt,
     rows.some((r) => String(r.actualBalance ?? '').trim() !== ''),
     date
   );
-  const totals = rows.reduce((acc, row) => {
+  const totals = filteredRows.reduce((acc, row) => {
     acc.actual += numberValue(row.actualBalance);
     acc.issued += numberValue(row.chequesIssued);
     acc.hand += numberValue(row.chequesInHand);
@@ -565,7 +569,7 @@ function BankPage({ data, date }) {
       ? numberValue(row.netBalance)
       : numberValue(row.actualBalance) + numberValue(row.fdTotal)
         - numberValue(row.chequesIssued) + numberValue(row.chequesInHand);
-  const netTotal = rows.reduce((sum, row) => sum + net(row), 0);
+  const netTotal = filteredRows.reduce((sum, row) => sum + net(row), 0);
 
   return (
     <>
@@ -574,7 +578,24 @@ function BankPage({ data, date }) {
         subtitle="Daily unit-wise cash visibility."
         badge={badge}
         activeKey="bank"
-        actions={<SheetLink url={SHEET_URLS.bankPosition} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <SheetLink url={SHEET_URLS.bankPosition} />
+            {showSelector ? (
+              <select
+                value={selectedBank}
+                onChange={(e) => setSelectedBank(e.target.value)}
+                className="rounded-lg border border-app-border bg-white px-3 py-1 text-sm"
+                aria-label="Select bank account"
+              >
+                <option value="All">All banks</option>
+                {accounts.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+        }
       />
       <StatStrip items={[
         {

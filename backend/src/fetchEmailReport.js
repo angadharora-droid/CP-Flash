@@ -31,6 +31,8 @@ import { attachReportPreviews } from './attachmentPreview.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
+const SHEET_REFRESH_MINUTES = Number(process.env.SHEET_REFRESH_MINUTES) || 30;
+const SHEET_REFRESH_MS = SHEET_REFRESH_MINUTES * 60 * 1000;
 
 const IMAP_HOST = process.env.REPORT_IMAP_HOST || 'imap.rediffmailpro.com';
 const IMAP_PORT = Number(process.env.REPORT_IMAP_PORT) || 993;
@@ -51,6 +53,20 @@ function yesterday() {
 function subjectContains(subject, ...keywords) {
   const lower = subject.toLowerCase();
   return keywords.every((kw) => lower.includes(kw.toLowerCase()));
+}
+
+function shouldRefreshSheetSource(importSource, key) {
+  if (process.env.FORCE_IMPORT === 'true') return true;
+  const importedAt = importSource?.[key];
+  if (!importedAt) return true;
+  const importedTime = new Date(importedAt).getTime();
+  if (!Number.isFinite(importedTime)) return true;
+  return Date.now() - importedTime >= SHEET_REFRESH_MS;
+}
+
+function logSheetSkip(label, importedAt) {
+  const nextAt = new Date(new Date(importedAt).getTime() + SHEET_REFRESH_MS);
+  log(`${label} refreshed recently — skipping until ${nextAt.toLocaleString('en-IN')}.`);
 }
 
 /** Accepts .xls, .xlsx, .XLS, .XLSX */
@@ -282,8 +298,8 @@ async function run() {
   }
 
   // Fetch bank positions from Google Sheets (independent of email)
-  if (existingData?.importSource?.bankPositionImportedAt) {
-    log('Bank positions already imported today — skipping.');
+  if (!shouldRefreshSheetSource(existingData?.importSource, 'bankPositionImportedAt')) {
+    logSheetSkip('Bank positions', existingData.importSource.bankPositionImportedAt);
   } else {
     log('Fetching bank positions from Google Sheets…');
     try {
@@ -295,8 +311,8 @@ async function run() {
   }
 
   // Fetch Dali food + liquor cost from Google Sheet
-  if (existingData?.importSource?.daliCostImportedAt) {
-    log('Dali cost already imported today — skipping.');
+  if (!shouldRefreshSheetSource(existingData?.importSource, 'daliCostImportedAt')) {
+    logSheetSkip('Dali cost', existingData.importSource.daliCostImportedAt);
   } else {
     log('Fetching Dali cost sheet from Google Sheets…');
     try {
@@ -308,8 +324,8 @@ async function run() {
   }
 
   // Fetch Pablo food + liquor cost from Google Sheet
-  if (existingData?.importSource?.pabloCostImportedAt) {
-    log('Pablo cost already imported today — skipping.');
+  if (!shouldRefreshSheetSource(existingData?.importSource, 'pabloCostImportedAt')) {
+    logSheetSkip('Pablo cost', existingData.importSource.pabloCostImportedAt);
   } else {
     log('Fetching Pablo cost sheet from Google Sheets…');
     try {
@@ -321,8 +337,8 @@ async function run() {
   }
 
   // Fetch Micky's leads pipeline from Google Sheet
-  if (existingData?.importSource?.mickysLeadsImportedAt) {
-    log("Micky's leads already imported today — skipping.");
+  if (!shouldRefreshSheetSource(existingData?.importSource, 'mickysLeadsImportedAt')) {
+    logSheetSkip("Micky's leads", existingData.importSource.mickysLeadsImportedAt);
   } else {
     log("Fetching Micky's leads pipeline from Google Sheets…");
     try {
