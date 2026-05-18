@@ -622,48 +622,82 @@ function BankPage({ data, date }) {
             }, { actual: 0, fd: 0, issued: 0, hand: 0, net: 0 });
             const hasMulti = unitRows.length > 1;
             const expanded = !!expandedUnits[unit];
+            const initials = unit.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
             built.push({
               key: `unit-${unit}`,
               cells: [
                 hasMulti ? (
-                  <button type="button" onClick={() => setExpandedUnits((s) => ({ ...s, [unit]: !s[unit] }))} className="text-left w-full">
-                    <div className="font-semibold text-app-text">{unit} <span className="text-xs text-app-muted font-normal">{expanded ? '▼' : '▶'}</span></div>
-                    <div className="text-xs text-app-muted">{unitRows.length} accounts</div>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedUnits((s) => ({ ...s, [unit]: !s[unit] }))}
+                    className="group/unit -mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-app-accentTint/40"
+                    aria-expanded={expanded}
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-[11px] font-bold text-app-subtle ring-1 ring-app-border">
+                      {initials}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block truncate font-semibold text-app-text">{unit}</span>
+                      <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-app-panel px-2 py-0.5 text-[10.5px] font-medium text-app-muted ring-1 ring-app-border/60">
+                        <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" />
+                        </svg>
+                        {unitRows.length} accounts
+                      </span>
+                    </span>
+                    <svg
+                      className={`size-4 shrink-0 text-app-subtle transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
                   </button>
                 ) : (
-                  <div className="font-semibold text-app-text">{unit}</div>
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-[11px] font-bold text-app-subtle ring-1 ring-app-border">
+                      {initials}
+                    </span>
+                    <span className="font-semibold text-app-text">{unit}</span>
+                  </div>
                 ),
-                <span className="num font-semibold">{money(unitTotals.actual)}</span>,
-                <span className="num font-semibold">{money(unitTotals.fd)}</span>,
-                <span className="num font-semibold">{money(unitTotals.issued)}</span>,
-                <span className="num font-semibold">{money(unitTotals.hand)}</span>,
-                <span className={`num font-bold ${unitTotals.net >= 0 ? 'text-app-text' : 'text-rose-700'}`}>{money(unitTotals.net)}</span>
+                <span className="num font-semibold tabular-nums">{money(unitTotals.actual)}</span>,
+                <span className="num font-semibold tabular-nums">{money(unitTotals.fd)}</span>,
+                <span className="num font-semibold tabular-nums">{money(unitTotals.issued)}</span>,
+                <span className="num font-semibold tabular-nums">{money(unitTotals.hand)}</span>,
+                <span className={`num font-bold tabular-nums ${unitTotals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(unitTotals.net)}</span>
               ]
             });
             if (hasMulti && expanded) {
-              unitRows.forEach((row, idx) => built.push({
-                key: `unit-${unit}-row-${idx}`,
-                cells: [
-                  <div className="pl-4 text-sm font-medium text-app-text">↳ {row.account || unit}</div>,
-                  <ReportValue value={row.actualBalance} numeric />,
-                  <ReportValue value={row.fdTotal ?? ''} numeric />,
-                  <ReportValue value={row.chequesIssued} numeric />,
-                  <ReportValue value={row.chequesInHand} numeric />,
-                  <span className={`num font-bold ${net(row) >= 0 ? 'text-app-text' : 'text-rose-700'}`}>{money(net(row))}</span>
-                ]
-              }));
+              unitRows.forEach((row, idx) => {
+                const isLast = idx === unitRows.length - 1;
+                built.push({
+                  key: `unit-${unit}-row-${idx}`,
+                  cells: [
+                    <div className="relative flex items-center gap-2 pl-5 text-[13px]">
+                      <span className={`absolute left-2 top-0 w-px bg-app-border ${isLast ? 'h-1/2' : 'h-full'}`} aria-hidden />
+                      <span className="absolute left-2 top-1/2 h-px w-2.5 bg-app-border" aria-hidden />
+                      <span className="text-app-muted">{row.account || unit}</span>
+                    </div>,
+                    <span className="num text-[13px] text-app-muted tabular-nums"><ReportValue value={row.actualBalance} numeric /></span>,
+                    <span className="num text-[13px] text-app-muted tabular-nums"><ReportValue value={row.fdTotal ?? ''} numeric /></span>,
+                    <span className="num text-[13px] text-app-muted tabular-nums"><ReportValue value={row.chequesIssued} numeric /></span>,
+                    <span className="num text-[13px] text-app-muted tabular-nums"><ReportValue value={row.chequesInHand} numeric /></span>,
+                    <span className={`num text-[13px] font-semibold tabular-nums ${net(row) >= 0 ? 'text-emerald-700/90' : 'text-rose-700/90'}`}>{money(net(row))}</span>
+                  ]
+                });
+              });
             }
           });
           return built;
         })()}
         footer={
           <tr>
-            <td className="px-4 py-3">GROUP TOTAL</td>
-            <td className="num px-4 py-3 text-right">{money(totals.actual)}</td>
-            <td className="num px-4 py-3 text-right">{money(totals.fd)}</td>
-            <td className="num px-4 py-3 text-right">{money(totals.issued)}</td>
-            <td className="num px-4 py-3 text-right">{money(totals.hand)}</td>
-            <td className="num px-4 py-3 text-right">{money(netTotal)}</td>
+            <td className="px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-app-subtle">Group Total</td>
+            <td className="num px-4 py-3.5 text-right tabular-nums">{money(totals.actual)}</td>
+            <td className="num px-4 py-3.5 text-right tabular-nums">{money(totals.fd)}</td>
+            <td className="num px-4 py-3.5 text-right tabular-nums">{money(totals.issued)}</td>
+            <td className="num px-4 py-3.5 text-right tabular-nums">{money(totals.hand)}</td>
+            <td className={`num px-4 py-3.5 text-right font-extrabold tabular-nums ${netTotal >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(netTotal)}</td>
           </tr>
         }
       />
