@@ -6,6 +6,7 @@ import FlagBadge from './components/FlagBadge';
 import KpiRow from './components/KpiRow';
 import SectionCard from './components/SectionCard';
 import StatStrip from './components/StatStrip';
+import cpLogo from './cp-logo.png';
 
 const NOW = new Date().toISOString().slice(0, 10);
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
@@ -442,12 +443,12 @@ function PinGate({ onUnlock }) {
         <div className="mb-8 flex flex-col items-center gap-3.5 text-center">
           <div className="relative">
             <div
-              className="flex items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-xl font-extrabold text-white ring-1 ring-white/40"
-              style={{ width: '4.5rem', height: '4.5rem', boxShadow: '0 24px 60px -10px rgba(13, 148, 136, 0.5)' }}
+              className="flex items-center justify-center rounded-2xl bg-white/85 p-2 ring-1 ring-white/70"
+              style={{ width: '4.5rem', height: '4.5rem', boxShadow: '0 24px 60px -10px rgba(183, 0, 114, 0.38)' }}
             >
-              CP
+              <img src={cpLogo} alt="Centre Point logo" className="h-full w-full object-contain" />
             </div>
-            <div className="absolute -inset-3 rounded-[24px] bg-teal-400/25 blur-2xl -z-10" />
+            <div className="absolute -inset-3 rounded-[24px] bg-[#b70072]/20 blur-2xl -z-10" />
           </div>
           <div>
             <div className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-app-accentDark">DailyFlash</div>
@@ -1399,9 +1400,9 @@ export default function App() {
     <>
       {/* Brand */}
       <div className={`flex shrink-0 items-center border-b border-app-divider ${collapsed ? 'justify-center px-3 py-5' : 'gap-3 px-5 py-5'}`}>
-        <div className="relative flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-sm font-extrabold text-white ring-1 ring-white/40">
-          CP
-          <div className="absolute -inset-1 rounded-[18px] bg-teal-400/25 blur-lg -z-10" />
+        <div className="relative flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/85 p-1.5 ring-1 ring-white/70">
+          <img src={cpLogo} alt="Centre Point logo" className="h-full w-full object-contain" />
+          <div className="absolute -inset-1 rounded-[18px] bg-[#b70072]/20 blur-lg -z-10" />
         </div>
         {!collapsed ? (
           <div className="min-w-0 flex-1">
