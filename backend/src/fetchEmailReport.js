@@ -363,16 +363,62 @@ async function syncToCloud(date) {
     if (!loginRes.ok) throw new Error(`Login failed: ${loginRes.status}`);
     const { token } = await loginRes.json();
 
+    const existingRes = await fetch(`${cloudUrl}/api/seed?date=${date}`, {
+      headers: { authorization: `Bearer ${token}` }
+    });
+    const existingJson = existingRes.ok ? await existingRes.json() : null;
+    const dataToPush = mergeReportData(existingJson?.saved, localData);
+
     const pushRes = await fetch(`${cloudUrl}/api/data`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify({ date, data: localData })
+      body: JSON.stringify({ date, data: dataToPush })
     });
     if (!pushRes.ok) throw new Error(`Push failed: ${pushRes.status}`);
     log(`Cloud sync done for ${date}.`);
   } catch (err) {
     log(`Cloud sync ERROR: ${err.message}`);
   }
+}
+
+function filled(value) {
+  return value !== null && value !== undefined && String(value).trim() !== '';
+}
+
+function mergeKpiRows(existingRows = [], incomingRows = []) {
+  const byId = new Map(existingRows.map((row) => [row.id, row]));
+  for (const row of incomingRows) {
+    const previous = byId.get(row.id) ?? {};
+    byId.set(row.id, {
+      ...previous,
+      ...row,
+      actual: filled(row.actual) ? row.actual : previous.actual,
+      mtd: filled(row.mtd) ? row.mtd : previous.mtd,
+      ytd: filled(row.ytd) ? row.ytd : previous.ytd
+    });
+  }
+  return [...byId.values()];
+}
+
+function mergeReportData(existingData = {}, localData = {}) {
+  const merged = {
+    ...existingData,
+    ...localData,
+    importSource: {
+      ...(existingData.importSource ?? {}),
+      ...(localData.importSource ?? {})
+    },
+    settlement: {
+      ...(existingData.settlement ?? {}),
+      ...(localData.settlement ?? {})
+    }
+  };
+
+  for (const key of ['hotels', 'rabbits', 'mickys', 'purosoul']) {
+    merged[key] = mergeKpiRows(existingData[key], localData[key]);
+  }
+
+  return merged;
 }
 
 run().catch((err) => {
