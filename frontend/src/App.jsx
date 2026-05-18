@@ -16,7 +16,25 @@ const today = d.toISOString().slice(0, 10);
 // MongoDB has historically saved some of these as `[]`, which would otherwise blank the page.
 const SEED_FALLBACK_KEYS = ['pnl', 'bankPosition', 'hotels', 'rabbits', 'mickys', 'purosoul', 'purosoulSku', 'fixedCosts'];
 
-function mergeWithSeed(seed, saved) {
+const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit'];
+
+function hasEnteredPnlValues(row) {
+  return PNL_VALUE_KEYS.some((key) => String(row?.[key] ?? '').trim() !== '');
+}
+
+function mergePnlRows(seedRows = [], savedRows = [], previousRows = []) {
+  const savedByUnit = new Map(savedRows.map((row) => [row.unit, row]));
+  const previousByUnit = new Map(previousRows.map((row) => [row.unit, row]));
+  return seedRows.map((seedRow) => {
+    const savedRow = savedByUnit.get(seedRow.unit);
+    const previousRow = previousByUnit.get(seedRow.unit);
+    if (hasEnteredPnlValues(savedRow)) return { ...seedRow, ...savedRow };
+    if (hasEnteredPnlValues(previousRow)) return { ...seedRow, ...previousRow };
+    return savedRow ? { ...seedRow, ...savedRow } : seedRow;
+  });
+}
+
+function mergeWithSeed(seed, saved, previous = null) {
   if (!saved) return seed;
   const merged = { ...seed, ...saved };
   for (const key of SEED_FALLBACK_KEYS) {
@@ -29,6 +47,7 @@ function mergeWithSeed(seed, saved) {
       merged[key] = seedVal;
     }
   }
+  merged.pnl = mergePnlRows(seed.pnl, saved.pnl, previous?.pnl);
   return merged;
 }
 const SHEET_URLS = {
@@ -1210,7 +1229,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('dailyflashSidebar') === 'collapsed');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const loadRequestRef = React.useRef(0);
-  const mainScrollRef = React.useRef(null);
+  const loadedDateRef = React.useRef('');
 
   React.useEffect(() => {
     localStorage.setItem('dailyflashSidebar', sidebarCollapsed ? 'collapsed' : 'expanded');
@@ -1230,13 +1249,15 @@ export default function App() {
     setRefreshing(true);
     let snapshot = null;
     if (!silent) {
-      setData((prev) => { snapshot = prev; return null; });
+      setData((prev) => { snapshot = prev; return prev; });
       setStatus('Loading...');
     }
     try {
       const { seed, saved } = await getSeed(currentDate, token);
       if (requestId !== loadRequestRef.current) return;
-      setData(mergeWithSeed(seed, saved));
+      const sameDateSnapshot = loadedDateRef.current === currentDate ? snapshot : null;
+      setData(mergeWithSeed(seed, saved, sameDateSnapshot));
+      loadedDateRef.current = currentDate;
       if (silent) {
         setStatus(`Auto refreshed ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
       } else {
