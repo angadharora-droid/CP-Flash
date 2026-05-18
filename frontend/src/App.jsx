@@ -412,7 +412,6 @@ function PinGate({ onUnlock }) {
     setStatus('');
     try {
       const token = await loginWithPin(pin);
-      localStorage.setItem('dailyflashToken', token);
       onUnlock(token);
     } catch (err) {
       setStatus(err.message);
@@ -1434,7 +1433,7 @@ export default function App() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('Loading...');
   const [refreshing, setRefreshing] = useState(false);
-  const [authToken, setAuthToken] = useState(() => localStorage.getItem('dailyflashToken') || '');
+  const [authToken, setAuthToken] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('dailyflashSidebar') === 'collapsed');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sourceReportPreview, setSourceReportPreview] = useState(null);
@@ -1443,6 +1442,10 @@ export default function App() {
   const [pdfReturnTo, setPdfReturnTo] = useState('sources');
   const loadRequestRef = React.useRef(0);
   const loadedDateRef = React.useRef('');
+
+  React.useEffect(() => {
+    localStorage.removeItem('dailyflashToken');
+  }, []);
 
   React.useEffect(() => {
     localStorage.setItem('dailyflashSidebar', sidebarCollapsed ? 'collapsed' : 'expanded');
