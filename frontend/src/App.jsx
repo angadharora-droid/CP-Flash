@@ -1276,7 +1276,8 @@ function PdfPreviewPage({ date, authToken, onSave }) {
     <>
       <PageTitle title="PDF Preview" subtitle={`Daily flash report — ${date}`} badge={null} activeKey="pdf" />
 
-      <div className="overflow-hidden rounded-xl border border-app-border bg-white shadow-sm">
+      <div className="fixed inset-0 z-[100] overflow-hidden bg-slate-200 p-0 sm:p-4 lg:p-6">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white shadow-glass sm:rounded-2xl sm:border sm:border-white/70">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border bg-slate-50 px-4 py-3 lg:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-sm">
@@ -1312,10 +1313,9 @@ function PdfPreviewPage({ date, authToken, onSave }) {
           <span>Preview reflects the last saved state. Unsaved edits will appear after refresh.</span>
         </div>
 
-        <div className="bg-slate-200/70 p-3 sm:p-4">
+        <div className="min-h-0 flex-1 overflow-hidden bg-slate-200/70 p-3 sm:p-4">
           <div
-            className="relative mx-auto overflow-hidden rounded-lg border border-slate-300 bg-white shadow-card"
-            style={{ height: 'calc(100vh - 315px)', minHeight: '560px', maxWidth: '1180px' }}
+            className="relative mx-auto flex h-full min-h-0 w-full max-w-[1180px] overflow-hidden rounded-lg border border-slate-300 bg-white shadow-card"
           >
             {frameState === 'loading' && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-white">
@@ -1349,6 +1349,7 @@ function PdfPreviewPage({ date, authToken, onSave }) {
               onError={() => setFrameState('error')}
             />
           </div>
+        </div>
         </div>
       </div>
     </>
