@@ -548,6 +548,7 @@ function PinGate({ onUnlock }) {
 
 function BankPage({ data, date }) {
   const rows = data.bankPosition ?? [];
+  const [expandedUnits, setExpandedUnits] = useState({});
   const units = Array.from(new Set(rows.map((r) => r.unit || 'Unspecified')));
   const badge = getFreshness(
     data.importSource?.bankPositionImportedAt,
@@ -619,13 +620,19 @@ function BankPage({ data, date }) {
               acc.net += net(row);
               return acc;
             }, { actual: 0, fd: 0, issued: 0, hand: 0, net: 0 });
+            const hasMulti = unitRows.length > 1;
+            const expanded = !!expandedUnits[unit];
             built.push({
               key: `unit-${unit}`,
               cells: [
-                <div>
+                hasMulti ? (
+                  <button type="button" onClick={() => setExpandedUnits((s) => ({ ...s, [unit]: !s[unit] }))} className="text-left w-full">
+                    <div className="font-semibold text-app-text">{unit} <span className="text-xs text-app-muted font-normal">{expanded ? '▼' : '▶'}</span></div>
+                    <div className="text-xs text-app-muted">{unitRows.length} accounts</div>
+                  </button>
+                ) : (
                   <div className="font-semibold text-app-text">{unit}</div>
-                  {unitRows.length > 1 ? <div className="text-xs text-app-muted">{unitRows.length} accounts</div> : null}
-                </div>,
+                ),
                 <span className="num font-semibold">{money(unitTotals.actual)}</span>,
                 <span className="num font-semibold">{money(unitTotals.fd)}</span>,
                 <span className="num font-semibold">{money(unitTotals.issued)}</span>,
@@ -633,7 +640,7 @@ function BankPage({ data, date }) {
                 <span className={`num font-bold ${unitTotals.net >= 0 ? 'text-app-text' : 'text-rose-700'}`}>{money(unitTotals.net)}</span>
               ]
             });
-            if (unitRows.length > 1) {
+            if (hasMulti && expanded) {
               unitRows.forEach((row, idx) => built.push({
                 key: `unit-${unit}-row-${idx}`,
                 cells: [
