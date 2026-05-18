@@ -803,7 +803,7 @@ function SourceReportPreviewModal({ preview, loading, error, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-3 backdrop-blur-sm animate-fade-in">
-      <div className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-glass">
+      <div className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-glass">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-app-divider px-5 py-4">
           <div className="min-w-0">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-app-subtle">Email report preview</p>
@@ -844,7 +844,7 @@ function SourceReportPreviewModal({ preview, loading, error, onClose }) {
                   ))}
                 </div>
               ) : null}
-              <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-app-border bg-white">
+              <div className="min-h-0 flex-1 touch-pan-x touch-pan-y overflow-auto overscroll-contain rounded-xl border border-app-border bg-white">
                 <table className="min-w-full border-collapse text-xs">
                   <tbody>
                     {selectedSheet.rows.map((row, rowIndex) => (
