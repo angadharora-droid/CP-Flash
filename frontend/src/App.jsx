@@ -340,11 +340,10 @@ function BankPage({ data, date }) {
   const totals = rows.reduce((acc, row) => {
     acc.actual += numberValue(row.actualBalance);
     acc.issued += numberValue(row.chequesIssued);
-    acc.totalAmount += numberValue(row.chequeTotalAmount);
     acc.hand += numberValue(row.chequesInHand);
     acc.fd += numberValue(row.fdTotal);
     return acc;
-  }, { actual: 0, issued: 0, totalAmount: 0, hand: 0, fd: 0 });
+  }, { actual: 0, issued: 0, hand: 0, fd: 0 });
   const net = (row) =>
     String(row.netBalance ?? '').trim() !== ''
       ? numberValue(row.netBalance)
@@ -359,7 +358,7 @@ function BankPage({ data, date }) {
         <SheetLink url={SHEET_URLS.bankPosition} />
       </div>
       <DataTable
-        columns={['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheque Total Amount', 'Cheques in Hand', 'Net Balance Available']}
+        columns={['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Balance Available']}
         rows={rows.map((row) => ({
           key: `${row.unit}-${row.account ?? row.unit}`,
           cells: [
@@ -370,7 +369,6 @@ function BankPage({ data, date }) {
             <ReportValue value={row.actualBalance} />,
             <ReportValue value={row.fdTotal ?? ''} />,
             <ReportValue value={row.chequesIssued} />,
-            <ReportValue value={row.chequeTotalAmount ?? ''} />,
             <ReportValue value={row.chequesInHand} />,
             <span className="font-bold text-app-text">{money(net(row))}</span>
           ]
@@ -381,7 +379,6 @@ function BankPage({ data, date }) {
             <td className="px-3 py-3">{money(totals.actual)}</td>
             <td className="px-3 py-3">{money(totals.fd)}</td>
             <td className="px-3 py-3">{money(totals.issued)}</td>
-            <td className="px-3 py-3">{money(totals.totalAmount)}</td>
             <td className="px-3 py-3">{money(totals.hand)}</td>
             <td className="px-3 py-3">{money(netTotal)}</td>
           </tr>
