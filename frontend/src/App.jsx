@@ -617,26 +617,26 @@ function BankPage({ data, date }) {
               acc.fd += numberValue(row.fdTotal);
               acc.issued += numberValue(row.chequesIssued);
               acc.hand += numberValue(row.chequesInHand);
+              acc.net += net(row);
               return acc;
-            }, { actual: 0, fd: 0, issued: 0, hand: 0 });
+            }, { actual: 0, fd: 0, issued: 0, hand: 0, net: 0 });
             const expanded = !!expandedUnits[unit];
             built.push({
               key: `unit-${unit}`,
               cells: [
                 <button type="button" onClick={() => setExpandedUnits((s) => ({ ...s, [unit]: !s[unit] }))} className="text-left w-full">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div>
                       <div className="font-semibold text-app-text">{unit}</div>
-                      <div className="text-xs text-app-muted">{unitRows.length} account{unitRows.length > 1 ? 's' : ''}</div>
+                      <div className="text-xs text-app-muted">{unitRows.length} account{unitRows.length > 1 ? 's' : ''} {unitRows.length > 1 ? (expanded ? '▼' : '▶') : ''}</div>
                     </div>
-                    <div className="text-sm text-app-muted">{money(unitTotals.actual)}</div>
                   </div>
                 </button>,
                 <span className="num">{money(unitTotals.actual)}</span>,
                 <span className="num">{money(unitTotals.fd)}</span>,
                 <span className="num">{money(unitTotals.issued)}</span>,
                 <span className="num">{money(unitTotals.hand)}</span>,
-                <span className={`num font-bold ${unitTotals.actual >= 0 ? 'text-app-text' : 'text-rose-700'}`}>{money(unitTotals.actual)}</span>
+                <span className={`num font-bold ${unitTotals.net >= 0 ? 'text-app-text' : 'text-rose-700'}`}>{money(unitTotals.net)}</span>
               ]
             });
             if (expanded) {

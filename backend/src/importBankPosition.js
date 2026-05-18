@@ -31,10 +31,6 @@ function fmt(value) {
   return value == null ? '' : String(Math.round(value * 100) / 100);
 }
 
-function add(row, key) {
-  return num(row[key]) ?? 0;
-}
-
 async function fetchSheetRows(gid) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
   const res = await fetch(url);
@@ -67,43 +63,6 @@ function extractAccount(rows, acct) {
   return { actualBalance, fdTotal, chequesIssued, chequeTotalAmount, chequesInHand, netBalance };
 }
 
-function consolidateAccounts(rows) {
-  const byUnit = new Map();
-
-  for (const row of rows) {
-    const existing = byUnit.get(row.unit) ?? {
-      unit: row.unit,
-      accountCount: 0,
-      actualBalance: 0,
-      fdTotal: 0,
-      chequesIssued: 0,
-      chequeTotalAmount: 0,
-      chequesInHand: 0,
-      netBalance: 0
-    };
-
-    existing.accountCount += 1;
-    existing.actualBalance += add(row, 'actualBalance');
-    existing.fdTotal += add(row, 'fdTotal');
-    existing.chequesIssued += add(row, 'chequesIssued');
-    existing.chequeTotalAmount += add(row, 'chequeTotalAmount');
-    existing.chequesInHand += add(row, 'chequesInHand');
-    existing.netBalance += add(row, 'netBalance');
-    byUnit.set(row.unit, existing);
-  }
-
-  return [...byUnit.values()].map((row) => ({
-    unit: row.unit,
-    account: row.accountCount > 1 ? `${row.accountCount} accounts consolidated` : 'Consolidated',
-    actualBalance: fmt(row.actualBalance),
-    fdTotal: fmt(row.fdTotal),
-    chequesIssued: fmt(row.chequesIssued),
-    chequeTotalAmount: fmt(row.chequeTotalAmount),
-    chequesInHand: fmt(row.chequesInHand),
-    netBalance: fmt(row.netBalance)
-  }));
-}
-
 export async function importBankPosition(outDate) {
   const accountRows = [];
 
@@ -122,8 +81,6 @@ export async function importBankPosition(outDate) {
     });
   }
 
-  const mapped = consolidateAccounts(accountRows);
-
   const dataPath = path.resolve(process.cwd(), 'data', `${outDate}.json`);
   let data;
   try {
@@ -133,7 +90,7 @@ export async function importBankPosition(outDate) {
     data = buildSeedData();
   }
 
-  data.bankPosition = mapped;
+  data.bankPosition = accountRows;
   data.importSource = {
     ...(data.importSource ?? {}),
     bankPositionImportedAt: new Date().toISOString(),
@@ -142,7 +99,7 @@ export async function importBankPosition(outDate) {
   await fs.mkdir(path.dirname(dataPath), { recursive: true });
   await fs.writeFile(dataPath, JSON.stringify({ ...data, date: outDate, savedAt: new Date().toISOString() }, null, 2));
 
-  return { ok: true, date: outDate, mapped };
+  return { ok: true, date: outDate, mapped: accountRows };
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
