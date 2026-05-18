@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { generateAiNotes, getSeed, getSourceStatus, loginWithPin, reportPdfPreviewUrl, reportPdfUrl, saveData } from './lib/api';
-import { groupRevenue, money, numberValue, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from './lib/calculations';
+import { groupRevenue, money, moneyCompact, numberValue, percent, pnlRows, relativeTime, settlementModes, settlementTotals, UNITS, withFlags } from './lib/calculations';
 import DataTable from './components/DataTable';
 import FlagBadge from './components/FlagBadge';
 import KpiRow from './components/KpiRow';
@@ -119,33 +119,50 @@ function FreshnessBadge({ label, cls }) {
   );
 }
 
-function ReportValue({ value, className = '' }) {
+function ReportValue({ value, className = '', numeric = false }) {
   const empty = value === '' || value == null;
   return (
-    <span className={`num block min-w-24 rounded-lg px-2.5 py-1.5 text-sm ${empty ? 'text-slate-300' : 'bg-app-panel/80 text-app-text'} ${className}`}>
+    <span className={`num block min-w-24 rounded-lg px-2.5 py-1.5 text-sm ${numeric ? 'text-right tabular-nums' : ''} ${empty ? 'text-slate-300' : 'bg-app-panel/80 text-app-text'} ${className}`}>
       {empty ? '—' : value}
     </span>
   );
 }
 
-function PageTitle({ title, subtitle, badge }) {
+const SECTION_ACCENTS = {
+  Overview: {
+    stripe: 'bg-gradient-to-b from-teal-400 to-teal-600',
+    glow: 'radial-gradient(620px 200px at 0% 0%, rgba(20,184,166,0.12) 0%, rgba(20,184,166,0) 70%), radial-gradient(540px 220px at 100% 100%, rgba(99,102,241,0.07) 0%, rgba(99,102,241,0) 70%)'
+  },
+  'Unit Data': {
+    stripe: 'bg-gradient-to-b from-indigo-400 to-indigo-600',
+    glow: 'radial-gradient(620px 200px at 0% 0%, rgba(99,102,241,0.13) 0%, rgba(99,102,241,0) 70%), radial-gradient(540px 220px at 100% 100%, rgba(20,184,166,0.06) 0%, rgba(20,184,166,0) 70%)'
+  },
+  'Close of Day': {
+    stripe: 'bg-gradient-to-b from-amber-400 to-amber-600',
+    glow: 'radial-gradient(620px 200px at 0% 0%, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0) 70%), radial-gradient(540px 220px at 100% 100%, rgba(20,184,166,0.06) 0%, rgba(20,184,166,0) 70%)'
+  }
+};
+
+function getSectionAccent(activeKey) {
+  const group = NAV_GROUPS.find((g) => g.items.some((i) => i.key === activeKey));
+  return SECTION_ACCENTS[group?.label] ?? SECTION_ACCENTS.Overview;
+}
+
+function PageTitle({ title, subtitle, badge, actions, activeKey }) {
+  const accent = getSectionAccent(activeKey);
   return (
     <div className="relative overflow-hidden rounded-2xl border border-app-border bg-white/85 backdrop-blur-xl shadow-card animate-fade-in-up">
-      <div
-        className="absolute inset-0 opacity-[0.55] pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(620px 200px at 0% 0%, rgba(20,184,166,0.10) 0%, rgba(20,184,166,0) 70%),\
-             radial-gradient(540px 220px at 100% 100%, rgba(99,102,241,0.08) 0%, rgba(99,102,241,0) 70%)'
-        }}
-      />
-      <div className="absolute inset-y-3 left-0 w-[3px] rounded-r-full bg-accent-stripe" />
-      <div className="relative px-7 py-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight text-app-text text-balance">{title}</h1>
-          {badge ? <FreshnessBadge {...badge} /> : null}
+      <div className="absolute inset-0 opacity-[0.6] pointer-events-none" style={{ background: accent.glow }} />
+      <div className={`absolute inset-y-3 left-0 w-[3px] rounded-r-full ${accent.stripe}`} />
+      <div className="relative flex flex-wrap items-start justify-between gap-4 px-7 py-6">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-app-text text-balance">{title}</h1>
+            {badge ? <FreshnessBadge {...badge} /> : null}
+          </div>
+          {subtitle ? <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-app-muted">{subtitle}</p> : null}
         </div>
-        {subtitle ? <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-app-muted">{subtitle}</p> : null}
+        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
     </div>
   );
@@ -496,12 +513,43 @@ function BankPage({ data, date }) {
 
   return (
     <>
-      <PageTitle title="Bank Position" subtitle="Daily unit-wise cash visibility." badge={badge} />
-      <div className="flex justify-end">
-        <SheetLink url={SHEET_URLS.bankPosition} />
-      </div>
+      <PageTitle
+        title="Bank Position"
+        subtitle="Daily unit-wise cash visibility."
+        badge={badge}
+        activeKey="bank"
+        actions={<SheetLink url={SHEET_URLS.bankPosition} />}
+      />
+      <StatStrip items={[
+        {
+          label: 'Actual Balance',
+          value: moneyCompact(totals.actual),
+          tone: 'text-teal-700',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9V6.75A2.25 2.25 0 014.5 4.5h15a2.25 2.25 0 012.25 2.25V9m-19.5 0v8.25A2.25 2.25 0 004.5 19.5h15a2.25 2.25 0 002.25-2.25V9m-19.5 0h19.5" />
+        },
+        {
+          label: 'FD Total',
+          value: moneyCompact(totals.fd),
+          tone: 'text-emerald-700',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25zm0 2.25h.008v.008H12V10.5zm0 2.25h.008v.008H12V12.75z" />
+        },
+        {
+          label: 'Cheques Issued',
+          value: moneyCompact(totals.issued),
+          tone: totals.issued > 0 ? 'text-amber-700' : undefined,
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l2 2 4-4m-7-4h6.75A2.25 2.25 0 0116.5 4.5v2.25" />
+        },
+        {
+          label: 'Net Balance',
+          value: moneyCompact(netTotal),
+          tone: netTotal >= 0 ? 'text-emerald-700' : 'text-rose-700',
+          caption: `Group total across ${rows.length} accounts`,
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+        }
+      ]} />
       <DataTable
         columns={['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Balance Available']}
+        numericFrom={1}
         rows={rows.map((row) => ({
           key: `${row.unit}-${row.account ?? row.unit}`,
           cells: [
@@ -509,21 +557,21 @@ function BankPage({ data, date }) {
               <div className="font-semibold text-app-text">{row.unit}</div>
               {row.account ? <div className="text-xs font-medium text-app-muted">{row.account}</div> : null}
             </div>,
-            <ReportValue value={row.actualBalance} />,
-            <ReportValue value={row.fdTotal ?? ''} />,
-            <ReportValue value={row.chequesIssued} />,
-            <ReportValue value={row.chequesInHand} />,
-            <span className="font-bold text-app-text">{money(net(row))}</span>
+            <ReportValue value={row.actualBalance} numeric />,
+            <ReportValue value={row.fdTotal ?? ''} numeric />,
+            <ReportValue value={row.chequesIssued} numeric />,
+            <ReportValue value={row.chequesInHand} numeric />,
+            <span className={`num font-bold ${net(row) >= 0 ? 'text-app-text' : 'text-rose-700'}`}>{money(net(row))}</span>
           ]
         }))}
         footer={
           <tr>
-            <td className="px-3 py-3">GROUP TOTAL</td>
-            <td className="px-3 py-3">{money(totals.actual)}</td>
-            <td className="px-3 py-3">{money(totals.fd)}</td>
-            <td className="px-3 py-3">{money(totals.issued)}</td>
-            <td className="px-3 py-3">{money(totals.hand)}</td>
-            <td className="px-3 py-3">{money(netTotal)}</td>
+            <td className="px-4 py-3">GROUP TOTAL</td>
+            <td className="num px-4 py-3 text-right">{money(totals.actual)}</td>
+            <td className="num px-4 py-3 text-right">{money(totals.fd)}</td>
+            <td className="num px-4 py-3 text-right">{money(totals.issued)}</td>
+            <td className="num px-4 py-3 text-right">{money(totals.hand)}</td>
+            <td className="num px-4 py-3 text-right">{money(netTotal)}</td>
           </tr>
         }
       />
@@ -548,47 +596,76 @@ function PnlPage({ data, date }) {
 
   return (
     <>
-      <PageTitle title="Unit-wise Estimated P&L" subtitle="Revenue, purchases, fixed cost, and estimated profitability." badge={badge} />
-      <SectionCard title="Config: Daily Fixed Cost per Unit">
+      <PageTitle title="Unit-wise Estimated P&L" subtitle="Revenue, purchases, fixed cost, and estimated profitability." badge={badge} activeKey="pnl" />
+      <SectionCard title="Config: Daily Fixed Cost per Unit" defaultOpen={false}>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {rows.map((row) => (
-            <label key={row.unit} className="text-sm font-medium text-app-muted">
-              {row.unit}
-              <ReportValue value={row.fixedCost} className="mt-1" />
-            </label>
+            <div key={row.unit} className="flex items-center justify-between gap-3 rounded-xl border border-app-border bg-white/80 px-3.5 py-2.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-app-muted">{row.unit}</span>
+              <span className="num text-sm font-bold text-app-text">{money(row.fixedCost)}</span>
+            </div>
           ))}
         </div>
       </SectionCard>
-      <StatStrip items={[{ label: 'Group Revenue', value: money(totals.revenue) }, { label: 'Gross Profit', value: money(totals.gp), tone: totals.gp >= 0 ? 'text-emerald-700' : 'text-red-700' }, { label: 'Estimated Net Profit', value: money(totals.net), tone: totals.net >= 0 ? 'text-emerald-700' : 'text-red-700' }, { label: 'Net Margin', value: percent(totals.revenue ? (totals.net / totals.revenue) * 100 : 0) }]} />
+      <StatStrip items={[
+        {
+          label: 'Group Revenue',
+          value: moneyCompact(totals.revenue),
+          tone: 'text-teal-700',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+        },
+        {
+          label: 'Gross Profit',
+          value: moneyCompact(totals.gp),
+          tone: totals.gp >= 0 ? 'text-emerald-700' : 'text-red-700',
+          caption: totals.revenue ? `${percent(totals.gp / totals.revenue * 100)} of revenue` : null,
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+        },
+        {
+          label: 'Est. Net Profit',
+          value: moneyCompact(totals.net),
+          tone: totals.net >= 0 ? 'text-emerald-700' : 'text-red-700',
+          caption: totals.net >= 0 ? 'After fixed costs' : 'Loss after fixed costs',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4" />
+        },
+        {
+          label: 'Net Margin',
+          value: percent(totals.revenue ? (totals.net / totals.revenue) * 100 : 0),
+          tone: totals.net >= 0 ? 'text-emerald-700' : 'text-red-700',
+          caption: 'Net profit ÷ revenue',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+        }
+      ]} />
       <DataTable
         columns={['Unit', 'Revenue Today', 'Purchases Today', 'Gross Profit', 'GP%', 'Fixed Cost (Daily)', 'Est. Net Profit', 'Net Margin%', 'MTD Net Profit', 'YTD Net Profit']}
+        numericFrom={1}
         rows={rows.map((row) => ({
           key: row.unit,
           cells: [
             <span className="font-semibold text-app-text">{row.unit}</span>,
-            <ReportValue value={row.revenueToday} />,
-            <ReportValue value={row.purchasesToday} />,
-            <span className="text-app-text">{money(row.grossProfit)}</span>,
-            <span className={row.gpPercent >= 0 ? 'text-emerald-700' : 'text-red-700'}>{percent(row.gpPercent)}</span>,
-            <ReportValue value={row.fixedCost} />,
-            <span className={row.estNetProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}>{money(row.estNetProfit)}</span>,
-            <span className={row.netMargin >= 0 ? 'text-emerald-700' : 'text-red-700'}>{percent(row.netMargin)}</span>,
-            <ReportValue value={row.mtdNetProfit} />,
-            <ReportValue value={row.ytdNetProfit} />
+            <ReportValue value={row.revenueToday} numeric />,
+            <ReportValue value={row.purchasesToday} numeric />,
+            <span className="num font-medium text-app-text">{money(row.grossProfit)}</span>,
+            <span className={`num font-semibold ${row.gpPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.gpPercent)}</span>,
+            <ReportValue value={row.fixedCost} numeric />,
+            <span className={`num font-semibold ${row.estNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(row.estNetProfit)}</span>,
+            <span className={`num font-semibold ${row.netMargin >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.netMargin)}</span>,
+            <ReportValue value={row.mtdNetProfit} numeric />,
+            <ReportValue value={row.ytdNetProfit} numeric />
           ]
         }))}
         footer={
           <tr>
-            <td className="px-3 py-3">GROUP TOTAL</td>
-            <td className="px-3 py-3">{money(totals.revenue)}</td>
-            <td className="px-3 py-3">{money(totals.purchases)}</td>
-            <td className="px-3 py-3">{money(totals.gp)}</td>
-            <td className="px-3 py-3">{percent(totals.revenue ? (totals.gp / totals.revenue) * 100 : 0)}</td>
-            <td className="px-3 py-3">{money(totals.fixed)}</td>
-            <td className="px-3 py-3">{money(totals.net)}</td>
-            <td className="px-3 py-3">{percent(totals.revenue ? (totals.net / totals.revenue) * 100 : 0)}</td>
-            <td className="px-3 py-3">{money(totals.mtd)}</td>
-            <td className="px-3 py-3">{money(totals.ytd)}</td>
+            <td className="px-4 py-3">GROUP TOTAL</td>
+            <td className="num px-4 py-3 text-right">{money(totals.revenue)}</td>
+            <td className="num px-4 py-3 text-right">{money(totals.purchases)}</td>
+            <td className="num px-4 py-3 text-right">{money(totals.gp)}</td>
+            <td className="num px-4 py-3 text-right">{percent(totals.revenue ? (totals.gp / totals.revenue) * 100 : 0)}</td>
+            <td className="num px-4 py-3 text-right">{money(totals.fixed)}</td>
+            <td className={`num px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(totals.net)}</td>
+            <td className={`num px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(totals.revenue ? (totals.net / totals.revenue) * 100 : 0)}</td>
+            <td className="num px-4 py-3 text-right">{money(totals.mtd)}</td>
+            <td className="num px-4 py-3 text-right">{money(totals.ytd)}</td>
           </tr>
         }
       />
@@ -607,13 +684,50 @@ function FlagsPage({ data }) {
 
   return (
     <>
-      <PageTitle title="Watch Out Flag Summary" subtitle="Auto-generated risks from all unit KPIs." />
-      <StatStrip items={[{ label: 'On Track', value: counts.on, tone: 'text-emerald-700' }, { label: 'Watch', value: counts.watch, tone: 'text-amber-700' }, { label: 'Action Needed', value: counts.action, tone: 'text-red-700' }]} />
+      <PageTitle title="Watch Out Flag Summary" subtitle="Auto-generated risks from all unit KPIs." activeKey="flags" />
+      <StatStrip items={[
+        {
+          label: 'On Track',
+          value: counts.on,
+          tone: 'text-emerald-700',
+          caption: counts.on === 1 ? 'KPI tracking well' : 'KPIs tracking well',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        },
+        {
+          label: 'Watch',
+          value: counts.watch,
+          tone: 'text-amber-700',
+          caption: counts.watch === 1 ? 'KPI to monitor' : 'KPIs to monitor',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+        },
+        {
+          label: 'Action Needed',
+          value: counts.action,
+          tone: 'text-rose-700',
+          caption: counts.action === 0 ? 'All clear' : (counts.action === 1 ? 'Needs attention' : 'Need attention'),
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+        },
+        {
+          label: 'Total Risks',
+          value: counts.watch + counts.action,
+          tone: counts.action > 0 ? 'text-rose-700' : counts.watch > 0 ? 'text-amber-700' : 'text-emerald-700',
+          caption: `Out of ${counts.on + counts.watch + counts.action} KPIs`,
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
+        }
+      ]} />
       <DataTable
         columns={['Unit', 'KPI Name', 'AOP Target', 'Today Actual', '% vs Target', 'Flag']}
+        numericFrom={2}
         rows={filtered.map((row) => ({
           key: `${row.unit}-${row.kpiName}`,
-          cells: [row.unit, row.kpiName, row.aopTarget, row.todayActual, `${row.percentVsTarget}%`, <FlagBadge label={row.flag} />]
+          cells: [
+            <span className="font-semibold text-app-text">{row.unit}</span>,
+            <span className="text-app-text">{row.kpiName}</span>,
+            <span className="num">{row.aopTarget}</span>,
+            <span className="num">{row.todayActual}</span>,
+            <span className={`num font-semibold ${row.percentVsTarget >= 95 ? 'text-emerald-700' : row.percentVsTarget >= 85 ? 'text-amber-700' : 'text-rose-700'}`}>{row.percentVsTarget}%</span>,
+            <FlagBadge label={row.flag} />
+          ]
         }))}
       />
     </>
@@ -655,7 +769,7 @@ function SourceControlPage({ date, authToken }) {
 
   return (
     <>
-      <PageTitle title="Source Control" subtitle="Daily feed status for mail, sheets, POS, and manual sources." />
+      <PageTitle title="Source Control" subtitle="Daily feed status for mail, sheets, POS, and manual sources." activeKey="sources" />
       <StatStrip items={[
         { label: 'Total Sources', value: sourceStatus?.total ?? '-' },
         { label: 'Imported', value: sourceStatus?.imported ?? '-', tone: 'text-emerald-700' },
@@ -703,7 +817,7 @@ function GroupedKpiPage({ title, subtitle, dataKey, data, sections, date, import
   const badge = getFreshness(importedAt ?? null, hasKpiData(rows), date);
   return (
     <>
-      <PageTitle title={title} subtitle={subtitle} badge={badge} />
+      <PageTitle title={title} subtitle={subtitle} badge={badge} activeKey={dataKey} />
       {sheetUrl && <div className="flex justify-end"><SheetLink url={sheetUrl} /></div>}
       {sections.map((section) => <SectionCard key={section} title={section}><KpiTable rows={rows.filter((row) => row.section === section)} /></SectionCard>)}
     </>
@@ -720,7 +834,7 @@ function HotelsPage({ data, date }) {
   const hotelLabel = hotelUnit === 'CP NM' ? 'CP Navi Mumbai' : hotelUnit;
   return (
     <>
-      <PageTitle title="Hotels Data" subtitle="Separate operating dashboards for CP Nagpur and CP Navi Mumbai." />
+      <PageTitle title="Hotels Data" subtitle="Separate operating dashboards for CP Nagpur and CP Navi Mumbai." activeKey="hotels" />
       <SegmentedControl
         value={hotelUnit}
         onChange={setHotelUnit}
@@ -761,7 +875,7 @@ function FnbPage({ data, date }) {
   const fnbSheetUrl = tab === 'Pablo' ? SHEET_URLS.pabloCost : SHEET_URLS.daliCost;
   return (
     <>
-      <PageTitle title="F&B Outlet Data" subtitle="Pablo and Dali sales, cost, AOP, and top items." />
+      <PageTitle title="F&B Outlet Data" subtitle="Pablo and Dali sales, cost, AOP, and top items." activeKey="fnb" />
       <SegmentedControl
         value={tab}
         onChange={setTab}
@@ -799,7 +913,7 @@ function PurosoulPage({ data, date }) {
   const badge = getFreshness(importedAt, hasData, date);
   return (
     <>
-      <PageTitle title="Purosoul Data" subtitle="Revenue, RM cost, production, dispatch, and stock." badge={badge} />
+      <PageTitle title="Purosoul Data" subtitle="Revenue, RM cost, production, dispatch, and stock." badge={badge} activeKey="purosoul" />
       <SectionCard title="Revenue & Cost"><KpiTable rows={(data.purosoul ?? []).filter((row) => row.section === 'Revenue & Cost')} /></SectionCard>
       <SectionCard title="SKU Production & Dispatch">
         <DataTable
@@ -829,33 +943,75 @@ function SettlementPage({ data, date }) {
   const diff = revenue - totals.groupTotal;
   return (
     <>
-      <PageTitle title="Settlement" subtitle="Mode-wise settlement matrix and revenue reconciliation." badge={badge} />
+      <PageTitle title="Settlement" subtitle="Mode-wise settlement matrix and revenue reconciliation." badge={badge} activeKey="settlement" />
+      <div className={`relative overflow-hidden rounded-2xl border ${diff === 0 ? 'border-emerald-200 bg-emerald-50/70' : 'border-rose-200 bg-rose-50/70'} px-5 py-4 shadow-card backdrop-blur-xl`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`flex size-10 items-center justify-center rounded-xl ring-1 ${diff === 0 ? 'bg-white text-emerald-600 ring-emerald-100' : 'bg-white text-rose-600 ring-rose-100'}`}>
+              <svg className="size-5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+                {diff === 0
+                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  : <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />}
+              </svg>
+            </div>
+            <div>
+              <div className={`text-sm font-bold ${diff === 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                {diff === 0 ? 'Revenue and settlements match' : 'Revenue and settlements mismatch'}
+              </div>
+              <div className="num mt-0.5 text-xs font-medium text-app-muted">
+                Revenue {money(revenue)} · Settled {money(totals.groupTotal)} · Difference{' '}
+                <span className={`font-bold ${diff === 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(diff)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <StatStrip items={[
+        {
+          label: 'Total Revenue',
+          value: moneyCompact(revenue),
+          tone: 'text-teal-700',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+        },
+        {
+          label: 'Total Settled',
+          value: moneyCompact(totals.groupTotal),
+          tone: 'text-emerald-700',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9V6.75A2.25 2.25 0 014.5 4.5h15a2.25 2.25 0 012.25 2.25V9m-19.5 0v8.25A2.25 2.25 0 004.5 19.5h15a2.25 2.25 0 002.25-2.25V9" />
+        },
+        {
+          label: 'Difference',
+          value: moneyCompact(diff),
+          tone: diff === 0 ? 'text-emerald-700' : 'text-rose-700',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
+        },
+        {
+          label: 'Status',
+          value: diff === 0 ? 'MATCHED' : 'MISMATCH',
+          tone: diff === 0 ? 'text-emerald-700' : 'text-rose-700',
+          caption: diff === 0 ? 'Balanced for the day' : 'Investigate discrepancy',
+          icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        }
+      ]} />
       <DataTable
         columns={['Settlement Mode', ...UNITS, 'Group Total']}
+        numericFrom={1}
         rows={settlementModes.map((mode) => ({
           key: mode,
           cells: [
-            <span className="font-semibold">{mode}</span>,
-            ...UNITS.map((unit) => <ReportValue key={unit} value={data.settlement?.[mode]?.[unit]} />),
-            <span className="font-bold">{money(totals.rowTotals[mode])}</span>
+            <span className="font-semibold text-app-text">{mode}</span>,
+            ...UNITS.map((unit) => <ReportValue key={unit} value={data.settlement?.[mode]?.[unit]} numeric />),
+            <span className="num font-bold text-app-text">{money(totals.rowTotals[mode])}</span>
           ]
         }))}
         footer={
           <tr>
-            <td className="px-3 py-3">UNIT TOTAL</td>
-            {UNITS.map((unit) => <td key={unit} className="px-3 py-3">{money(totals.unitTotals[unit])}</td>)}
-            <td className="px-3 py-3">{money(totals.groupTotal)}</td>
+            <td className="px-4 py-3">UNIT TOTAL</td>
+            {UNITS.map((unit) => <td key={unit} className="num px-4 py-3 text-right">{money(totals.unitTotals[unit])}</td>)}
+            <td className="num px-4 py-3 text-right">{money(totals.groupTotal)}</td>
           </tr>
         }
       />
-      <SectionCard title="Reconciliation">
-        <StatStrip items={[
-          { label: 'Total Revenue Today', value: money(revenue) },
-          { label: 'Total Settled', value: money(totals.groupTotal) },
-          { label: 'Difference', value: money(diff), tone: diff === 0 ? 'text-emerald-700' : 'text-red-700' },
-          { label: 'Status', value: diff === 0 ? 'MATCHED' : 'MISMATCH', tone: diff === 0 ? 'text-emerald-700' : 'text-red-700' }
-        ]} />
-      </SectionCard>
     </>
   );
 }
@@ -902,7 +1058,7 @@ Please summarize performance, call out concerns, highlight wins, and give 3 acti
 
   return (
     <>
-      <PageTitle title="Notes by AI" subtitle="Claude-generated morning management briefing." />
+      <PageTitle title="Notes by AI" subtitle="Claude-generated morning management briefing." activeKey="ai" />
       <SectionCard title="Daily Management Briefing">
         <div className="mb-4">
           <ActionButton onClick={run} disabled={loading} variant="primary">{loading ? 'Generating...' : 'Generate Report'}</ActionButton>
@@ -963,7 +1119,7 @@ function PdfPreviewPage({ date, authToken, onSave }) {
 
   return (
     <>
-      <PageTitle title="PDF Preview" subtitle={`Daily flash report - ${date}`} badge={null} />
+      <PageTitle title="PDF Preview" subtitle={`Daily flash report — ${date}`} badge={null} activeKey="pdf" />
 
       <div className="overflow-hidden rounded-xl border border-app-border bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border bg-slate-50 px-4 py-3 lg:px-5">
