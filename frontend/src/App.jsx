@@ -412,6 +412,7 @@ function PinGate({ onUnlock }) {
     setStatus('');
     try {
       const token = await loginWithPin(pin);
+      sessionStorage.setItem('dailyflashToken', token);
       onUnlock(token);
     } catch (err) {
       setStatus(err.message);
@@ -1433,7 +1434,7 @@ export default function App() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('Loading...');
   const [refreshing, setRefreshing] = useState(false);
-  const [authToken, setAuthToken] = useState('');
+  const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('dailyflashToken') || '');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('dailyflashSidebar') === 'collapsed');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sourceReportPreview, setSourceReportPreview] = useState(null);
@@ -1484,6 +1485,7 @@ export default function App() {
       if (!silent && snapshot !== null) setData(snapshot);
       if (/PIN required|Invalid PIN|Unauthorized/i.test(err.message)) {
         localStorage.removeItem('dailyflashToken');
+        sessionStorage.removeItem('dailyflashToken');
         setAuthToken('');
       }
       setStatus(err.message);
@@ -1545,11 +1547,12 @@ export default function App() {
     return <AiPage data={data} authToken={authToken} />;
   }, [active, data, date, authToken, openSourceReportPreview]);
 
-  const lockApp = () => {
+  const lockApp = React.useCallback(() => {
     localStorage.removeItem('dailyflashToken');
+    sessionStorage.removeItem('dailyflashToken');
     setAuthToken('');
     setData(null);
-  };
+  }, []);
 
   const handleRefresh = React.useCallback(() => {
     if (authToken) loadData(date, authToken);
