@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { generateAiNotes, getSeed, getSourceStatus, loginWithPin, reportPdfPreviewUrl, reportPdfUrl, saveData } from './lib/api';
+import { generateAiNotes, getSeed, getSourceReportPreview, getSourceStatus, loginWithPin, reportPdfPreviewUrl, reportPdfUrl, saveData } from './lib/api';
 import { groupRevenue, money, moneyCompact, numberValue, percent, pnlRows, relativeTime, settlementModes, settlementTotals, UNITS, withFlags } from './lib/calculations';
 import DataTable from './components/DataTable';
 import FlagBadge from './components/FlagBadge';
@@ -790,10 +790,93 @@ function FlagsPage({ data }) {
   );
 }
 
+function SourceReportPreviewModal({ preview, loading, error, onClose }) {
+  const [activeSheet, setActiveSheet] = useState('');
+  const sheets = preview?.sheets ?? [];
+  const selectedSheet = sheets.find((sheet) => sheet.name === activeSheet) ?? sheets[0];
+
+  useEffect(() => {
+    setActiveSheet(sheets[0]?.name ?? '');
+  }, [preview?.file, sheets[0]?.name]);
+
+  if (!preview && !loading && !error) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-3 backdrop-blur-sm animate-fade-in">
+      <div className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-glass">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-app-divider px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-app-subtle">Email report preview</p>
+            <h2 className="mt-1 truncate text-base font-bold text-app-text">{preview?.file ?? 'Loading report'}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close report preview"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-panel hover:text-app-text"
+          >
+            <svg className="size-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-hidden p-4">
+          {loading ? (
+            <div className="grid min-h-64 place-items-center text-sm font-medium text-app-muted">Preparing preview...</div>
+          ) : error ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">{error}</div>
+          ) : selectedSheet ? (
+            <div className="flex h-full min-h-0 flex-col gap-3">
+              {sheets.length > 1 ? (
+                <div className="flex gap-1 overflow-x-auto rounded-xl border border-app-border bg-app-panel p-1">
+                  {sheets.map((sheet) => (
+                    <button
+                      key={sheet.name}
+                      type="button"
+                      onClick={() => setActiveSheet(sheet.name)}
+                      className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                        selectedSheet.name === sheet.name ? 'bg-white text-app-accentDark shadow-sm' : 'text-app-muted hover:bg-white/70 hover:text-app-text'
+                      }`}
+                    >
+                      {sheet.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-app-border bg-white">
+                <table className="min-w-full border-collapse text-xs">
+                  <tbody>
+                    {selectedSheet.rows.map((row, rowIndex) => (
+                      <tr key={rowIndex} className={rowIndex === 0 ? 'bg-app-panel font-bold text-app-text' : 'odd:bg-white even:bg-app-panel/35'}>
+                        {row.map((cell, cellIndex) => (
+                          <td key={cellIndex} className="max-w-72 whitespace-nowrap border border-app-divider px-2.5 py-2 align-top text-app-text">
+                            {cell || <span className="text-slate-300">-</span>}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-app-muted">Showing the first 100 rows and 40 columns from the saved email attachment.</p>
+            </div>
+          ) : (
+            <div className="grid min-h-64 place-items-center text-sm font-medium text-app-muted">No previewable rows found.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SourceControlPage({ date, authToken }) {
   const [sourceStatus, setSourceStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reportPreview, setReportPreview] = useState(null);
+  const [reportPreviewLoading, setReportPreviewLoading] = useState(false);
+  const [reportPreviewError, setReportPreviewError] = useState('');
 
   const load = React.useCallback(async (silent = false) => {
     if (!authToken) return;
@@ -822,6 +905,18 @@ function SourceControlPage({ date, authToken }) {
 
   const sources = sourceStatus?.sources ?? [];
   const formatTime = (value) => value ? new Date(value).toLocaleString() : '-';
+  const openReportPreview = async (source, file) => {
+    setReportPreview({ file, sheets: [] });
+    setReportPreviewError('');
+    setReportPreviewLoading(true);
+    try {
+      setReportPreview(await getSourceReportPreview(date, source.id, file, authToken));
+    } catch (err) {
+      setReportPreviewError(err.message);
+    } finally {
+      setReportPreviewLoading(false);
+    }
+  };
 
   return (
     <>
@@ -859,11 +954,40 @@ function SourceControlPage({ date, authToken }) {
                 <div className="font-medium text-app-text">{source.file || '-'}</div>
                 {source.notes ? <div className="mt-1 text-xs leading-5 text-app-muted">{source.notes}</div> : null}
                 {source.sheetUrl ? <div className="mt-2"><SheetLink url={source.sheetUrl} label="Open Sheet" /></div> : null}
+                {source.reportFiles?.length ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {source.reportFiles.map((file, index) => (
+                      <button
+                        key={`${source.id}-${file}-${index}`}
+                        type="button"
+                        onClick={() => openReportPreview(source, file)}
+                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-app-border bg-white/85 px-3.5 py-2 text-xs font-bold text-app-text shadow-card backdrop-blur-xl transition-all duration-200 hover:-translate-y-px hover:border-app-borderStrong hover:bg-white hover:shadow-cardHover"
+                      >
+                        <span className="flex size-5 items-center justify-center rounded-md bg-app-accentTint text-app-accentDark">
+                          <svg className="size-3" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 12.75h3m-3 3h3M6.75 3h6.879a3 3 0 012.121.879l2.871 2.871a3 3 0 01.879 2.121v10.379A1.75 1.75 0 0117.75 21H6.75A1.75 1.75 0 015 19.25V4.75C5 3.784 5.784 3 6.75 3z" />
+                          </svg>
+                        </span>
+                        {source.reportFiles.length > 1 ? `Preview ${index + 1}` : 'Preview Report'}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ]
           }))}
         />
       </SectionCard>
+      <SourceReportPreviewModal
+        preview={reportPreview}
+        loading={reportPreviewLoading}
+        error={reportPreviewError}
+        onClose={() => {
+          setReportPreview(null);
+          setReportPreviewError('');
+          setReportPreviewLoading(false);
+        }}
+      />
     </>
   );
 }

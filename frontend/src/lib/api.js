@@ -97,6 +97,13 @@ export async function getSourceStatus(date, token) {
   }, 'Unable to load source status');
 }
 
+export async function getSourceReportPreview(date, sourceId, file, token) {
+  const params = new URLSearchParams({ date, sourceId, file });
+  return apiFetch(`/api/source-report-preview?${params.toString()}`, {
+    headers: authHeaders(token)
+  }, 'Unable to load report preview');
+}
+
 export async function generateAiNotes(prompt, token) {
   const json = await apiFetch('/api/ai-notes', {
     method: 'POST',
