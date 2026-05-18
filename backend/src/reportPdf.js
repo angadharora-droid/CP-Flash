@@ -11,17 +11,26 @@ const SHEET_URLS = {
 };
 
 const colors = {
-  maroon: '#6f0e13',
-  deepMaroon: '#4a0a0d',
-  gold: '#f1c53e',
-  cream: '#f9f1df',
-  blush: '#f0e8e4',
-  pale: '#fff8f4',
-  ink: '#1a1410',
-  muted: '#8a7e78',
-  green: '#2d7a4f',
-  amber: '#d4830a',
-  red: '#c0392b'
+  navy: '#17233b',
+  navy2: '#243b63',
+  teal: '#0f766e',
+  tealSoft: '#dff7f3',
+  gold: '#c8892d',
+  goldSoft: '#fff4dd',
+  cream: '#fbf7ef',
+  panel: '#f7f9fc',
+  line: '#dbe3ee',
+  lineDark: '#c7d2e2',
+  ink: '#111827',
+  muted: '#64748b',
+  subtle: '#94a3b8',
+  green: '#15803d',
+  greenSoft: '#e7f7ee',
+  amber: '#b7791f',
+  amberSoft: '#fff7e6',
+  red: '#be123c',
+  redSoft: '#fff1f2',
+  white: '#ffffff'
 };
 
 function numberValue(value) {
@@ -99,25 +108,31 @@ function safeText(value) {
 }
 
 export function createDailyFlashPdf(data, date) {
-  const doc = new PDFDocument({ size: 'A4', margins: { top: 36, right: 36, bottom: 18, left: 36 }, bufferPages: true });
+  const doc = new PDFDocument({ size: 'A4', margins: { top: 36, right: 36, bottom: 24, left: 36 }, bufferPages: true });
   let pageNo = 0;
 
-  const contentTop = 118;
-  const contentBottom = 792;
+  const contentTop = 116;
+  const contentBottom = 786;
   const width = doc.page.width - 72;
 
   function header() {
     pageNo += 1;
     doc.save();
-    doc.rect(0, 0, doc.page.width, 102).fill(colors.maroon);
-    doc.rect(0, 102, doc.page.width, 6).fill(colors.gold);
-    doc.fillColor(colors.gold).font('Helvetica-Bold').fontSize(7).text('CENTRE POINT HOSPITALITY  |  CONFIDENTIAL', 36, 34);
-    doc.fillColor('white').font('Helvetica-Bold').fontSize(20).text('Daily Flash Report', 36, 60);
-    doc.fillColor(colors.cream).font('Helvetica-Bold').fontSize(10).text(niceDate(date), 450, 34, { width: 110, align: 'right' });
-    doc.fillColor('#ffff70').font('Helvetica').fontSize(7).text(`Generated ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`, 450, 52, { width: 110, align: 'right' });
-    doc.fillColor('#ffff70').text(`Page ${pageNo}`, 450, 72, { width: 110, align: 'right' });
-    doc.strokeColor(colors.blush).lineWidth(0.5).moveTo(36, 804).lineTo(559, 804).stroke();
-    doc.fillColor(colors.muted).fontSize(6.5).text('Centre Point Hospitality  |  Daily Flash Report  |  Internal Use Only', 36, 812, { lineBreak: false });
+    doc.rect(0, 0, doc.page.width, doc.page.height).fill(colors.cream);
+    doc.rect(0, 0, doc.page.width, 96).fill(colors.navy);
+    doc.rect(0, 96, doc.page.width, 4).fill(colors.gold);
+    doc.circle(478, 8, 118).fill('#20365d');
+    doc.circle(548, 76, 72).fill('#0f766e');
+    doc.roundedRect(36, 28, 34, 34, 6).fill(colors.white);
+    doc.fillColor(colors.navy).font('Helvetica-Bold').fontSize(11).text('CP', 45, 39, { width: 16, align: 'center' });
+    doc.fillColor(colors.gold).font('Helvetica-Bold').fontSize(7).text('CENTRE POINT HOSPITALITY', 82, 29);
+    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(21).text('Daily Flash Report', 82, 44);
+    doc.fillColor('#d8e3f2').font('Helvetica').fontSize(7).text('Internal management review copy', 83, 70);
+    doc.roundedRect(430, 29, 129, 42, 6).fill('#ffffff14').strokeColor('#ffffff28').lineWidth(0.6).stroke();
+    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(10).text(niceDate(date), 442, 39, { width: 104, align: 'right' });
+    doc.fillColor('#d8e3f2').font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} | Page ${pageNo}`, 442, 55, { width: 104, align: 'right' });
+    doc.strokeColor(colors.lineDark).lineWidth(0.5).moveTo(36, 802).lineTo(559, 802).stroke();
+    doc.fillColor(colors.subtle).fontSize(6.5).text('Centre Point Hospitality | Daily Flash Report | Internal Use Only', 36, 810, { lineBreak: false });
     doc.restore();
     doc.y = contentTop;
   }
@@ -132,24 +147,50 @@ export function createDailyFlashPdf(data, date) {
   function sectionTitle(title) {
     ensureSpace(28);
     doc.moveDown(0.2);
-    doc.fillColor(colors.maroon).font('Helvetica-Bold').fontSize(8).text(safeText(title).toUpperCase(), 36, doc.y);
-    doc.strokeColor(colors.maroon).lineWidth(1).moveTo(36, doc.y + 13).lineTo(559, doc.y + 13).stroke();
-    doc.y += 24;
+    const y = doc.y;
+    doc.roundedRect(36, y, 523, 24, 4).fill(colors.white).strokeColor(colors.line).lineWidth(0.5).stroke();
+    doc.rect(36, y, 4, 24).fill(colors.teal);
+    doc.fillColor(colors.navy).font('Helvetica-Bold').fontSize(8).text(safeText(title).toUpperCase(), 48, y + 8, { width: 490 });
+    doc.y = y + 34;
   }
 
   function hero(title, source, value, change = '') {
-    ensureSpace(48);
+    ensureSpace(70);
     const y = doc.y;
-    doc.roundedRect(39, y, 516, 36, 1).fill(colors.maroon);
-    doc.fillColor('white').font('Helvetica-Bold').fontSize(11).text(safeText(title), 50, y + 11, { width: 170 });
-    doc.fillColor('#f5d080').font('Helvetica').fontSize(7).text(safeText(source), 226, y + 9, { width: 120 });
-    doc.fillColor(colors.gold).font('Helvetica-Bold').fontSize(14).text(safeText(value), 374, y + 10, { width: 90, align: 'right' });
-    doc.fillColor(change.startsWith('-') ? colors.red : colors.green).fontSize(9).text(safeText(change), 472, y + 13, { width: 70, align: 'right' });
-    doc.y = y + 50;
+    doc.roundedRect(36, y, 523, 56, 8).fill(colors.navy);
+    doc.rect(36, y, 6, 56).fill(colors.gold);
+    doc.circle(530, y + 7, 66).fill('#20365d');
+    doc.fillColor(colors.gold).font('Helvetica-Bold').fontSize(7).text('OPERATING UNIT', 54, y + 13);
+    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(17).text(safeText(title), 54, y + 27, { width: 190, lineBreak: false });
+    doc.fillColor('#d8e3f2').font('Helvetica').fontSize(7).text(safeText(source), 256, y + 18, { width: 138 });
+    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(18).text(safeText(value), 398, y + 16, { width: 140, align: 'right' });
+    if (change) {
+      doc.fillColor(change.startsWith('-') ? '#fecdd3' : '#bbf7d0').font('Helvetica-Bold').fontSize(8).text(safeText(change), 398, y + 38, { width: 140, align: 'right' });
+    }
+    doc.y = y + 72;
+  }
+
+  function summaryCard(x, y, w, label, value, tone = colors.teal, caption = '') {
+    doc.roundedRect(x, y, w, 54, 7).fill(colors.white).strokeColor(colors.line).lineWidth(0.6).stroke();
+    doc.rect(x, y, w, 4).fill(tone);
+    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6.5).text(safeText(label).toUpperCase(), x + 10, y + 15, { width: w - 20 });
+    doc.fillColor(tone).font('Helvetica-Bold').fontSize(13).text(safeText(value), x + 10, y + 29, { width: w - 20, lineBreak: false });
+    if (caption) doc.fillColor(colors.subtle).font('Helvetica').fontSize(6).text(safeText(caption), x + 10, y + 43, { width: w - 20, lineBreak: false });
+  }
+
+  function summaryCards(items) {
+    ensureSpace(68);
+    const gap = 9;
+    const cardW = (width - gap * (items.length - 1)) / items.length;
+    const y = doc.y;
+    items.forEach((item, index) => {
+      summaryCard(36 + index * (cardW + gap), y, cardW, item.label, item.value, item.tone, item.caption);
+    });
+    doc.y = y + 70;
   }
 
   function table(columns, rows, options = {}) {
-    const rowHeight = options.rowHeight ?? 21;
+    const rowHeight = options.rowHeight ?? 22;
     const headerHeight = options.headerHeight ?? rowHeight;
     const colWidths = options.widths ?? columns.map(() => width / columns.length);
     const fontSize = options.fontSize ?? 7.5;
@@ -159,11 +200,11 @@ export function createDailyFlashPdf(data, date) {
     let y = doc.y;
 
     function drawHeader() {
-      doc.rect(x, y, width, headerHeight).fill(colors.blush);
-      doc.fillColor(colors.maroon).font('Helvetica-Bold').fontSize(7);
+      doc.roundedRect(x, y, width, headerHeight, 4).fill(colors.navy);
+      doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(6.8);
       let cursor = x;
       columns.forEach((column, index) => {
-        doc.text(safeText(column), cursor + 6, y + 7, { width: colWidths[index] - 10, align: index === 0 ? 'left' : 'right' });
+        doc.text(safeText(column), cursor + 7, y + 7, { width: colWidths[index] - 12, align: index === 0 ? 'left' : 'right' });
         cursor += colWidths[index];
       });
       y += headerHeight;
@@ -179,7 +220,7 @@ export function createDailyFlashPdf(data, date) {
         drawHeader();
       }
 
-      doc.rect(x, y, width, rowHeight).fill(rowIndex % 2 ? colors.pale : 'white');
+      doc.rect(x, y, width, rowHeight).fill(rowIndex % 2 ? colors.panel : colors.white);
       doc.fillColor(colors.ink).font('Helvetica').fontSize(fontSize);
       let cursor = x;
       row.forEach((cell, index) => {
@@ -187,19 +228,20 @@ export function createDailyFlashPdf(data, date) {
         const text = typeof cell === 'object' ? cell.text : cell;
         const fill = typeof cell === 'object' && cell.color ? cell.color : colors.ink;
         const font = typeof cell === 'object' && cell.bold ? 'Helvetica-Bold' : 'Helvetica';
-        doc.fillColor(fill).font(font).text(safeText(text), cursor + 6, y + 7, { width: colWidths[index] - 10, align, lineBreak: false });
+        doc.fillColor(fill).font(font).text(safeText(text), cursor + 7, y + 7, { width: colWidths[index] - 12, align, lineBreak: false });
         cursor += colWidths[index];
       });
+      doc.strokeColor(colors.line).lineWidth(0.25).moveTo(x, y + rowHeight).lineTo(x + width, y + rowHeight).stroke();
       y += rowHeight;
     });
 
-    doc.strokeColor(colors.blush).lineWidth(0.5).rect(x, doc.y, width, y - doc.y).stroke();
+    doc.strokeColor(colors.line).lineWidth(0.6).roundedRect(x, doc.y, width, y - doc.y, 4).stroke();
     doc.y = y + 14;
   }
 
   function flagCell(label) {
     const normalized = String(label).includes('ACTION') ? 'ACTION' : String(label);
-    const color = normalized === 'ACTION' ? colors.red : normalized === 'WATCH' ? colors.amber : normalized === 'OUTPERFORM' ? '#1a6b3a' : colors.green;
+    const color = normalized === 'ACTION' ? colors.red : normalized === 'WATCH' ? colors.amber : normalized === 'OUTPERFORM' ? colors.green : colors.teal;
     return { text: normalized, color, bold: true };
   }
 
@@ -222,30 +264,25 @@ export function createDailyFlashPdf(data, date) {
     if (!url) return;
     ensureSpace(16);
     const y = doc.y;
-    doc.fillColor('#1a6b9a').font('Helvetica').fontSize(6)
-      .text('View Source Sheet', 36, y);
+    doc.roundedRect(36, y, 86, 15, 4).fill(colors.tealSoft).strokeColor('#bae6df').lineWidth(0.4).stroke();
+    doc.fillColor(colors.teal).font('Helvetica-Bold').fontSize(6.5)
+      .text('View Source Sheet', 45, y + 4.5);
     doc.y = y + 16;
   }
 
   header();
 
-  sectionTitle('1. Bank Position - Daily Cash Summary');
-  sheetRef(SHEET_URLS.bankPosition);
   const bankRows = data.bankPosition ?? [];
-  table(
-    ['Unit / Account', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'],
-    bankRows.map((row) => {
-      const net = String(row.netBalance ?? '').trim() !== ''
-        ? numberValue(row.netBalance)
-        : numberValue(row.actualBalance) + numberValue(row.fdTotal)
-          - numberValue(row.chequesIssued) + numberValue(row.chequesInHand);
-      const label = row.account ? `${row.unit} - ${row.account}` : row.unit;
-      return [label, money(row.actualBalance), money(row.fdTotal ?? ''), money(row.chequesIssued), money(row.chequesInHand), { text: money(net), color: colors.green, bold: true }];
-    }),
-    { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 }
-  );
-
-  sectionTitle('2. Unit-wise Estimated P&L');
+  const bankTotals = bankRows.reduce((acc, row) => {
+    acc.actual += numberValue(row.actualBalance);
+    acc.fd += numberValue(row.fdTotal);
+    acc.issued += numberValue(row.chequesIssued);
+    acc.hand += numberValue(row.chequesInHand);
+    acc.net += String(row.netBalance ?? '').trim() !== ''
+      ? numberValue(row.netBalance)
+      : numberValue(row.actualBalance) + numberValue(row.fdTotal) - numberValue(row.chequesIssued) + numberValue(row.chequesInHand);
+    return acc;
+  }, { actual: 0, fd: 0, issued: 0, hand: 0, net: 0 });
   const pnl = pnlRows(data);
   const pnlTotals = pnl.reduce((acc, row) => {
     acc.revenue += numberValue(row.revenueToday);
@@ -254,6 +291,36 @@ export function createDailyFlashPdf(data, date) {
     acc.net += row.netProfit;
     return acc;
   }, { revenue: 0, purchases: 0, gp: 0, net: 0 });
+  const flagCount = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length;
+  const settlement = settlementTotals(data);
+  const settlementDiff = groupRevenue(data) - settlement.groupTotal;
+
+  summaryCards([
+    { label: 'Group Revenue', value: money(pnlTotals.revenue), tone: colors.teal, caption: 'Today' },
+    { label: 'Est. Net Profit', value: money(pnlTotals.net), tone: pnlTotals.net >= 0 ? colors.green : colors.red, caption: 'After fixed cost' },
+    { label: 'Bank Net Available', value: money(bankTotals.net), tone: colors.navy2, caption: `${bankRows.length} accounts` },
+    { label: 'Open Risks', value: String(flagCount), tone: flagCount ? colors.amber : colors.green, caption: 'Watch / action flags' }
+  ]);
+
+  sectionTitle('1. Bank Position - Daily Cash Summary');
+  sheetRef(SHEET_URLS.bankPosition);
+  table(
+    ['Unit / Account', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'],
+    [
+      ...bankRows.map((row) => {
+      const net = String(row.netBalance ?? '').trim() !== ''
+        ? numberValue(row.netBalance)
+        : numberValue(row.actualBalance) + numberValue(row.fdTotal)
+          - numberValue(row.chequesIssued) + numberValue(row.chequesInHand);
+      const label = row.account ? `${row.unit} - ${row.account}` : row.unit;
+      return [label, money(row.actualBalance), money(row.fdTotal ?? ''), money(row.chequesIssued), money(row.chequesInHand), { text: money(net), color: colors.green, bold: true }];
+      }),
+      [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true }, { text: money(bankTotals.fd), bold: true }, { text: money(bankTotals.issued), bold: true }, { text: money(bankTotals.hand), bold: true }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
+    ],
+    { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 }
+  );
+
+  sectionTitle('2. Unit-wise Estimated P&L');
   table(
     ['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'],
     [
@@ -333,17 +400,21 @@ export function createDailyFlashPdf(data, date) {
   doc.addPage();
   header();
   sectionTitle('Settlement');
-  const settlement = settlementTotals(data);
   table(
     ['Mode', ...UNITS, 'Group Total'],
     settlementModes.map((mode) => [mode, ...UNITS.map((unit) => money(data.settlement?.[mode]?.[unit])), { text: money(settlement.rowTotals[mode]), bold: true }]),
     { widths: [95, 50, 50, 50, 50, 50, 50, 50, 78], fontSize: 6.3, leftColumns: [0] }
   );
-  const diff = groupRevenue(data) - settlement.groupTotal;
   sectionTitle('Reconciliation');
+  summaryCards([
+    { label: 'Total Revenue', value: money(groupRevenue(data)), tone: colors.teal },
+    { label: 'Total Settled', value: money(settlement.groupTotal), tone: colors.green },
+    { label: 'Difference', value: money(settlementDiff), tone: settlementDiff === 0 ? colors.green : colors.red },
+    { label: 'Status', value: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', tone: settlementDiff === 0 ? colors.green : colors.red }
+  ]);
   table(
     ['Total Revenue Today', 'Total Settled', 'Difference', 'Status'],
-    [[money(groupRevenue(data)), money(settlement.groupTotal), { text: money(diff), color: diff === 0 ? colors.green : colors.red, bold: true }, { text: diff === 0 ? 'MATCHED' : 'MISMATCH', color: diff === 0 ? colors.green : colors.red, bold: true }]],
+    [[money(groupRevenue(data)), money(settlement.groupTotal), { text: money(settlementDiff), color: settlementDiff === 0 ? colors.green : colors.red, bold: true }, { text: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', color: settlementDiff === 0 ? colors.green : colors.red, bold: true }]],
     { widths: [132, 132, 132, 127] }
   );
 
@@ -396,12 +467,30 @@ function notesPage(doc, data) {
     'Use this report as the daily morning review copy for unit heads.'
   ].filter(Boolean);
 
-  doc.rect(36, 122, 523, 250).fill(colors.deepMaroon);
-  doc.fillColor(colors.gold).font('Helvetica-Bold').fontSize(8).text("NOTES BY AI - Daily Read", 48, 144);
-  doc.fillColor(colors.cream).font('Helvetica').fontSize(7.5);
-  let y = 168;
+  doc.roundedRect(36, 122, 523, 330, 10).fill(colors.navy);
+  doc.rect(36, 122, 8, 330).fill(colors.gold);
+  doc.circle(520, 120, 120).fill('#20365d');
+  doc.fillColor(colors.gold).font('Helvetica-Bold').fontSize(8).text('MANAGEMENT READOUT', 56, 148);
+  doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(22).text('Notes by AI', 56, 164);
+  doc.fillColor('#d8e3f2').font('Helvetica').fontSize(8).text('Quick talking points for the daily review meeting.', 56, 193);
+  doc.fillColor(colors.white).font('Helvetica').fontSize(8);
+  let y = 226;
   for (const note of notes) {
-    doc.text(`- ${safeText(note)}`, 48, y, { width: 490, lineGap: 3 });
-    y += 28;
+    doc.circle(60, y + 3, 2.4).fill(colors.gold);
+    doc.fillColor('#eef4ff').font('Helvetica').fontSize(8).text(safeText(note), 72, y, { width: 450, lineGap: 3 });
+    y += 31;
   }
+
+  doc.roundedRect(36, 480, 523, 96, 8).fill(colors.white).strokeColor(colors.line).lineWidth(0.6).stroke();
+  doc.fillColor(colors.navy).font('Helvetica-Bold').fontSize(9).text('Close-of-day checklist', 56, 502);
+  doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5);
+  [
+    'Confirm all pending source feeds before circulation.',
+    'Review WATCH and ACTION flags with unit owners.',
+    'Resolve settlement mismatch before final archive.'
+  ].forEach((item, index) => {
+    const rowY = 524 + index * 16;
+    doc.roundedRect(56, rowY - 1, 10, 10, 2).strokeColor(colors.lineDark).lineWidth(0.7).stroke();
+    doc.text(item, 74, rowY - 1, { width: 440 });
+  });
 }
