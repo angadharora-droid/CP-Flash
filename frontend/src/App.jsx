@@ -904,13 +904,18 @@ export default function App() {
 
   const loadData = React.useCallback(async (currentDate, token, silent = false) => {
     if (!token) return;
-    if (!silent) { setData(null); setStatus('Loading...'); }
     setRefreshing(true);
+    let snapshot = null;
+    if (!silent) {
+      setData((prev) => { snapshot = prev; return null; });
+      setStatus('Loading...');
+    }
     try {
       const { seed, saved } = await getSeed(currentDate, token);
       setData({ ...seed, ...(saved ?? {}) });
       setStatus(saved ? `Loaded saved data for ${currentDate}` : `Loaded seed data for ${currentDate}`);
     } catch (err) {
+      if (!silent && snapshot !== null) setData(snapshot);
       if (/PIN|Unauthorized|Unable to load seed data/i.test(err.message)) {
         localStorage.removeItem('dailyflashToken');
         setAuthToken('');
@@ -1071,7 +1076,18 @@ export default function App() {
             </div>
             {/* Right: actions */}
             <div className="flex shrink-0 items-center gap-1.5">
-              <ActionButton onClick={() => loadData(date, authToken)} disabled={refreshing || !authToken}>
+              <ActionButton
+                onClick={() => {
+                  const d = new Date(); d.setDate(d.getDate() - 1);
+                  const freshDate = d.toISOString().slice(0, 10);
+                  if (freshDate !== date) {
+                    setDate(freshDate);
+                  } else {
+                    loadData(date, authToken);
+                  }
+                }}
+                disabled={refreshing || !authToken}
+              >
                 {refreshing ? 'Refreshing...' : 'Refresh'}
               </ActionButton>
               <ActionButton onClick={() => setActive('ai')} disabled={!data}>AI Report</ActionButton>
