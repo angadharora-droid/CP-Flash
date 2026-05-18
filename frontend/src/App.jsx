@@ -1302,11 +1302,11 @@ function PdfPreviewPage({ date, authToken, onSave, onClose }) {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {saveError ? <span className="max-w-72 truncate text-xs font-medium text-red-600">{saveError}</span> : null}
-              <ActionButton onClick={onClose}>Close</ActionButton>
               <ActionButton onClick={handleSaveAndRefresh} disabled={saving} variant="primary">
                 {saving ? 'Saving...' : 'Save & Refresh'}
               </ActionButton>
               <ActionButton onClick={() => { window.location.href = downloadUrl; }}>Download PDF</ActionButton>
+              <ActionButton onClick={onClose}>Close</ActionButton>
             </div>
           </div>
 
