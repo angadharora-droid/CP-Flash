@@ -63,6 +63,7 @@ export const dailySources = [
     unit: 'Rabbits',
     type: 'Mail / POS',
     paths: ['rabbits', 'settlement'],
+    meta: { importedAt: 'rabbitsPetpoojaImportedAt' },
     cadence: 'Daily'
   },
   {

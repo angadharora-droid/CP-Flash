@@ -141,6 +141,24 @@ const HANDLERS = [
     }
   },
   {
+    name: 'Petpooja Billing - Rabbits',
+    importSourceKey: 'rabbitsPetpoojaImportedAt',
+    matches: (s) => subjectContains(s, 'report notification') && subjectContains(s, 'rabbit') && !subjectContains(s, 'payment wise'),
+    run: async (parsed, date) => importPetpoojaReport(parsed.html || '', 'Rabbits', date)
+  },
+  {
+    name: 'Petpooja Payment Summary - Rabbits',
+    importSourceKey: 'rabbitsPaymentImportedAt',
+    matches: (s) => subjectContains(s, 'payment wise summary') && subjectContains(s, 'rabbit'),
+    run: async (parsed, date) => {
+      const att = findSpreadsheet(parsed);
+      if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'petpooja-rabbits-payment', date);
+      return importPetpoojaPaymentSummary(filePath, 'Rabbits', date);
+    }
+  },
+  {
     name: 'Purosoul Daily Sales Report',
     importSourceKey: 'purosoulSalesImportedAt',
     matches: (s) => subjectContains(s, 'centre point foods') && subjectContains(s, 'daily sales report'),
@@ -188,6 +206,12 @@ async function processMessage(msg, date, existingData) {
     const result = await handler.run(parsed, date);
     if (!result?.pending) {
       log(`  Done: ${JSON.stringify(result?.mapped ?? result)}`);
+      if (handler.importSourceKey) {
+        existingData.importSource = {
+          ...(existingData.importSource ?? {}),
+          [handler.importSourceKey]: new Date().toISOString()
+        };
+      }
     }
   } catch (err) {
     log(`  ERROR: ${err.message}`);
@@ -195,19 +219,6 @@ async function processMessage(msg, date, existingData) {
 }
 
 async function run() {
-  if (!EMAIL_PASS) {
-    log('ERROR: REPORT_EMAIL_PASSWORD not set in backend/.env');
-    process.exit(1);
-  }
-
-  const client = new ImapFlow({
-    host: IMAP_HOST,
-    port: IMAP_PORT,
-    secure: IMAP_SECURE,
-    auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-    logger: false
-  });
-
   const date = yesterday();
 
   // Load existing data once — used to skip sources already imported this run
@@ -218,12 +229,29 @@ async function run() {
   } catch {
     existingData = null;
   }
+  existingData ??= { importSource: {} };
+  if (process.env.FORCE_IMPORT === 'true') {
+    existingData.importSource = {};
+    log('FORCE_IMPORT enabled: rebuilding sources for this run.');
+  }
 
-  log(`Connecting to ${IMAP_HOST}:${IMAP_PORT} as ${EMAIL_USER}`);
-  await client.connect();
-  const lock = await client.getMailboxLock('INBOX');
+  if (!EMAIL_PASS) {
+    log('Email import skipped: REPORT_EMAIL_PASSWORD is not set in backend/.env.');
+  } else {
+    const client = new ImapFlow({
+      host: IMAP_HOST,
+      port: IMAP_PORT,
+      secure: IMAP_SECURE,
+      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+      logger: false
+    });
 
-  try {
+    log(`Connecting to ${IMAP_HOST}:${IMAP_PORT} as ${EMAIL_USER}`);
+    try {
+      await client.connect();
+      const lock = await client.getMailboxLock('INBOX');
+
+      try {
     const since = new Date();
     since.setDate(since.getDate() - 1);
     since.setHours(0, 0, 0, 0);
@@ -234,17 +262,22 @@ async function run() {
     if (!seqs.length) {
       log('No emails in the period — nothing to import.');
     } else {
-      for (const seq of seqs) {
+      for (const seq of [...seqs].reverse()) {
         const msg = await client.fetchOne(String(seq), { source: true });
         await processMessage(msg, date, existingData);
       }
     }
 
     log('All emails processed.');
-  } finally {
-    lock.release();
-    await client.logout();
-    log('Disconnected.');
+      } finally {
+        lock.release();
+        await client.logout();
+        log('Disconnected.');
+      }
+    } catch (err) {
+      log(`Email import ERROR: ${err.message}`);
+      log('Continuing with Google Sheets imports and cloud sync.');
+    }
   }
 
   // Fetch bank positions from Google Sheets (independent of email)
