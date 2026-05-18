@@ -232,8 +232,14 @@ app.listen(port, () => {
   if (process.env.ENABLE_CLOUD_IMPORT === 'true') {
     const importScript = path.join(__dirname, 'fetchEmailReport.js');
     const backendDir = path.resolve(__dirname, '..');
+    let importRunning = false;
 
     const runImport = () => {
+      if (importRunning) {
+        console.log(`[${new Date().toISOString()}] Import skipped because the previous run is still active.`);
+        return;
+      }
+      importRunning = true;
       console.log(`[${new Date().toISOString()}] Running scheduled import…`);
       const child = spawn(process.execPath, [importScript], {
         env: process.env,
@@ -241,7 +247,12 @@ app.listen(port, () => {
         stdio: 'inherit'
       });
       child.on('exit', (code) => {
+        importRunning = false;
         console.log(`[${new Date().toISOString()}] Import finished (exit ${code ?? 0})`);
+      });
+      child.on('error', (err) => {
+        importRunning = false;
+        console.error(`[${new Date().toISOString()}] Import failed to start: ${err.message}`);
       });
     };
 

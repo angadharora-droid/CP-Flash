@@ -8,6 +8,7 @@ import SectionCard from './components/SectionCard';
 import StatStrip from './components/StatStrip';
 
 const NOW = new Date().toISOString().slice(0, 10);
+const AUTO_REFRESH_MS = 2 * 60 * 1000;
 const d = new Date(); d.setDate(d.getDate() - 1);
 const today = d.toISOString().slice(0, 10);
 const SHEET_URLS = {
@@ -484,21 +485,30 @@ function SourceControlPage({ date, authToken }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = async () => {
+  const load = React.useCallback(async (silent = false) => {
+    if (!authToken) return;
     setLoading(true);
-    setError('');
+    if (!silent) setError('');
     try {
       setSourceStatus(await getSourceStatus(date, authToken));
+      setError('');
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [date, authToken]);
 
   useEffect(() => {
     load();
-  }, [date, authToken]);
+  }, [load]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') load(true);
+    }, AUTO_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [load]);
 
   const sources = sourceStatus?.sources ?? [];
   const formatTime = (value) => value ? new Date(value).toLocaleString() : '-';
@@ -515,7 +525,7 @@ function SourceControlPage({ date, authToken }) {
       <SectionCard title="Daily Sources">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-app-muted">{loading ? 'Checking sources...' : `Status for ${date}`}</div>
-          <ActionButton onClick={load} disabled={loading}>Refresh</ActionButton>
+          <ActionButton onClick={() => load()} disabled={loading}>Refresh</ActionButton>
         </div>
         {error ? (
           <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
@@ -901,9 +911,12 @@ export default function App() {
   const [status, setStatus] = useState('Loading...');
   const [refreshing, setRefreshing] = useState(false);
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('dailyflashToken') || '');
+  const loadRequestRef = React.useRef(0);
 
   const loadData = React.useCallback(async (currentDate, token, silent = false) => {
     if (!token) return;
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
     setRefreshing(true);
     let snapshot = null;
     if (!silent) {
@@ -912,17 +925,23 @@ export default function App() {
     }
     try {
       const { seed, saved } = await getSeed(currentDate, token);
+      if (requestId !== loadRequestRef.current) return;
       setData({ ...seed, ...(saved ?? {}) });
-      setStatus(saved ? `Loaded saved data for ${currentDate}` : `Loaded seed data for ${currentDate}`);
+      if (silent) {
+        setStatus(`Auto refreshed ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
+      } else {
+        setStatus(saved ? `Loaded saved data for ${currentDate}` : `Loaded seed data for ${currentDate}`);
+      }
     } catch (err) {
+      if (requestId !== loadRequestRef.current) return;
       if (!silent && snapshot !== null) setData(snapshot);
-      if (/PIN|Unauthorized|Unable to load seed data/i.test(err.message)) {
+      if (/PIN required|Invalid PIN|Unauthorized/i.test(err.message)) {
         localStorage.removeItem('dailyflashToken');
         setAuthToken('');
       }
       setStatus(err.message);
     } finally {
-      setRefreshing(false);
+      if (requestId === loadRequestRef.current) setRefreshing(false);
     }
   }, []);
 
@@ -938,6 +957,16 @@ export default function App() {
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [date, authToken, loadData]);
+
+  useEffect(() => {
+    if (!authToken) return undefined;
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadData(date, authToken, true);
+      }
+    }, AUTO_REFRESH_MS);
+    return () => clearInterval(timer);
   }, [date, authToken, loadData]);
 
   const page = useMemo(() => {
