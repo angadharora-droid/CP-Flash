@@ -11,21 +11,21 @@ const SHEET_URLS = {
 };
 
 const colors = {
-  header: '#1f2937',
-  headerSoft: '#374151',
+  header: '#111827',
+  headerSoft: '#4b5563',
   accent: '#6b7280',
-  accentSoft: '#f3f4f6',
+  accentSoft: '#f5f6f8',
   page: '#ffffff',
-  panel: '#f8fafc',
-  panelAlt: '#f3f6fa',
-  line: '#d7dee8',
-  lineDark: '#b7c1cf',
+  panel: '#fafafa',
+  panelAlt: '#f6f7f9',
+  line: '#d9dde3',
+  lineDark: '#aeb6c2',
   ink: '#111827',
   muted: '#64748b',
   subtle: '#94a3b8',
-  green: '#166534',
-  amber: '#92400e',
-  red: '#9f1239',
+  green: '#374151',
+  amber: '#6b7280',
+  red: '#7f1d1d',
   white: '#ffffff'
 };
 
@@ -107,7 +107,7 @@ export function createDailyFlashPdf(data, date) {
   const doc = new PDFDocument({ size: 'A4', margins: { top: 36, right: 36, bottom: 24, left: 36 }, bufferPages: true });
   let pageNo = 0;
 
-  const contentTop = 104;
+  const contentTop = 96;
   const contentBottom = 786;
   const width = doc.page.width - 72;
 
@@ -115,15 +115,12 @@ export function createDailyFlashPdf(data, date) {
     pageNo += 1;
     doc.save();
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(colors.page);
-    doc.rect(0, 0, doc.page.width, 82).fill(colors.white);
-    doc.strokeColor(colors.lineDark).lineWidth(0.7).moveTo(36, 82).lineTo(559, 82).stroke();
-    doc.rect(36, 31, 26, 26).fill(colors.header);
-    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(8).text('CP', 42, 40, { width: 14, align: 'center' });
-    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6.5).text('CENTRE POINT HOSPITALITY', 74, 29);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(17).text('Daily Flash Report', 74, 43);
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text('Internal management report', 74, 64);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(niceDate(date), 430, 34, { width: 129, align: 'right' });
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} | Page ${pageNo}`, 430, 50, { width: 129, align: 'right' });
+    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6.5).text('CENTRE POINT HOSPITALITY', 36, 28);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(16).text('Daily Flash Report', 36, 43);
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text('Internal management report', 36, 64);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(niceDate(date), 430, 35, { width: 129, align: 'right' });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} | Page ${pageNo}`, 430, 51, { width: 129, align: 'right' });
+    doc.strokeColor(colors.lineDark).lineWidth(0.7).moveTo(36, 84).lineTo(559, 84).stroke();
     doc.strokeColor(colors.lineDark).lineWidth(0.5).moveTo(36, 802).lineTo(559, 802).stroke();
     doc.fillColor(colors.subtle).fontSize(6.5).text('Centre Point Hospitality | Daily Flash Report | Internal Use Only', 36, 810, { lineBreak: false });
     doc.restore();
@@ -139,44 +136,39 @@ export function createDailyFlashPdf(data, date) {
 
   function sectionTitle(title) {
     ensureSpace(28);
-    doc.moveDown(0.2);
+    doc.moveDown(0.1);
     const y = doc.y;
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(safeText(title), 36, y);
-    doc.strokeColor(colors.line).lineWidth(0.7).moveTo(36, y + 15).lineTo(559, y + 15).stroke();
-    doc.y = y + 28;
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8.5).text(safeText(title), 36, y);
+    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 13).lineTo(559, y + 13).stroke();
+    doc.y = y + 24;
   }
 
   function hero(title, source, value, change = '') {
-    ensureSpace(54);
+    ensureSpace(38);
     const y = doc.y;
-    doc.roundedRect(36, y, 523, 42, 3).fill(colors.panel).strokeColor(colors.line).lineWidth(0.6).stroke();
-    doc.rect(36, y, 3, 42).fill(colors.headerSoft);
-    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6).text('OPERATING UNIT', 50, y + 9);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(12).text(safeText(title), 50, y + 21, { width: 190, lineBreak: false });
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(source), 256, y + 15, { width: 138 });
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(13).text(safeText(value), 398, y + 14, { width: 140, align: 'right' });
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(11).text(safeText(title), 36, y, { width: 170, lineBreak: false });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(source), 212, y + 2, { width: 190 });
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(value), 420, y, { width: 139, align: 'right' });
     if (change) {
-      doc.fillColor(change.startsWith('-') ? colors.red : colors.green).font('Helvetica-Bold').fontSize(7).text(safeText(change), 398, y + 29, { width: 140, align: 'right' });
+      doc.fillColor(change.startsWith('-') ? colors.red : colors.headerSoft).font('Helvetica-Bold').fontSize(7).text(safeText(change), 420, y + 14, { width: 139, align: 'right' });
     }
-    doc.y = y + 56;
-  }
-
-  function summaryCard(x, y, w, label, value, tone = colors.header, caption = '') {
-    doc.roundedRect(x, y, w, 48, 3).fill(colors.white).strokeColor(colors.line).lineWidth(0.6).stroke();
-    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6.5).text(safeText(label).toUpperCase(), x + 10, y + 15, { width: w - 20 });
-    doc.fillColor(tone).font('Helvetica-Bold').fontSize(11).text(safeText(value), x + 10, y + 28, { width: w - 20, lineBreak: false });
-    if (caption) doc.fillColor(colors.subtle).font('Helvetica').fontSize(5.8).text(safeText(caption), x + 10, y + 40, { width: w - 20, lineBreak: false });
+    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 23).lineTo(559, y + 23).stroke();
+    doc.y = y + 36;
   }
 
   function summaryCards(items) {
-    ensureSpace(62);
-    const gap = 9;
-    const cardW = (width - gap * (items.length - 1)) / items.length;
+    ensureSpace(44);
     const y = doc.y;
+    const rowH = 34;
+    const cardW = width / items.length;
+    doc.rect(36, y, width, rowH).fill(colors.panel).strokeColor(colors.line).lineWidth(0.5).stroke();
     items.forEach((item, index) => {
-      summaryCard(36 + index * (cardW + gap), y, cardW, item.label, item.value, item.tone, item.caption);
+      const x = 36 + index * cardW;
+      if (index) doc.strokeColor(colors.line).lineWidth(0.4).moveTo(x, y).lineTo(x, y + rowH).stroke();
+      doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(5.8).text(safeText(item.label).toUpperCase(), x + 8, y + 7, { width: cardW - 16 });
+      doc.fillColor(item.tone ?? colors.ink).font('Helvetica-Bold').fontSize(9).text(safeText(item.value), x + 8, y + 19, { width: cardW - 16, lineBreak: false });
     });
-    doc.y = y + 62;
+    doc.y = y + 48;
   }
 
   function table(columns, rows, options = {}) {
@@ -190,8 +182,8 @@ export function createDailyFlashPdf(data, date) {
     let y = doc.y;
 
     function drawHeader() {
-      doc.rect(x, y, width, headerHeight).fill(colors.header);
-      doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(6.8);
+      doc.rect(x, y, width, headerHeight).fill(colors.panel);
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(6.8);
       let cursor = x;
       columns.forEach((column, index) => {
         doc.text(safeText(column), cursor + 7, y + 7, { width: colWidths[index] - 12, align: index === 0 ? 'left' : 'right' });
