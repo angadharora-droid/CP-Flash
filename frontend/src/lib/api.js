@@ -1,53 +1,108 @@
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+const REQUEST_TIMEOUT_MS = 30000;
+const RETRY_DELAY_MS = 1200;
 
 function authHeaders(token) {
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryable(error) {
+  return error.name === 'AbortError'
+    || /network|failed to fetch|timeout|temporarily|503|502|504/i.test(error.message);
+}
+
+async function readJson(res) {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+async function apiFetch(path, options = {}, fallbackMessage = 'Request failed') {
+  const url = new URL(path, API_BASE);
+  url.searchParams.set('_ts', Date.now().toString());
+
+  let lastError;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(url.toString(), {
+        ...options,
+        signal: controller.signal,
+        cache: 'no-store',
+        headers: {
+          ...(options.headers ?? {})
+        }
+      });
+      const json = await readJson(res);
+      if (!res.ok) {
+        const message = typeof json === 'object' && json?.error
+          ? json.error
+          : `${fallbackMessage} (${res.status})`;
+        throw new Error(message);
+      }
+      return json;
+    } catch (err) {
+      lastError = err.name === 'AbortError'
+        ? new Error(`${fallbackMessage}: request timed out`)
+        : err;
+      if (attempt === 0 && isRetryable(lastError)) {
+        await wait(RETRY_DELAY_MS);
+        continue;
+      }
+      break;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  throw lastError;
+}
+
 export async function loginWithPin(pin) {
-  const res = await fetch(`${API_BASE}/api/login`, {
+  const json = await apiFetch('/api/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ pin })
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || 'Invalid PIN');
+  }, 'Invalid PIN');
   return json.token;
 }
 
 export async function getSeed(date, token) {
-  const res = await fetch(`${API_BASE}/api/seed?date=${date}`, {
-    headers: authHeaders(token),
-    cache: 'no-store'
-  });
-  if (!res.ok) throw new Error('Unable to load seed data');
-  return res.json();
+  return apiFetch(`/api/seed?date=${encodeURIComponent(date)}`, {
+    headers: authHeaders(token)
+  }, 'Unable to load seed data');
 }
 
 export async function saveData(date, data, token) {
-  const res = await fetch(`${API_BASE}/api/data`, {
+  return apiFetch('/api/data', {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify({ date, data })
-  });
-  if (!res.ok) throw new Error('Unable to save data');
-  return res.json();
+  }, 'Unable to save data');
 }
 
 export async function getSourceStatus(date, token) {
-  const res = await fetch(`${API_BASE}/api/source-status?date=${date}`, { headers: authHeaders(token) });
-  if (!res.ok) throw new Error('Unable to load source status');
-  return res.json();
+  return apiFetch(`/api/source-status?date=${encodeURIComponent(date)}`, {
+    headers: authHeaders(token)
+  }, 'Unable to load source status');
 }
 
 export async function generateAiNotes(prompt, token) {
-  const res = await fetch(`${API_BASE}/api/ai-notes`, {
+  const json = await apiFetch('/api/ai-notes', {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify({ prompt })
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || 'Unable to generate AI notes');
+  }, 'Unable to generate AI notes');
   return json.text;
 }
 
