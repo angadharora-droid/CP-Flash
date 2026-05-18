@@ -802,7 +802,7 @@ function SourceReportPreviewModal({ preview, loading, error, onClose }) {
   if (!preview && !loading && !error) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-stretch bg-slate-950/45 p-0 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-stretch justify-stretch bg-slate-950/45 p-0 backdrop-blur-sm animate-fade-in">
       <div className="flex h-[100dvh] w-full max-w-none flex-col overflow-hidden rounded-none border-0 bg-white shadow-glass lg:rounded-2xl lg:border lg:border-white/70 lg:shadow-glass">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-app-divider px-5 py-4">
           <div className="min-w-0">
