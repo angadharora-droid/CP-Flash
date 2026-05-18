@@ -548,7 +548,6 @@ function PinGate({ onUnlock }) {
 
 function BankPage({ data, date }) {
   const rows = data.bankPosition ?? [];
-  const [expandedUnits, setExpandedUnits] = useState({});
   const units = Array.from(new Set(rows.map((r) => r.unit || 'Unspecified')));
   const badge = getFreshness(
     data.importSource?.bankPositionImportedAt,
@@ -620,33 +619,25 @@ function BankPage({ data, date }) {
               acc.net += net(row);
               return acc;
             }, { actual: 0, fd: 0, issued: 0, hand: 0, net: 0 });
-            const expanded = !!expandedUnits[unit];
             built.push({
               key: `unit-${unit}`,
               cells: [
-                <button type="button" onClick={() => setExpandedUnits((s) => ({ ...s, [unit]: !s[unit] }))} className="text-left w-full">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <div className="font-semibold text-app-text">{unit}</div>
-                      <div className="text-xs text-app-muted">{unitRows.length} account{unitRows.length > 1 ? 's' : ''} {unitRows.length > 1 ? (expanded ? '▼' : '▶') : ''}</div>
-                    </div>
-                  </div>
-                </button>,
-                <span className="num">{money(unitTotals.actual)}</span>,
-                <span className="num">{money(unitTotals.fd)}</span>,
-                <span className="num">{money(unitTotals.issued)}</span>,
-                <span className="num">{money(unitTotals.hand)}</span>,
+                <div>
+                  <div className="font-semibold text-app-text">{unit}</div>
+                  {unitRows.length > 1 ? <div className="text-xs text-app-muted">{unitRows.length} accounts</div> : null}
+                </div>,
+                <span className="num font-semibold">{money(unitTotals.actual)}</span>,
+                <span className="num font-semibold">{money(unitTotals.fd)}</span>,
+                <span className="num font-semibold">{money(unitTotals.issued)}</span>,
+                <span className="num font-semibold">{money(unitTotals.hand)}</span>,
                 <span className={`num font-bold ${unitTotals.net >= 0 ? 'text-app-text' : 'text-rose-700'}`}>{money(unitTotals.net)}</span>
               ]
             });
-            if (expanded) {
+            if (unitRows.length > 1) {
               unitRows.forEach((row, idx) => built.push({
                 key: `unit-${unit}-row-${idx}`,
                 cells: [
-                  <div>
-                    <div className="text-sm font-medium text-app-text">{row.account || unit}</div>
-                    <div className="text-xs text-app-muted">{row.unit}</div>
-                  </div>,
+                  <div className="pl-4 text-sm font-medium text-app-text">↳ {row.account || unit}</div>,
                   <ReportValue value={row.actualBalance} numeric />,
                   <ReportValue value={row.fdTotal ?? ''} numeric />,
                   <ReportValue value={row.chequesIssued} numeric />,

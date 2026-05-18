@@ -253,15 +253,30 @@ export function createDailyFlashPdf(data, date) {
 
   header();
 
-  const bankRows = data.bankPosition ?? [];
+  const bankRowsRaw = data.bankPosition ?? [];
+  const bankNet = (row) => String(row.netBalance ?? '').trim() !== ''
+    ? numberValue(row.netBalance)
+    : numberValue(row.actualBalance) + numberValue(row.fdTotal)
+      - numberValue(row.chequesIssued) + numberValue(row.chequesInHand);
+  const bankByUnit = new Map();
+  for (const row of bankRowsRaw) {
+    const unit = row.unit || 'Unspecified';
+    const existing = bankByUnit.get(unit) ?? { unit, count: 0, actual: 0, fd: 0, issued: 0, hand: 0, net: 0 };
+    existing.count += 1;
+    existing.actual += numberValue(row.actualBalance);
+    existing.fd += numberValue(row.fdTotal);
+    existing.issued += numberValue(row.chequesIssued);
+    existing.hand += numberValue(row.chequesInHand);
+    existing.net += bankNet(row);
+    bankByUnit.set(unit, existing);
+  }
+  const bankRows = [...bankByUnit.values()];
   const bankTotals = bankRows.reduce((acc, row) => {
-    acc.actual += numberValue(row.actualBalance);
-    acc.fd += numberValue(row.fdTotal);
-    acc.issued += numberValue(row.chequesIssued);
-    acc.hand += numberValue(row.chequesInHand);
-    acc.net += String(row.netBalance ?? '').trim() !== ''
-      ? numberValue(row.netBalance)
-      : numberValue(row.actualBalance) + numberValue(row.fdTotal) - numberValue(row.chequesIssued) + numberValue(row.chequesInHand);
+    acc.actual += row.actual;
+    acc.fd += row.fd;
+    acc.issued += row.issued;
+    acc.hand += row.hand;
+    acc.net += row.net;
     return acc;
   }, { actual: 0, fd: 0, issued: 0, hand: 0, net: 0 });
   const pnl = pnlRows(data);
@@ -279,23 +294,16 @@ export function createDailyFlashPdf(data, date) {
   summaryCards([
     { label: 'Group Revenue', value: money(pnlTotals.revenue), tone: colors.header, caption: 'Today' },
     { label: 'Est. Net Profit', value: money(pnlTotals.net), tone: pnlTotals.net >= 0 ? colors.green : colors.red, caption: 'After fixed cost' },
-    { label: 'Bank Net Available', value: money(bankTotals.net), tone: colors.headerSoft, caption: `${bankRows.length} accounts` },
+    { label: 'Bank Net Available', value: money(bankTotals.net), tone: colors.headerSoft, caption: `${bankRowsRaw.length} accounts` },
     { label: 'Open Risks', value: String(flagCount), tone: flagCount ? colors.amber : colors.green, caption: 'Watch / action flags' }
   ]);
 
   sectionTitle('1. Bank Position - Daily Cash Summary');
   sheetRef(SHEET_URLS.bankPosition);
   table(
-    ['Unit / Account', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'],
+    ['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'],
     [
-      ...bankRows.map((row) => {
-      const net = String(row.netBalance ?? '').trim() !== ''
-        ? numberValue(row.netBalance)
-        : numberValue(row.actualBalance) + numberValue(row.fdTotal)
-          - numberValue(row.chequesIssued) + numberValue(row.chequesInHand);
-      const label = row.account ? `${row.unit} - ${row.account}` : row.unit;
-      return [label, money(row.actualBalance), money(row.fdTotal ?? ''), money(row.chequesIssued), money(row.chequesInHand), { text: money(net), color: colors.green, bold: true }];
-      }),
+      ...bankRows.map((row) => [row.unit, money(row.actual), money(row.fd), money(row.issued), money(row.hand), { text: money(row.net), color: colors.green, bold: true }]),
       [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true }, { text: money(bankTotals.fd), bold: true }, { text: money(bankTotals.issued), bold: true }, { text: money(bankTotals.hand), bold: true }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
     ],
     { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 }
