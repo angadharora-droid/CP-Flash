@@ -331,7 +331,7 @@ app.listen(port, () => {
     }, 14 * 60 * 1000);
   }
 
-  // Hosted import scheduler — runs fetchEmailReport.js every 10 minutes on Render.
+  // Hosted import scheduler — runs fetchEmailReport.js every 30 minutes on Render.
   // Enable by setting ENABLE_CLOUD_IMPORT=true in Render environment variables.
   // Also requires: REPORT_EMAIL_PASSWORD, REPORT_EMAIL, REPORT_IMAP_HOST on Render.
   if (process.env.ENABLE_CLOUD_IMPORT === 'true') {
@@ -361,9 +361,9 @@ app.listen(port, () => {
       });
     };
 
-    // First run 90 seconds after startup (let the server fully boot), then every 10 minutes.
+    // First run 90 seconds after startup (let the server fully boot), then every 30 minutes.
     setTimeout(runImport, 90_000);
-    setInterval(runImport, 10 * 60 * 1000);
-    console.log('Hosted import scheduler enabled — runs every 10 minutes.');
+    setInterval(runImport, 30 * 60 * 1000);
+    console.log('Hosted import scheduler enabled — runs every 30 minutes.');
   }
 });
