@@ -354,12 +354,12 @@ function BankPage({ data, date }) {
 
   return (
     <>
-      <PageTitle title="Bank Position" subtitle="Daily account-wise cash visibility." badge={badge} />
+      <PageTitle title="Bank Position" subtitle="Daily unit-wise cash visibility." badge={badge} />
       <div className="flex justify-end">
         <SheetLink url={SHEET_URLS.bankPosition} />
       </div>
       <DataTable
-        columns={['Unit / Account', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheque Total Amount', 'Cheques in Hand', 'Net Balance Available']}
+        columns={['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheque Total Amount', 'Cheques in Hand', 'Net Balance Available']}
         rows={rows.map((row) => ({
           key: `${row.unit}-${row.account ?? row.unit}`,
           cells: [
