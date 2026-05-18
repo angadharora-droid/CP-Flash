@@ -790,7 +790,7 @@ function FlagsPage({ data }) {
   );
 }
 
-function SourceReportPreviewModal({ preview, loading, error, onClose }) {
+function SourceReportPreviewScreen({ preview, loading, error, onClose }) {
   const [activeSheet, setActiveSheet] = useState('');
   const sheets = preview?.sheets ?? [];
   const selectedSheet = sheets.find((sheet) => sheet.name === activeSheet) ?? sheets[0];
@@ -802,8 +802,8 @@ function SourceReportPreviewModal({ preview, loading, error, onClose }) {
   if (!preview && !loading && !error) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-stretch justify-stretch bg-slate-950/45 p-0 backdrop-blur-sm animate-fade-in">
-      <div className="flex h-[100dvh] w-full max-w-none flex-col overflow-hidden rounded-none border-0 bg-white shadow-glass lg:rounded-2xl lg:border lg:border-white/70 lg:shadow-glass">
+    <div className="min-h-screen bg-slate-200 p-0 sm:p-4 lg:p-6">
+      <div className="flex min-h-screen flex-col overflow-hidden bg-white shadow-glass sm:min-h-[calc(100vh-2rem)] sm:rounded-2xl sm:border sm:border-white/70 lg:min-h-[calc(100vh-3rem)]">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-app-divider px-5 py-4">
           <div className="min-w-0">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-app-subtle">Email report preview</p>
@@ -870,13 +870,10 @@ function SourceReportPreviewModal({ preview, loading, error, onClose }) {
   );
 }
 
-function SourceControlPage({ date, authToken }) {
+function SourceControlPage({ date, authToken, onOpenReportPreview }) {
   const [sourceStatus, setSourceStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [reportPreview, setReportPreview] = useState(null);
-  const [reportPreviewLoading, setReportPreviewLoading] = useState(false);
-  const [reportPreviewError, setReportPreviewError] = useState('');
 
   const load = React.useCallback(async (silent = false) => {
     if (!authToken) return;
@@ -905,18 +902,6 @@ function SourceControlPage({ date, authToken }) {
 
   const sources = sourceStatus?.sources ?? [];
   const formatTime = (value) => value ? new Date(value).toLocaleString() : '-';
-  const openReportPreview = async (source, file) => {
-    setReportPreview({ file, sheets: [] });
-    setReportPreviewError('');
-    setReportPreviewLoading(true);
-    try {
-      setReportPreview(await getSourceReportPreview(date, source.id, file, authToken));
-    } catch (err) {
-      setReportPreviewError(err.message);
-    } finally {
-      setReportPreviewLoading(false);
-    }
-  };
 
   return (
     <>
@@ -960,7 +945,7 @@ function SourceControlPage({ date, authToken }) {
                       <button
                         key={`${source.id}-${file}-${index}`}
                         type="button"
-                        onClick={() => openReportPreview(source, file)}
+                        onClick={() => onOpenReportPreview(source, file)}
                         className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-app-border bg-white/85 px-3.5 py-2 text-xs font-bold text-app-text shadow-card backdrop-blur-xl transition-all duration-200 hover:-translate-y-px hover:border-app-borderStrong hover:bg-white hover:shadow-cardHover"
                       >
                         <span className="flex size-5 items-center justify-center rounded-md bg-app-accentTint text-app-accentDark">
@@ -978,16 +963,6 @@ function SourceControlPage({ date, authToken }) {
           }))}
         />
       </SectionCard>
-      <SourceReportPreviewModal
-        preview={reportPreview}
-        loading={reportPreviewLoading}
-        error={reportPreviewError}
-        onClose={() => {
-          setReportPreview(null);
-          setReportPreviewError('');
-          setReportPreviewLoading(false);
-        }}
-      />
     </>
   );
 }
@@ -1389,6 +1364,9 @@ export default function App() {
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('dailyflashToken') || '');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('dailyflashSidebar') === 'collapsed');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sourceReportPreview, setSourceReportPreview] = useState(null);
+  const [sourceReportPreviewLoading, setSourceReportPreviewLoading] = useState(false);
+  const [sourceReportPreviewError, setSourceReportPreviewError] = useState('');
   const loadRequestRef = React.useRef(0);
   const loadedDateRef = React.useRef('');
 
@@ -1461,10 +1439,23 @@ export default function App() {
     return () => clearInterval(timer);
   }, [date, authToken, loadData]);
 
+  const openSourceReportPreview = React.useCallback(async (source, file) => {
+    setSourceReportPreview({ file, sheets: [] });
+    setSourceReportPreviewError('');
+    setSourceReportPreviewLoading(true);
+    try {
+      setSourceReportPreview(await getSourceReportPreview(date, source.id, file, authToken));
+    } catch (err) {
+      setSourceReportPreviewError(err.message);
+    } finally {
+      setSourceReportPreviewLoading(false);
+    }
+  }, [date, authToken]);
+
   const page = useMemo(() => {
     if (!data) return null;
     const common = { data, setData, date, authToken };
-    if (active === 'sources') return <SourceControlPage date={date} authToken={authToken} />;
+    if (active === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} />;
     if (active === 'bank') return <BankPage {...common} />;
     if (active === 'pnl') return <PnlPage {...common} />;
     if (active === 'flags') return <FlagsPage data={data} />;
@@ -1476,7 +1467,7 @@ export default function App() {
     if (active === 'settlement') return <SettlementPage {...common} />;
     if (active === 'pdf') return <PdfPreviewPage date={date} authToken={authToken} onSave={() => saveData(date, data, authToken)} />;
     return <AiPage data={data} authToken={authToken} />;
-  }, [active, data, date, authToken]);
+  }, [active, data, date, authToken, openSourceReportPreview]);
 
   const lockApp = () => {
     localStorage.removeItem('dailyflashToken');
@@ -1519,6 +1510,21 @@ export default function App() {
   const activePage = pages.find(([key]) => key === active) ?? pages[0];
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
+
+  if (sourceReportPreview || sourceReportPreviewLoading || sourceReportPreviewError) {
+    return (
+      <SourceReportPreviewScreen
+        preview={sourceReportPreview}
+        loading={sourceReportPreviewLoading}
+        error={sourceReportPreviewError}
+        onClose={() => {
+          setSourceReportPreview(null);
+          setSourceReportPreviewError('');
+          setSourceReportPreviewLoading(false);
+        }}
+      />
+    );
+  }
 
   const renderSidebar = (collapsed, { onItemClick, asDrawer = false } = {}) => (
     <>
