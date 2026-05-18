@@ -21,9 +21,9 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
-    id: 'cpnm-occupancy',
-    label: 'CP Navi Mumbai Occupancy',
-    unit: 'CP Navi Mumbai',
+    id: 'cpn-occupancy',
+    label: 'CP Nagpur Occupancy',
+    unit: 'CP Nagpur',
     type: 'Mail / Excel',
     paths: ['hotels', 'pnl'],
     meta: { file: 'occupancyFile', importedAt: 'occupancyImportedAt', notes: 'occupancyNotes' },
