@@ -63,7 +63,11 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     data = buildSeedData();
   }
 
-  const fnbRows = outlet === 'Pablo' ? data.fnb?.Pablo : data.fnb?.Dali;
+  const fnbRows = outlet === 'Pablo'
+    ? data.fnb?.Pablo
+    : outlet === 'Dali'
+      ? data.fnb?.Dali
+      : data.rabbits;
   function setKpi(name, actual) {
     const row = fnbRows?.find((item) => item.name === name);
     if (!row || actual === null) return;
@@ -74,12 +78,21 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const netSales = get(values, 'net sales');
   const totalSales = get(values, 'total sales');
   const grossSales = netSales ?? totalSales;
+  const bills = get(values, 'no. of bills', 'number of bills', 'covers', 'total bills', 'no of bills');
+  const avgBill = get(values, 'avg bill', 'average bill', 'avg. bill')
+    ?? (grossSales && bills ? grossSales / bills : null);
 
-  setKpi('Gross Sales', grossSales);
-  setKpi('Covers', get(values, 'no. of bills', 'number of bills', 'covers', 'total bills', 'no of bills'));
-  setKpi('Avg Bill', get(values, 'avg bill', 'average bill', 'avg. bill'));
-  setKpi('Lunch Revenue', get(values, 'lunch', 'lunch sales', 'lunch revenue'));
-  setKpi('Dinner Revenue', get(values, 'dinner', 'dinner sales', 'dinner revenue'));
+  if (outlet === 'Rabbits') {
+    setKpi('Total Revenue', grossSales);
+    setKpi('Total Orders', bills);
+    setKpi('AOV', avgBill);
+  } else {
+    setKpi('Gross Sales', grossSales);
+    setKpi('Covers', bills);
+    setKpi('Avg Bill', avgBill);
+    setKpi('Lunch Revenue', get(values, 'lunch', 'lunch sales', 'lunch revenue'));
+    setKpi('Dinner Revenue', get(values, 'dinner', 'dinner sales', 'dinner revenue'));
+  }
 
   data.pnl = (data.pnl ?? []).map((row) =>
     row.unit === outlet ? { ...row, revenueToday: String(Math.round((grossSales ?? 0) * 100) / 100) } : row
@@ -101,7 +114,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     outlet,
     mapped: {
       grossSales,
-      covers: get(values, 'no. of bills', 'number of bills', 'covers', 'total bills', 'no of bills'),
+      covers: bills,
       netSales,
       totalSales
     }

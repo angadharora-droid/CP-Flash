@@ -1090,7 +1090,7 @@ export default function App() {
                   className="rounded-lg border border-app-border bg-white px-3 py-1.5 text-sm font-semibold text-app-text outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
                 />
                 {status ? (
-                  <span className="hidden max-w-xs truncate text-xs text-slate-400 sm:block">{status}</span>
+                  <span className="max-w-xs truncate text-xs text-slate-400">{status}</span>
                 ) : null}
                 {riskCount > 0 ? (
                   <button
@@ -1154,6 +1154,16 @@ export default function App() {
               ))}
             </select>
           </div>
+          {data && !Object.values(data.importSource ?? {}).some((v) => v) ? (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <svg className="mt-0.5 size-4 shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3h.007M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+              <span>
+                <strong>No data imported for {date}.</strong> The daily import hasn't run yet for this date, or no reports arrived. Data will appear automatically once imported — check back later or run the importer manually.
+              </span>
+            </div>
+          ) : null}
           {page ?? (
             <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-app-border bg-white py-20 text-center shadow-sm">
               <div className="size-8 animate-spin rounded-full border-[2.5px] border-teal-600 border-t-transparent" />
