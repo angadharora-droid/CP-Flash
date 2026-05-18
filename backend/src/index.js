@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import { MongoClient } from 'mongodb';
+import XLSX from 'xlsx';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { buildSeedData } from './excel.js';
@@ -17,6 +18,7 @@ import { buildSourceStatus } from './sources.js';
 const app = express();
 const port = process.env.PORT || 4000;
 const dataDir = path.resolve(process.cwd(), 'data');
+const attachmentsDir = path.resolve(__dirname, '..', 'data', 'attachments');
 const accessPin = process.env.DAILYFLASH_PIN || process.env.ACCESS_PIN;
 const tokenSecret = process.env.JWT_SECRET || process.env.DAILYFLASH_PIN || 'change-me';
 
@@ -145,6 +147,52 @@ function mergeDailyData(seed, saved) {
   return { ...merged, pnl: derivePnlRows(merged) };
 }
 
+function trimSheetRows(rows, maxRows = 100, maxColumns = 40) {
+  const trimmed = rows
+    .slice(0, maxRows)
+    .map((row) => row.slice(0, maxColumns).map((cell) => String(cell ?? '').trimEnd()));
+
+  let lastRow = trimmed.length - 1;
+  while (lastRow >= 0 && trimmed[lastRow].every((cell) => !String(cell).trim())) lastRow -= 1;
+
+  let lastColumn = 0;
+  for (let r = 0; r <= lastRow; r += 1) {
+    for (let c = trimmed[r].length - 1; c >= 0; c -= 1) {
+      if (String(trimmed[r][c]).trim()) {
+        lastColumn = Math.max(lastColumn, c + 1);
+        break;
+      }
+    }
+  }
+
+  return trimmed.slice(0, lastRow + 1).map((row) => row.slice(0, lastColumn));
+}
+
+async function readAttachmentPreview(fileName) {
+  const safeName = path.basename(String(fileName ?? ''));
+  if (!safeName || !/\.(xlsx|xls|csv)$/i.test(safeName)) {
+    throw new Error('Preview is available only for spreadsheet attachments.');
+  }
+
+  const filePath = path.resolve(attachmentsDir, safeName);
+  if (!filePath.startsWith(`${attachmentsDir}${path.sep}`)) {
+    throw new Error('Invalid report file.');
+  }
+
+  await fs.access(filePath);
+  const workbook = XLSX.readFile(filePath, { cellDates: true, raw: false });
+  const sheets = workbook.SheetNames.map((sheetName) => ({
+    name: sheetName,
+    rows: trimSheetRows(XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+      header: 1,
+      defval: '',
+      raw: false
+    }))
+  })).filter((sheet) => sheet.rows.length);
+
+  return { file: safeName, sheets };
+}
+
 async function readDailyData(date = dateKey()) {
   const db = await getDb();
   if (db) {
@@ -231,6 +279,37 @@ app.get('/api/source-status', wrap(async (req, res) => {
   const seed = buildSeedData();
   const saved = await readDailyData(req.query.date || dateKey());
   res.json(buildSourceStatus(mergeDailyData(seed, saved)));
+}));
+
+app.get('/api/source-report-preview', wrap(async (req, res) => {
+  const date = req.query.date || dateKey();
+  const sourceId = String(req.query.sourceId ?? '');
+  const file = path.basename(String(req.query.file ?? ''));
+  const seed = buildSeedData();
+  const saved = await readDailyData(date);
+  const sourceStatus = buildSourceStatus(mergeDailyData(seed, saved));
+  const source = sourceStatus.sources.find((item) => item.id === sourceId);
+
+  if (!source) {
+    res.status(404).json({ error: 'Source not found.' });
+    return;
+  }
+
+  const allowedFiles = new Set((source.reportFiles ?? []).map((name) => path.basename(String(name))));
+  if (!allowedFiles.has(file)) {
+    res.status(404).json({ error: 'No previewable report found for this source.' });
+    return;
+  }
+
+  try {
+    res.json(await readAttachmentPreview(file));
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      res.status(404).json({ error: 'The original email attachment is not available on this server.' });
+      return;
+    }
+    throw err;
+  }
 }));
 
 app.get('/api/report.pdf', wrap(async (req, res) => {

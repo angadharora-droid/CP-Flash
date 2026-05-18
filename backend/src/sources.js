@@ -55,6 +55,10 @@ export const dailySources = [
     unit: 'Pablo / Dali',
     type: 'Petpooja / Mail',
     paths: ['fnb', 'topItems', 'settlement'],
+    meta: {
+      files: ['pabloPaymentFile', 'daliPaymentFile'],
+      importedAt: 'pabloPetpoojaImportedAt'
+    },
     cadence: 'Daily'
   },
   {
@@ -63,7 +67,10 @@ export const dailySources = [
     unit: 'Rabbits',
     type: 'Mail / POS',
     paths: ['rabbits', 'settlement'],
-    meta: { importedAt: 'rabbitsPetpoojaImportedAt' },
+    meta: {
+      file: 'rabbitsPaymentFile',
+      importedAt: 'rabbitsPetpoojaImportedAt'
+    },
     cadence: 'Daily'
   },
   {
@@ -131,8 +138,14 @@ function hasEnteredValue(value) {
 function pickMeta(importSource, source) {
   if (!source.meta) return {};
 
+  const reportFiles = [
+    source.meta.file ? importSource[source.meta.file] : '',
+    ...(source.meta.files ?? []).map((key) => importSource[key])
+  ].filter((file) => isFilled(file));
+
   return {
-    file: importSource[source.meta.file] ?? '',
+    file: reportFiles[0] ?? '',
+    reportFiles,
     importedAt: importSource[source.meta.importedAt] ?? '',
     notes: importSource[source.meta.notes] ?? ''
   };
@@ -151,6 +164,7 @@ export function buildSourceStatus(data = {}) {
       status,
       importedAt: meta.importedAt,
       file: meta.file,
+      reportFiles: meta.reportFiles ?? [],
       notes: meta.notes
     };
   });
