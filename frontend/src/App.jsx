@@ -206,11 +206,112 @@ function SegmentedControl({ items, value, onChange }) {
   );
 }
 
+function formatDisplayDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const ddd = d.toLocaleDateString('en-IN', { weekday: 'short' });
+  return { full: `${dd}/${mm}/${yyyy}`, day: ddd };
+}
+
+function shiftIso(iso, delta) {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+function DateControl({ value, onChange, latest, refreshing, onRefresh }) {
+  const inputRef = React.useRef(null);
+  const isLatest = value >= latest;
+  const isAfter = value > latest;
+  const display = formatDisplayDate(value);
+
+  const openPicker = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    if (typeof el.showPicker === 'function') {
+      try { el.showPicker(); return; } catch (e) { /* fall through */ }
+    }
+    el.focus();
+    el.click();
+  };
+
+  return (
+    <div className="inline-flex items-stretch gap-1 rounded-xl border border-app-border bg-white/85 p-1 shadow-card backdrop-blur-xl">
+      <button
+        type="button"
+        onClick={() => onChange(shiftIso(value, -1))}
+        title="Previous day (←)"
+        aria-label="Previous day"
+        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-app-muted transition-all duration-150 hover:bg-app-panel hover:text-app-text active:scale-95"
+      >
+        <svg className="size-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={openPicker}
+        title="Pick date"
+        className="num group flex items-center gap-2 rounded-lg px-3 py-1.5 text-left transition-all duration-150 hover:bg-app-panel"
+      >
+        <svg className="size-4 shrink-0 text-app-accentDark" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+        </svg>
+        <span className="text-sm font-bold tracking-tight text-app-text">{display.full}</span>
+        <span className="rounded-md bg-app-panel px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-app-muted">{display.day}</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(shiftIso(value, 1))}
+        disabled={isAfter}
+        title="Next day (→)"
+        aria-label="Next day"
+        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-app-muted transition-all duration-150 hover:bg-app-panel hover:text-app-text active:scale-95 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-app-muted"
+      >
+        <svg className="size-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+      </button>
+      <div className="mx-0.5 w-px self-stretch bg-app-divider" />
+      <button
+        type="button"
+        onClick={() => isLatest ? onRefresh?.() : onChange(latest)}
+        disabled={refreshing}
+        title={isLatest ? 'Refresh (R)' : 'Jump to latest (T)'}
+        className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-bold uppercase tracking-wider text-app-accentDark transition-all duration-150 hover:bg-app-accentTint active:scale-[0.97] disabled:opacity-50"
+      >
+        <svg className={`size-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+          {isLatest ? (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992V4.356M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.183m0-4.991v4.99" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          )}
+        </svg>
+        {isLatest ? (refreshing ? 'Loading' : 'Refresh') : 'Today'}
+      </button>
+      <input
+        ref={inputRef}
+        type="date"
+        value={value}
+        max={latest}
+        onChange={(e) => e.target.value && onChange(e.target.value)}
+        className="pointer-events-none absolute h-0 w-0 opacity-0"
+        tabIndex={-1}
+        aria-hidden
+      />
+    </div>
+  );
+}
+
 function PinGate({ onUnlock }) {
   const [pin, setPin] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [shake, setShake] = useState(false);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -223,6 +324,8 @@ function PinGate({ onUnlock }) {
     } catch (err) {
       setStatus(err.message);
       setPin('');
+      setShake(true);
+      setTimeout(() => setShake(false), 520);
     } finally {
       setLoading(false);
     }
@@ -270,23 +373,33 @@ function PinGate({ onUnlock }) {
             {/* PIN dot indicator (click to focus the hidden input) */}
             <label
               className={`relative mx-auto flex w-full max-w-[260px] cursor-text items-center justify-center gap-3.5 rounded-2xl border bg-white/80 py-4 transition-all duration-200 ${
-                focused
-                  ? 'border-app-accent/60 shadow-[0_0_0_4px_rgba(13,148,136,0.15)]'
-                  : 'border-app-border shadow-[0_1px_0_rgba(255,255,255,0.8)_inset]'
+                shake
+                  ? 'border-rose-300 shadow-[0_0_0_4px_rgba(244,63,94,0.18)] animate-shake'
+                  : focused
+                    ? 'border-app-accent/60 shadow-[0_0_0_4px_rgba(13,148,136,0.15)]'
+                    : 'border-app-border shadow-[0_1px_0_rgba(255,255,255,0.8)_inset]'
               }`}
             >
               {Array.from({ length: 6 }, (_, i) => {
                 const filled = i < pin.length;
                 const current = i === pin.length && focused;
+                const dotBase = shake
+                  ? 'scale-110 bg-rose-500'
+                  : filled
+                    ? 'scale-110 bg-app-accent'
+                    : 'bg-slate-200';
+                const dotShadow = shake
+                  ? { boxShadow: '0 0 0 4px rgba(244, 63, 94, 0.20)' }
+                  : filled
+                    ? { boxShadow: '0 0 0 4px rgba(13, 148, 136, 0.18)' }
+                    : undefined;
                 return (
                   <span
                     key={i}
-                    className={`relative flex h-3 w-3 items-center justify-center rounded-full transition-all duration-300 ${
-                      filled ? 'scale-110 bg-app-accent' : 'bg-slate-200'
-                    }`}
-                    style={filled ? { boxShadow: '0 0 0 4px rgba(13, 148, 136, 0.18)' } : undefined}
+                    className={`relative flex h-3 w-3 items-center justify-center rounded-full transition-all duration-300 ${dotBase}`}
+                    style={dotShadow}
                   >
-                    {current ? (
+                    {current && !shake ? (
                       <span className="absolute inset-0 -m-1 animate-ping rounded-full bg-app-accent/40" />
                     ) : null}
                   </span>
@@ -918,7 +1031,21 @@ export default function App() {
   const [status, setStatus] = useState('Loading...');
   const [refreshing, setRefreshing] = useState(false);
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('dailyflashToken') || '');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('dailyflashSidebar') === 'collapsed');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const loadRequestRef = React.useRef(0);
+  const mainScrollRef = React.useRef(null);
+
+  React.useEffect(() => {
+    localStorage.setItem('dailyflashSidebar', sidebarCollapsed ? 'collapsed' : 'expanded');
+  }, [sidebarCollapsed]);
+
+  React.useEffect(() => {
+    setMobileNavOpen(false);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [active]);
 
   const loadData = React.useCallback(async (currentDate, token, silent = false) => {
     if (!token) return;
@@ -999,74 +1126,143 @@ export default function App() {
     setData(null);
   };
 
+  const handleRefresh = React.useCallback(() => {
+    if (authToken) loadData(date, authToken);
+  }, [authToken, date, loadData]);
+
+  React.useEffect(() => {
+    if (!authToken) return undefined;
+    const onKey = (event) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const target = event.target;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        setDate((cur) => shiftIso(cur, -1));
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        setDate((cur) => (cur >= today ? cur : shiftIso(cur, 1)));
+      } else if (event.key === 't' || event.key === 'T') {
+        event.preventDefault();
+        setDate(today);
+      } else if (event.key === 'r' || event.key === 'R') {
+        event.preventDefault();
+        handleRefresh();
+      } else if (event.key === '[') {
+        setSidebarCollapsed((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [authToken, handleRefresh]);
+
   const riskCount = data ? withFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length : 0;
   const activePage = pages.find(([key]) => key === active) ?? pages[0];
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
 
-  return (
-    <div className="min-h-screen overflow-x-hidden text-app-text">
-      {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-app-border bg-app-sidebar backdrop-blur-2xl lg:flex xl:w-72">
-        {/* Brand */}
-        <div className="flex shrink-0 items-center gap-3 border-b border-app-divider px-5 py-5">
-          <div className="relative flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-sm font-extrabold text-white ring-1 ring-white/40">
-            CP
-            <div className="absolute -inset-1 rounded-[18px] bg-teal-400/25 blur-lg -z-10" />
-          </div>
-          <div className="min-w-0">
+  const renderSidebar = (collapsed, { onItemClick, asDrawer = false } = {}) => (
+    <>
+      {/* Brand */}
+      <div className={`flex shrink-0 items-center border-b border-app-divider ${collapsed ? 'justify-center px-3 py-5' : 'gap-3 px-5 py-5'}`}>
+        <div className="relative flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-sm font-extrabold text-white ring-1 ring-white/40">
+          CP
+          <div className="absolute -inset-1 rounded-[18px] bg-teal-400/25 blur-lg -z-10" />
+        </div>
+        {!collapsed ? (
+          <div className="min-w-0 flex-1">
             <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-app-accentDark">DailyFlash</div>
             <div className="truncate text-sm font-bold leading-tight text-app-text">CP Flash Report</div>
             <div className="truncate text-[11px] text-app-muted">Centre Point Hospitality</div>
           </div>
-        </div>
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-5">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="mb-6">
+        ) : null}
+        {asDrawer ? (
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close menu"
+            className="ml-auto flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-panel hover:text-app-text"
+          >
+            <svg className="size-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        ) : null}
+      </div>
+      {/* Nav */}
+      <nav className={`flex-1 overflow-y-auto py-5 ${collapsed ? 'px-2' : 'px-3'}`}>
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label} className="mb-6">
+            {!collapsed ? (
               <div className="mb-2 px-2 text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-app-subtle">
                 {group.label}
               </div>
-              <div className="space-y-1">
-                {group.items.map(({ key, label, icon }) => {
-                  const isActive = active === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setActive(key)}
-                      className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200 ${
-                        isActive
-                          ? 'bg-gradient-to-r from-app-accentTint to-white text-app-accentDark ring-1 ring-teal-100 shadow-sm'
-                          : 'text-app-body hover:bg-app-panel/80 hover:text-app-text'
-                      }`}
-                    >
-                      {isActive ? (
-                        <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-accent-stripe" />
+            ) : (
+              <div className="mx-auto mb-2 h-px w-6 bg-app-divider" />
+            )}
+            <div className="space-y-1">
+              {group.items.map(({ key, label, icon }) => {
+                const isActive = active === key;
+                const hasBadge = key === 'flags' && riskCount > 0;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => { setActive(key); onItemClick?.(); }}
+                    title={collapsed ? label : undefined}
+                    className={`group relative flex w-full items-center rounded-xl text-left text-sm font-semibold transition-all duration-200 ${
+                      collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'
+                    } ${
+                      isActive
+                        ? 'bg-gradient-to-r from-app-accentTint to-white text-app-accentDark ring-1 ring-teal-100 shadow-sm'
+                        : 'text-app-body hover:bg-app-panel/80 hover:text-app-text'
+                    }`}
+                  >
+                    {isActive ? (
+                      <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-accent-stripe" />
+                    ) : null}
+                    <span className={`relative flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-200 ${
+                      isActive ? 'bg-white/80 text-app-accent shadow-sm ring-1 ring-teal-100' : 'bg-app-panel/70 text-app-muted group-hover:bg-white group-hover:text-app-text'
+                    }`}>
+                      <svg className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.85} viewBox="0 0 24 24">
+                        {icon}
+                      </svg>
+                      {collapsed && hasBadge ? (
+                        <span className="absolute -right-1 -top-1 size-2 rounded-full bg-rose-500 ring-2 ring-white" />
                       ) : null}
-                      <span className={`flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-200 ${
-                        isActive ? 'bg-white/80 text-app-accent shadow-sm ring-1 ring-teal-100' : 'bg-app-panel/70 text-app-muted group-hover:bg-white group-hover:text-app-text'
-                      }`}>
-                        <svg className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.85} viewBox="0 0 24 24">
-                          {icon}
-                        </svg>
+                    </span>
+                    {!collapsed ? <span className="truncate">{label}</span> : null}
+                    {!collapsed && hasBadge ? (
+                      <span className="ml-auto rounded-full bg-gradient-to-b from-rose-500 to-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-rose-100">
+                        {riskCount}
                       </span>
-                      <span className="truncate">{label}</span>
-                      {key === 'flags' && riskCount > 0 ? (
-                        <span className="ml-auto rounded-full bg-gradient-to-b from-rose-500 to-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-rose-100">
-                          {riskCount}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
-          ))}
-        </nav>
-        {/* Footer */}
-        <div className="shrink-0 border-t border-app-divider px-5 py-4">
-          <div className="flex items-center gap-2">
+          </div>
+        ))}
+      </nav>
+      {/* Footer */}
+      <div className={`shrink-0 border-t border-app-divider ${collapsed ? 'px-2 py-3' : 'px-3 py-3'}`}>
+        {!asDrawer ? (
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            title={collapsed ? 'Expand sidebar ([)' : 'Collapse sidebar ([)'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className={`flex w-full items-center rounded-xl text-xs font-bold text-app-muted transition-all duration-150 hover:bg-app-panel hover:text-app-text ${collapsed ? 'justify-center px-2 py-2' : 'gap-2 px-3 py-2'}`}
+          >
+            <svg className={`size-4 shrink-0 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+            {!collapsed ? <span>Collapse</span> : null}
+          </button>
+        ) : null}
+        {!collapsed ? (
+          <div className="mt-2 flex items-center gap-2 border-t border-app-divider pt-3">
             <div className="flex size-7 items-center justify-center rounded-lg bg-app-accentTint text-app-accentDark">
               <svg className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
@@ -1079,18 +1275,58 @@ export default function App() {
               <div className="truncate text-[10px] text-app-muted">Centre Point Hospitality Group</div>
             </div>
           </div>
-        </div>
+        ) : null}
+      </div>
+    </>
+  );
+
+  const sidebarWidthClass = sidebarCollapsed ? 'w-16' : 'w-64 xl:w-72';
+  const mainPaddingClass = sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64 xl:pl-72';
+
+  return (
+    <div className="min-h-screen overflow-x-hidden text-app-text">
+      {/* Desktop sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-app-border bg-app-sidebar backdrop-blur-2xl transition-all duration-300 ease-out lg:flex ${sidebarWidthClass}`}
+      >
+        {renderSidebar(sidebarCollapsed)}
       </aside>
 
+      {/* Mobile drawer */}
+      <div
+        className={`fixed inset-0 z-40 lg:hidden ${mobileNavOpen ? '' : 'pointer-events-none'}`}
+        aria-hidden={!mobileNavOpen}
+      >
+        <div
+          onClick={() => setMobileNavOpen(false)}
+          className={`absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity duration-200 ${mobileNavOpen ? 'opacity-100' : 'opacity-0'}`}
+        />
+        <aside
+          className={`absolute inset-y-0 left-0 flex w-72 flex-col border-r border-app-border bg-white shadow-glass transition-transform duration-300 ease-out ${mobileNavOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        >
+          {renderSidebar(false, { onItemClick: () => setMobileNavOpen(false), asDrawer: true })}
+        </aside>
+      </div>
+
       {/* Main */}
-      <main className="lg:pl-64 xl:pl-72">
+      <main className={`transition-[padding] duration-300 ease-out ${mainPaddingClass}`}>
         {/* Topbar */}
         <header className="sticky top-0 z-20 border-b border-app-border/80 bg-white/75 backdrop-blur-2xl">
           <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-8">
             {/* Left: breadcrumb + date */}
             <div className="flex min-w-0 flex-col gap-1.5">
-              <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.18em] text-app-muted">
-                <span className="flex size-5 items-center justify-center rounded-md bg-app-accentTint text-app-accentDark">
+              <div className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.18em] text-app-muted">
+                <button
+                  type="button"
+                  onClick={() => setMobileNavOpen(true)}
+                  aria-label="Open menu"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-app-border bg-white/85 text-app-text shadow-card backdrop-blur-xl transition-all hover:border-app-borderStrong hover:bg-white lg:hidden"
+                >
+                  <svg className="size-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                  </svg>
+                </button>
+                <span className="hidden size-5 items-center justify-center rounded-md bg-app-accentTint text-app-accentDark sm:flex">
                   <svg className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
                     {NAV_GROUPS.flatMap(g => g.items).find(i => i.key === active)?.icon}
                   </svg>
@@ -1100,17 +1336,13 @@ export default function App() {
                 <span className="text-app-text">{activePage[2]}</span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <svg className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-app-accentDark" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                  </svg>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="num rounded-xl border border-app-border bg-white/85 py-1.5 pl-9 pr-3 text-sm font-semibold text-app-text shadow-card outline-none backdrop-blur-xl transition focus:border-app-accent focus:ring-4 focus:ring-app-accentRing"
-                  />
-                </div>
+                <DateControl
+                  value={date}
+                  onChange={setDate}
+                  latest={today}
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                />
                 {status ? (
                   <span className="max-w-xs truncate text-xs font-medium text-app-muted">{status}</span>
                 ) : null}
@@ -1130,30 +1362,17 @@ export default function App() {
             </div>
             {/* Right: actions */}
             <div className="flex shrink-0 items-center gap-1.5">
-              <ActionButton
-                onClick={() => {
-                  const d = new Date(); d.setDate(d.getDate() - 1);
-                  const freshDate = d.toISOString().slice(0, 10);
-                  if (freshDate !== date) {
-                    setDate(freshDate);
-                  } else {
-                    loadData(date, authToken);
-                  }
-                }}
-                disabled={refreshing || !authToken}
-              >
-                {refreshing ? 'Refreshing...' : 'Refresh'}
-              </ActionButton>
               <ActionButton onClick={() => setActive('pdf')} disabled={!data} variant="primary">Preview PDF</ActionButton>
               <div className="ml-1 h-5 w-px bg-app-border" />
               <button
                 onClick={lockApp}
+                title="Lock dashboard"
                 className="flex items-center gap-1.5 rounded-xl border border-app-border bg-white/85 px-3 py-2 text-xs font-semibold text-app-muted shadow-card backdrop-blur-xl transition-all hover:border-app-borderStrong hover:bg-white hover:text-app-text hover:shadow-cardHover"
               >
                 <svg className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                 </svg>
-                Lock
+                <span className="hidden sm:inline">Lock</span>
               </button>
             </div>
           </div>
@@ -1161,24 +1380,8 @@ export default function App() {
 
         {/* Page content */}
         <div className="space-y-5 p-4 lg:p-8">
-          {/* Mobile nav */}
-          <div className="lg:hidden">
-            <select
-              value={active}
-              onChange={(e) => setActive(e.target.value)}
-              className="w-full rounded-2xl border border-app-border bg-white/85 px-4 py-3 text-sm font-semibold text-app-text shadow-card backdrop-blur-xl outline-none transition focus:border-app-accent focus:ring-4 focus:ring-app-accentRing"
-            >
-              {NAV_GROUPS.map((group) => (
-                <optgroup key={group.label} label={group.label}>
-                  {group.items.map(({ key, label }) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
           {data && !Object.values(data.importSource ?? {}).some((v) => v) ? (
-            <div className="flex items-start gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/80 px-5 py-4 text-sm text-amber-800 ring-1 ring-amber-100 backdrop-blur-xl">
+            <div className="flex items-start gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/80 px-5 py-4 text-sm text-amber-800 ring-1 ring-amber-100 backdrop-blur-xl animate-fade-in-up">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white/80 text-amber-600 ring-1 ring-amber-100">
                 <svg className="size-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3h.007M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -1189,15 +1392,17 @@ export default function App() {
               </span>
             </div>
           ) : null}
-          {page ?? (
-            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-app-border bg-white/85 py-24 text-center shadow-card backdrop-blur-xl">
-              <div className="relative">
-                <div className="size-10 animate-spin rounded-full border-[3px] border-app-accent border-t-transparent" />
-                <div className="absolute inset-0 size-10 animate-ping rounded-full border border-app-accent/40" />
+          <div key={active} className="space-y-5 animate-fade-in-up">
+            {page ?? (
+              <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-app-border bg-white/85 py-24 text-center shadow-card backdrop-blur-xl">
+                <div className="relative">
+                  <div className="size-10 animate-spin rounded-full border-[3px] border-app-accent border-t-transparent" />
+                  <div className="absolute inset-0 size-10 animate-ping rounded-full border border-app-accent/40" />
+                </div>
+                <p className="text-sm font-medium text-app-muted">Loading dashboard data...</p>
               </div>
-              <p className="text-sm font-medium text-app-muted">Loading dashboard data...</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </main>
     </div>
