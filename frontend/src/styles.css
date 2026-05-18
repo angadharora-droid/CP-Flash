@@ -1,3 +1,5 @@
+@import url('https://rsms.me/inter/inter.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,13 +8,24 @@
   box-sizing: border-box;
 }
 
+html {
+  background: #f1f5f9;
+}
+
 body {
   margin: 0;
+  min-height: 100vh;
+  color: #0f172a;
+  font-family: 'Inter var', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background:
-    linear-gradient(180deg, #ffffff 0, rgba(255, 255, 255, 0) 18rem),
-    #f4f7fb;
-  color: #111827;
-  font-family: Inter, system-ui, sans-serif;
+    radial-gradient(1100px 540px at 92% -10%, rgba(20, 184, 166, 0.18) 0%, rgba(20, 184, 166, 0) 60%),
+    radial-gradient(900px 480px at -10% 5%, rgba(99, 102, 241, 0.14) 0%, rgba(99, 102, 241, 0) 55%),
+    radial-gradient(700px 480px at 50% 110%, rgba(45, 212, 191, 0.10) 0%, rgba(45, 212, 191, 0) 60%),
+    linear-gradient(180deg, #f6f9fd 0%, #eef2f8 100%);
+  background-attachment: fixed;
 }
 
 input,
@@ -38,26 +51,29 @@ button:disabled {
 }
 
 ::selection {
-  background: rgba(15, 118, 110, 0.22);
+  background: rgba(13, 148, 136, 0.22);
+  color: #0f172a;
 }
 
 ::-webkit-scrollbar {
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f4f7fb;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #bdc8d8;
-  border: 3px solid #f4f7fb;
+  background: rgba(100, 116, 139, 0.28);
+  border: 2px solid transparent;
+  background-clip: padding-box;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #8fa0b8;
+  background: rgba(100, 116, 139, 0.52);
+  background-clip: padding-box;
 }
 
 input[type='number'] {
@@ -68,4 +84,43 @@ input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
   appearance: none;
   margin: 0;
+}
+
+input[type='date'] {
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  .glass-card {
+    @apply rounded-2xl border border-app-border bg-app-glass backdrop-blur-xl shadow-card;
+  }
+
+  .glass-card-solid {
+    @apply rounded-2xl border border-app-border bg-white shadow-card;
+  }
+
+  .surface-hover {
+    @apply transition-all duration-200 hover:shadow-cardHover hover:border-app-borderStrong;
+  }
+
+  .num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold;
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, #eef2f8 0%, #f6f9fd 50%, #eef2f8 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.8s linear infinite;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
 }
