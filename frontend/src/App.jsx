@@ -64,9 +64,9 @@ const NAV_GROUPS = [
 ];
 
 const statusTone = {
-  Imported: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  Entered: 'border-teal-200 bg-teal-50 text-teal-700',
-  Pending: 'border-amber-200 bg-amber-50 text-amber-700'
+  Imported: 'border-emerald-200/80 bg-emerald-50/80 text-emerald-700 ring-1 ring-emerald-100',
+  Entered: 'border-teal-200/80 bg-teal-50/80 text-teal-700 ring-1 ring-teal-100',
+  Pending: 'border-amber-200/80 bg-amber-50/80 text-amber-700 ring-1 ring-amber-100'
 };
 
 function fmtDate(isoDate) {
@@ -74,17 +74,17 @@ function fmtDate(isoDate) {
 }
 
 function getFreshness(importedAt, hasData, fileDate) {
-  if (!importedAt && !hasData) return { label: 'Pending', cls: 'border-stone-200 bg-stone-50 text-stone-600' };
+  if (!importedAt && !hasData) return { label: 'Pending', cls: 'border-slate-200 bg-slate-50/80 text-slate-500 ring-1 ring-slate-100' };
   const label = fmtDate(fileDate);
   const diff = Math.round((new Date(NOW) - new Date(fileDate)) / 86400000);
   if (importedAt) {
-    if (diff === 0) return { label, cls: 'border-emerald-200 bg-emerald-50 text-emerald-700' };
-    if (diff === 1) return { label, cls: 'border-amber-200 bg-amber-50 text-amber-700' };
-    return { label, cls: 'border-red-200 bg-red-50 text-red-700' };
+    if (diff === 0) return { label, cls: 'border-emerald-200/80 bg-emerald-50/80 text-emerald-700 ring-1 ring-emerald-100' };
+    if (diff === 1) return { label, cls: 'border-amber-200/80 bg-amber-50/80 text-amber-700 ring-1 ring-amber-100' };
+    return { label, cls: 'border-rose-200/80 bg-rose-50/80 text-rose-700 ring-1 ring-rose-100' };
   }
-  if (diff === 0) return { label, cls: 'border-teal-200 bg-teal-50 text-teal-700' };
-  if (diff === 1) return { label, cls: 'border-amber-200 bg-amber-50 text-amber-700' };
-  return { label, cls: 'border-stone-200 bg-stone-50 text-stone-600' };
+  if (diff === 0) return { label, cls: 'border-teal-200/80 bg-teal-50/80 text-teal-700 ring-1 ring-teal-100' };
+  if (diff === 1) return { label, cls: 'border-amber-200/80 bg-amber-50/80 text-amber-700 ring-1 ring-amber-100' };
+  return { label, cls: 'border-slate-200 bg-slate-50/80 text-slate-500 ring-1 ring-slate-100' };
 }
 
 function hasKpiData(rows) {
@@ -93,7 +93,7 @@ function hasKpiData(rows) {
 
 function FreshnessBadge({ label, cls }) {
   return (
-    <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
+    <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${cls}`}>
       {label}
     </span>
   );
@@ -102,7 +102,7 @@ function FreshnessBadge({ label, cls }) {
 function ReportValue({ value, className = '' }) {
   const empty = value === '' || value == null;
   return (
-    <span className={`block min-w-24 rounded-md px-2.5 py-1.5 text-sm ${empty ? 'text-slate-300' : 'bg-app-panel text-app-text'} ${className}`}>
+    <span className={`num block min-w-24 rounded-lg px-2.5 py-1.5 text-sm ${empty ? 'text-slate-300' : 'bg-app-panel/80 text-app-text'} ${className}`}>
       {empty ? '—' : value}
     </span>
   );
@@ -110,14 +110,22 @@ function ReportValue({ value, className = '' }) {
 
 function PageTitle({ title, subtitle, badge }) {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-app-border bg-white shadow-sm">
-      <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-teal-400 to-teal-700" />
-      <div className="px-6 py-5">
+    <div className="relative overflow-hidden rounded-2xl border border-app-border bg-white/85 backdrop-blur-xl shadow-card animate-fade-in-up">
+      <div
+        className="absolute inset-0 opacity-[0.55] pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(620px 200px at 0% 0%, rgba(20,184,166,0.10) 0%, rgba(20,184,166,0) 70%),\
+             radial-gradient(540px 220px at 100% 100%, rgba(99,102,241,0.08) 0%, rgba(99,102,241,0) 70%)'
+        }}
+      />
+      <div className="absolute inset-y-3 left-0 w-[3px] rounded-r-full bg-accent-stripe" />
+      <div className="relative px-7 py-6">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-xl font-bold tracking-tight text-app-text">{title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-app-text text-balance">{title}</h1>
           {badge ? <FreshnessBadge {...badge} /> : null}
         </div>
-        {subtitle ? <p className="mt-1 text-sm leading-relaxed text-app-muted">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-app-muted">{subtitle}</p> : null}
       </div>
     </div>
   );
@@ -126,12 +134,12 @@ function PageTitle({ title, subtitle, badge }) {
 function KpiTable({ rows }) {
   const headers = ['KPI Name', 'AOP Target', 'Today Actual', 'MTD', 'YTD', 'Status'];
   return (
-    <div className="overflow-auto rounded-xl border border-app-border bg-white">
+    <div className="overflow-auto rounded-2xl border border-app-border bg-white/90 backdrop-blur-xl shadow-card">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="bg-slate-50 text-left">
+          <tr className="bg-gradient-to-b from-slate-50/90 to-white text-left">
             {headers.map((h, i) => (
-              <th key={h} className={`whitespace-nowrap border-b border-app-border px-4 py-3 text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-400 ${i === 2 ? 'bg-teal-50/50' : ''}`}>
+              <th key={h} className={`whitespace-nowrap border-b border-app-divider px-4 py-3.5 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-app-subtle ${i === 2 ? 'bg-app-accentTint/40 text-app-accentDark' : ''}`}>
                 {h}
               </th>
             ))}
@@ -152,11 +160,13 @@ function SheetLink({ url, label = 'View Source Sheet' }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-lg border border-app-border bg-white px-3 py-2 text-xs font-bold text-app-text shadow-sm transition hover:border-app-borderStrong hover:bg-slate-50 whitespace-nowrap"
+      className="group inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-app-border bg-white/85 px-3.5 py-2 text-xs font-bold text-app-text shadow-card backdrop-blur-xl transition-all duration-200 hover:-translate-y-px hover:border-app-borderStrong hover:bg-white hover:shadow-cardHover"
     >
-      <svg className="size-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-      </svg>
+      <span className="flex size-5 items-center justify-center rounded-md bg-app-accentTint text-app-accentDark transition-colors duration-200 group-hover:bg-app-accent group-hover:text-white">
+        <svg className="size-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+        </svg>
+      </span>
       {label}
     </a>
   );
@@ -164,14 +174,14 @@ function SheetLink({ url, label = 'View Source Sheet' }) {
 
 function ActionButton({ children, onClick, type = 'button', variant = 'secondary', disabled = false, className = '' }) {
   const cls = variant === 'primary'
-    ? 'border-teal-700 bg-teal-600 text-white shadow-sm hover:bg-teal-500 hover:border-teal-600 active:bg-teal-700'
-    : 'border-app-border bg-white text-app-text shadow-sm hover:border-app-borderStrong hover:bg-slate-50 active:bg-slate-100';
+    ? 'border-app-accentDark bg-gradient-to-b from-app-accentSoft to-app-accent text-white shadow-pop hover:from-teal-400 hover:to-teal-600 active:from-app-accent active:to-app-accentDark'
+    : 'border-app-border bg-white/85 backdrop-blur-xl text-app-text shadow-card hover:border-app-borderStrong hover:bg-white hover:shadow-cardHover active:bg-app-panel';
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm ${cls} ${className}`}
+      className={`whitespace-nowrap rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm ${cls} ${className}`}
     >
       {children}
     </button>
@@ -180,13 +190,13 @@ function ActionButton({ children, onClick, type = 'button', variant = 'secondary
 
 function SegmentedControl({ items, value, onChange }) {
   return (
-    <div className="flex max-w-full w-fit gap-1 overflow-x-auto rounded-xl border border-app-border bg-slate-100/80 p-1">
+    <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-app-border bg-white/70 p-1 shadow-card backdrop-blur-xl">
       {items.map(({ key, label, badge }) => (
         <button
           key={key}
           type="button"
           onClick={() => onChange(key)}
-          className={`flex shrink-0 items-center gap-2.5 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 ${value === key ? 'bg-white text-teal-700 shadow-sm ring-1 ring-black/5' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'}`}
+          className={`flex shrink-0 items-center gap-2.5 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${value === key ? 'bg-gradient-to-b from-white to-app-panel text-app-accentDark shadow-sm ring-1 ring-app-border' : 'text-app-muted hover:bg-app-panel/60 hover:text-app-text'}`}
         >
           <span>{label}</span>
           {badge ? <FreshnessBadge {...badge} /> : null}
@@ -219,60 +229,55 @@ function PinGate({ onUnlock }) {
   };
 
   return (
-    <main
-      className="relative grid min-h-screen place-items-center overflow-hidden px-4"
-      style={{ background: 'linear-gradient(135deg, #0f172a 0%, #0d2420 55%, #0f172a 100%)' }}
-    >
-      {/* Background glow orbs */}
+    <main className="relative grid min-h-screen place-items-center overflow-hidden px-4">
+      {/* Aurora background orbs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-teal-500/10 blur-[80px]" />
-        <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-teal-700/10 blur-[80px]" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-[600px] w-[600px] rounded-full bg-teal-500/4 blur-[120px]" />
-        </div>
+        <div className="absolute -top-40 -right-40 h-[28rem] w-[28rem] rounded-full bg-teal-300/30 blur-[100px]" />
+        <div className="absolute -bottom-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-indigo-300/25 blur-[100px]" />
+        <div className="absolute left-1/2 top-1/2 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-200/20 blur-[120px]" />
       </div>
       {/* Subtle dot grid */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.03]"
-        style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '32px 32px' }}
+        className="pointer-events-none absolute inset-0 opacity-[0.04]"
+        style={{ backgroundImage: 'radial-gradient(rgba(15,23,42,0.55) 1px, transparent 1px)', backgroundSize: '28px 28px' }}
       />
 
-      <form onSubmit={submit} className="relative z-10 w-full max-w-sm">
+      <form onSubmit={submit} className="relative z-10 w-full max-w-sm animate-fade-in-up">
         {/* Brand header */}
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+        <div className="mb-8 flex flex-col items-center gap-3.5 text-center">
           <div className="relative">
             <div
-              className="flex items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-xl font-extrabold text-white ring-1 ring-white/15"
-              style={{ width: '4.5rem', height: '4.5rem', boxShadow: '0 20px 60px rgba(13, 148, 136, 0.4)' }}
+              className="flex items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-xl font-extrabold text-white ring-1 ring-white/40"
+              style={{ width: '4.5rem', height: '4.5rem', boxShadow: '0 24px 60px -10px rgba(13, 148, 136, 0.5)' }}
             >
               CP
             </div>
-            <div className="absolute -inset-2 rounded-[22px] bg-teal-500/20 blur-xl -z-10" />
+            <div className="absolute -inset-3 rounded-[24px] bg-teal-400/25 blur-2xl -z-10" />
           </div>
           <div>
-            <div className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-teal-400">DailyFlash</div>
-            <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-white">CP Flash Report</h1>
-            <p className="mt-1 text-sm text-slate-400">Centre Point Hospitality Group</p>
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-app-accentDark">DailyFlash</div>
+            <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-app-text">CP Flash Report</h1>
+            <p className="mt-1 text-sm text-app-muted">Centre Point Hospitality Group</p>
           </div>
         </div>
 
         {/* Glass auth card */}
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-2xl">
-          <div className="border-b border-white/8 px-6 py-3 text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Secure Access</p>
+        <div className="overflow-hidden rounded-3xl border border-white/60 bg-white/70 shadow-glass backdrop-blur-2xl">
+          <div className="border-b border-app-divider px-6 py-3 text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-app-muted">Secure Access</p>
           </div>
-          <div className="px-6 py-6">
+          <div className="px-7 py-7">
             {/* PIN dot indicator */}
-            <div className="mb-5 flex justify-center gap-3">
+            <div className="mb-6 flex justify-center gap-3">
               {Array.from({ length: 6 }, (_, i) => (
                 <div
                   key={i}
-                  className={`h-3 w-3 rounded-full transition-all duration-300 ${
+                  className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
                     i < pin.length
-                      ? 'scale-125 bg-teal-400'
-                      : 'scale-100 bg-white/15'
+                      ? 'scale-125 bg-app-accent'
+                      : 'scale-100 bg-slate-200'
                   }`}
-                  style={i < pin.length ? { boxShadow: '0 0 8px rgba(45, 212, 191, 0.7)' } : {}}
+                  style={i < pin.length ? { boxShadow: '0 0 0 4px rgba(13, 148, 136, 0.15)' } : {}}
                 />
               ))}
             </div>
@@ -286,18 +291,17 @@ function PinGate({ onUnlock }) {
               onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              className="w-full rounded-xl border px-4 py-3.5 text-center text-2xl font-bold tracking-[0.4em] text-white outline-none placeholder-white/20 transition-all duration-200"
+              className="w-full rounded-2xl border px-4 py-3.5 text-center text-2xl font-bold tracking-[0.4em] text-app-text outline-none placeholder-slate-300 transition-all duration-200"
               style={{
-                colorScheme: 'dark',
-                backgroundColor: focused ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.07)',
-                borderColor: focused ? 'rgba(20,184,166,0.5)' : 'rgba(255,255,255,0.1)',
-                boxShadow: focused ? '0 0 0 2px rgba(20,184,166,0.2)' : 'none',
+                backgroundColor: focused ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.7)',
+                borderColor: focused ? 'rgba(13,148,136,0.55)' : 'rgba(230,235,243,1)',
+                boxShadow: focused ? '0 0 0 4px rgba(13,148,136,0.15)' : '0 1px 0 rgba(255,255,255,0.8) inset',
               }}
               placeholder="••••••"
             />
 
             {status ? (
-              <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-sm font-medium text-red-300">
+              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/80 px-3.5 py-2.5 text-sm font-medium text-rose-700">
                 <svg className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                 </svg>
@@ -308,8 +312,8 @@ function PinGate({ onUnlock }) {
             <button
               type="submit"
               disabled={loading || pin.length < 4}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3.5 text-sm font-bold text-white transition-all duration-200 hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-40"
-              style={{ boxShadow: '0 8px 24px rgba(13, 148, 136, 0.35)' }}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-app-accentSoft to-app-accent px-4 py-3.5 text-sm font-bold text-white transition-all duration-200 hover:from-teal-400 hover:to-teal-600 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ boxShadow: '0 14px 36px -10px rgba(13, 148, 136, 0.55)' }}
             >
               {loading ? (
                 <>
@@ -324,7 +328,7 @@ function PinGate({ onUnlock }) {
           </div>
         </div>
 
-        <p className="mt-5 text-center text-xs text-slate-500">Contact your administrator if you need access.</p>
+        <p className="mt-5 text-center text-xs text-app-muted">Contact your administrator if you need access.</p>
       </form>
     </main>
   );
@@ -1006,95 +1010,124 @@ export default function App() {
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-app-bg text-app-text">
+    <div className="min-h-screen overflow-x-hidden text-app-text">
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-white/6 bg-app-sidebar lg:flex xl:w-72">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-app-border bg-app-sidebar backdrop-blur-2xl lg:flex xl:w-72">
         {/* Brand */}
-        <div className="flex shrink-0 items-center gap-3 border-b border-white/6 px-5 py-5">
-          <div className="relative flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-sm font-extrabold text-white">
+        <div className="flex shrink-0 items-center gap-3 border-b border-app-divider px-5 py-5">
+          <div className="relative flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-sm font-extrabold text-white ring-1 ring-white/40">
             CP
-            <div className="absolute -inset-0.5 rounded-[13px] bg-teal-500/25 blur-md -z-10" />
+            <div className="absolute -inset-1 rounded-[18px] bg-teal-400/25 blur-lg -z-10" />
           </div>
-          <div>
-            <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-400/90">DailyFlash</div>
-            <div className="text-sm font-bold leading-tight text-white">CP Flash Report</div>
-            <div className="text-[11px] text-slate-500">Centre Point Hospitality</div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-app-accentDark">DailyFlash</div>
+            <div className="truncate text-sm font-bold leading-tight text-app-text">CP Flash Report</div>
+            <div className="truncate text-[11px] text-app-muted">Centre Point Hospitality</div>
           </div>
         </div>
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 overflow-y-auto px-3 py-5">
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="mb-6">
-              <div className="mb-2 px-2 text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-600">
+              <div className="mb-2 px-2 text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-app-subtle">
                 {group.label}
               </div>
-              <div className="space-y-0.5">
-                {group.items.map(({ key, label, icon }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setActive(key)}
-                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-all duration-150 ${
-                      active === key
-                        ? 'bg-teal-600/95 text-white shadow-lg shadow-teal-900/40 ring-1 ring-teal-500/30'
-                        : 'text-slate-400 hover:bg-white/6 hover:text-slate-200'
-                    }`}
-                  >
-                    <svg className={`size-4 shrink-0 transition-colors ${active === key ? 'text-teal-100' : 'text-slate-500'}`} fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
-                      {icon}
-                    </svg>
-                    <span className="truncate">{label}</span>
-                    {key === 'flags' && riskCount > 0 ? (
-                      <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                        {riskCount}
+              <div className="space-y-1">
+                {group.items.map(({ key, label, icon }) => {
+                  const isActive = active === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setActive(key)}
+                      className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200 ${
+                        isActive
+                          ? 'bg-gradient-to-r from-app-accentTint to-white text-app-accentDark ring-1 ring-teal-100 shadow-sm'
+                          : 'text-app-body hover:bg-app-panel/80 hover:text-app-text'
+                      }`}
+                    >
+                      {isActive ? (
+                        <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-accent-stripe" />
+                      ) : null}
+                      <span className={`flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-200 ${
+                        isActive ? 'bg-white/80 text-app-accent shadow-sm ring-1 ring-teal-100' : 'bg-app-panel/70 text-app-muted group-hover:bg-white group-hover:text-app-text'
+                      }`}>
+                        <svg className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.85} viewBox="0 0 24 24">
+                          {icon}
+                        </svg>
                       </span>
-                    ) : null}
-                  </button>
-                ))}
+                      <span className="truncate">{label}</span>
+                      {key === 'flags' && riskCount > 0 ? (
+                        <span className="ml-auto rounded-full bg-gradient-to-b from-rose-500 to-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-rose-100">
+                          {riskCount}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
         </nav>
         {/* Footer */}
-        <div className="shrink-0 border-t border-white/6 px-5 py-3.5">
-          <div className="text-[11px] font-medium text-slate-500">
-            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+        <div className="shrink-0 border-t border-app-divider px-5 py-4">
+          <div className="flex items-center gap-2">
+            <div className="flex size-7 items-center justify-center rounded-lg bg-app-accentTint text-app-accentDark">
+              <svg className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-[11px] font-semibold text-app-text">
+                {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </div>
+              <div className="truncate text-[10px] text-app-muted">Centre Point Hospitality Group</div>
+            </div>
           </div>
-          <div className="mt-0.5 text-[10px] text-slate-600">Centre Point Hospitality Group</div>
         </div>
       </aside>
 
       {/* Main */}
       <main className="lg:pl-64 xl:pl-72">
         {/* Topbar */}
-        <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/96 backdrop-blur-xl">
+        <header className="sticky top-0 z-20 border-b border-app-border/80 bg-white/75 backdrop-blur-2xl">
           <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-8">
             {/* Left: breadcrumb + date */}
             <div className="flex min-w-0 flex-col gap-1.5">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400">
-                <svg className="size-3.5 text-teal-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  {NAV_GROUPS.flatMap(g => g.items).find(i => i.key === active)?.icon}
-                </svg>
-                <span className="text-slate-300">{activePage[1]}</span>
-                <span className="text-slate-300">·</span>
-                <span>{activePage[2]}</span>
+              <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.18em] text-app-muted">
+                <span className="flex size-5 items-center justify-center rounded-md bg-app-accentTint text-app-accentDark">
+                  <svg className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+                    {NAV_GROUPS.flatMap(g => g.items).find(i => i.key === active)?.icon}
+                  </svg>
+                </span>
+                <span className="text-app-subtle">{activePage[1]}</span>
+                <span className="text-app-subtle">·</span>
+                <span className="text-app-text">{activePage[2]}</span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="rounded-lg border border-app-border bg-white px-3 py-1.5 text-sm font-semibold text-app-text outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
-                />
+                <div className="relative">
+                  <svg className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-app-accentDark" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                  </svg>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="num rounded-xl border border-app-border bg-white/85 py-1.5 pl-9 pr-3 text-sm font-semibold text-app-text shadow-card outline-none backdrop-blur-xl transition focus:border-app-accent focus:ring-4 focus:ring-app-accentRing"
+                  />
+                </div>
                 {status ? (
-                  <span className="max-w-xs truncate text-xs text-slate-400">{status}</span>
+                  <span className="max-w-xs truncate text-xs font-medium text-app-muted">{status}</span>
                 ) : null}
                 {riskCount > 0 ? (
                   <button
                     onClick={() => setActive('flags')}
-                    className="flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600 transition-all hover:bg-red-100"
+                    className="group flex items-center gap-1.5 rounded-full border border-rose-200/80 bg-rose-50/80 px-2.5 py-1 text-xs font-bold text-rose-700 ring-1 ring-rose-100 transition-all hover:bg-rose-100 hover:shadow-sm"
                   >
-                    <span className="size-1.5 rounded-full bg-red-500" />
+                    <span className="relative flex size-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-60" />
+                      <span className="relative inline-flex size-2 rounded-full bg-rose-500" />
+                    </span>
                     {riskCount} risks
                   </button>
                 ) : null}
@@ -1119,10 +1152,10 @@ export default function App() {
               <ActionButton onClick={() => setActive('ai')} disabled={!data}>AI Report</ActionButton>
               <ActionButton onClick={exportPdf} disabled={!data}>Export PDF</ActionButton>
               <ActionButton onClick={() => setActive('pdf')} disabled={!data} variant="primary">Preview PDF</ActionButton>
-              <div className="ml-1 h-5 w-px bg-slate-200" />
+              <div className="ml-1 h-5 w-px bg-app-border" />
               <button
                 onClick={lockApp}
-                className="flex items-center gap-1.5 rounded-lg border border-app-border bg-white px-3 py-2 text-xs font-semibold text-slate-500 shadow-sm transition-all hover:border-app-borderStrong hover:bg-slate-50 hover:text-slate-700"
+                className="flex items-center gap-1.5 rounded-xl border border-app-border bg-white/85 px-3 py-2 text-xs font-semibold text-app-muted shadow-card backdrop-blur-xl transition-all hover:border-app-borderStrong hover:bg-white hover:text-app-text hover:shadow-cardHover"
               >
                 <svg className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -1140,7 +1173,7 @@ export default function App() {
             <select
               value={active}
               onChange={(e) => setActive(e.target.value)}
-              className="w-full rounded-xl border border-app-border bg-white px-4 py-3 text-sm font-semibold text-app-text shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
+              className="w-full rounded-2xl border border-app-border bg-white/85 px-4 py-3 text-sm font-semibold text-app-text shadow-card backdrop-blur-xl outline-none transition focus:border-app-accent focus:ring-4 focus:ring-app-accentRing"
             >
               {NAV_GROUPS.map((group) => (
                 <optgroup key={group.label} label={group.label}>
@@ -1152,18 +1185,23 @@ export default function App() {
             </select>
           </div>
           {data && !Object.values(data.importSource ?? {}).some((v) => v) ? (
-            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              <svg className="mt-0.5 size-4 shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3h.007M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              </svg>
-              <span>
-                <strong>No data imported for {date}.</strong> The daily import hasn't run yet for this date, or no reports arrived. Data will appear automatically once imported — check back later or run the importer manually.
+            <div className="flex items-start gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/80 px-5 py-4 text-sm text-amber-800 ring-1 ring-amber-100 backdrop-blur-xl">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white/80 text-amber-600 ring-1 ring-amber-100">
+                <svg className="size-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3h.007M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <span className="leading-relaxed">
+                <strong className="font-bold">No data imported for {date}.</strong> The daily import hasn't run yet for this date, or no reports arrived. Data will appear automatically once imported — check back later or run the importer manually.
               </span>
             </div>
           ) : null}
           {page ?? (
-            <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-app-border bg-white py-20 text-center shadow-sm">
-              <div className="size-8 animate-spin rounded-full border-[2.5px] border-teal-600 border-t-transparent" />
+            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-app-border bg-white/85 py-24 text-center shadow-card backdrop-blur-xl">
+              <div className="relative">
+                <div className="size-10 animate-spin rounded-full border-[3px] border-app-accent border-t-transparent" />
+                <div className="absolute inset-0 size-10 animate-ping rounded-full border border-app-accent/40" />
+              </div>
               <p className="text-sm font-medium text-app-muted">Loading dashboard data...</p>
             </div>
           )}
