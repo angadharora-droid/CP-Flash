@@ -266,39 +266,45 @@ function PinGate({ onUnlock }) {
           <div className="border-b border-app-divider px-6 py-3 text-center">
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-app-muted">Secure Access</p>
           </div>
-          <div className="px-7 py-7">
-            {/* PIN dot indicator */}
-            <div className="mb-6 flex justify-center gap-3">
-              {Array.from({ length: 6 }, (_, i) => (
-                <div
-                  key={i}
-                  className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
-                    i < pin.length
-                      ? 'scale-125 bg-app-accent'
-                      : 'scale-100 bg-slate-200'
-                  }`}
-                  style={i < pin.length ? { boxShadow: '0 0 0 4px rgba(13, 148, 136, 0.15)' } : {}}
-                />
-              ))}
-            </div>
-
-            <input
-              autoFocus
-              inputMode="numeric"
-              type="password"
-              autoComplete="new-password"
-              value={pin}
-              onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              className="w-full rounded-2xl border px-4 py-3.5 text-center text-2xl font-bold tracking-[0.4em] text-app-text outline-none placeholder-slate-300 transition-all duration-200"
-              style={{
-                backgroundColor: focused ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.7)',
-                borderColor: focused ? 'rgba(13,148,136,0.55)' : 'rgba(230,235,243,1)',
-                boxShadow: focused ? '0 0 0 4px rgba(13,148,136,0.15)' : '0 1px 0 rgba(255,255,255,0.8) inset',
-              }}
-              placeholder="••••••"
-            />
+          <div className="px-7 py-8">
+            {/* PIN dot indicator (click to focus the hidden input) */}
+            <label
+              className={`relative mx-auto flex w-full max-w-[260px] cursor-text items-center justify-center gap-3.5 rounded-2xl border bg-white/80 py-4 transition-all duration-200 ${
+                focused
+                  ? 'border-app-accent/60 shadow-[0_0_0_4px_rgba(13,148,136,0.15)]'
+                  : 'border-app-border shadow-[0_1px_0_rgba(255,255,255,0.8)_inset]'
+              }`}
+            >
+              {Array.from({ length: 6 }, (_, i) => {
+                const filled = i < pin.length;
+                const current = i === pin.length && focused;
+                return (
+                  <span
+                    key={i}
+                    className={`relative flex h-3 w-3 items-center justify-center rounded-full transition-all duration-300 ${
+                      filled ? 'scale-110 bg-app-accent' : 'bg-slate-200'
+                    }`}
+                    style={filled ? { boxShadow: '0 0 0 4px rgba(13, 148, 136, 0.18)' } : undefined}
+                  >
+                    {current ? (
+                      <span className="absolute inset-0 -m-1 animate-ping rounded-full bg-app-accent/40" />
+                    ) : null}
+                  </span>
+                );
+              })}
+              <input
+                autoFocus
+                inputMode="numeric"
+                type="password"
+                autoComplete="new-password"
+                value={pin}
+                onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                aria-label="PIN"
+                className="absolute inset-0 w-full cursor-text bg-transparent text-center text-transparent caret-transparent outline-none"
+              />
+            </label>
 
             {status ? (
               <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/80 px-3.5 py-2.5 text-sm font-medium text-rose-700">
@@ -987,17 +993,6 @@ export default function App() {
     return <AiPage data={data} authToken={authToken} />;
   }, [active, data, date, authToken]);
 
-  const exportPdf = async () => {
-    setStatus('Preparing PDF...');
-    try {
-      await saveData(date, data, authToken);
-      window.location.href = reportPdfUrl(date, authToken);
-      setStatus(`PDF generated for ${date}`);
-    } catch (err) {
-      setStatus(err.message);
-    }
-  };
-
   const lockApp = () => {
     localStorage.removeItem('dailyflashToken');
     setAuthToken('');
@@ -1149,8 +1144,6 @@ export default function App() {
               >
                 {refreshing ? 'Refreshing...' : 'Refresh'}
               </ActionButton>
-              <ActionButton onClick={() => setActive('ai')} disabled={!data}>AI Report</ActionButton>
-              <ActionButton onClick={exportPdf} disabled={!data}>Export PDF</ActionButton>
               <ActionButton onClick={() => setActive('pdf')} disabled={!data} variant="primary">Preview PDF</ActionButton>
               <div className="ml-1 h-5 w-px bg-app-border" />
               <button
