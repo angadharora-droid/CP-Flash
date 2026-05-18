@@ -79,6 +79,72 @@ function dateKey(date = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit'];
+
+function hasEnteredPnlValues(row) {
+  return PNL_VALUE_KEYS.some((key) => String(row?.[key] ?? '').trim() !== '');
+}
+
+function numberValue(value) {
+  const parsed = Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function firstKpiValue(rows = [], unit, names = []) {
+  const match = rows.find((row) => row.unit === unit && names.some((name) => row.name === name));
+  return match?.actual;
+}
+
+function sumKpiValues(rows = [], unit, names = []) {
+  const total = rows
+    .filter((row) => row.unit === unit && names.some((name) => row.name === name))
+    .reduce((sum, row) => sum + numberValue(row.actual), 0);
+  return total ? String(Math.round(total * 100) / 100) : '';
+}
+
+function derivePnlRows(data) {
+  const revenueByUnit = {
+    'CP Nagpur': () => sumKpiValues(data.hotels, 'CP Nagpur', ['Room Revenue', 'Meeting Point Revenue', 'Freakk Revenue', 'Bougainvillea Revenue', 'High Steaks Revenue', 'In-Room Dining Revenue', 'Revenue Today']),
+    'CP NM': () => sumKpiValues(data.hotels, 'CP NM', ['Room Revenue', 'Meeting Point Revenue', 'Freakk Revenue', 'Bougainvillea Revenue', 'High Steaks Revenue', 'In-Room Dining Revenue', 'Revenue Today']),
+    Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Gross Sales']),
+    Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Gross Sales']),
+    Rabbits: () => firstKpiValue(data.rabbits, 'Rabbits', ['Total Revenue']),
+    "Micky's": () => firstKpiValue(data.mickys, "Micky's", ['Order Revenue Today']),
+    Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['Total Revenue Today'])
+  };
+  const purchasesByUnit = {
+    Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Total Purchase']),
+    Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Total Purchase']),
+    Rabbits: () => firstKpiValue(data.rabbits, 'Rabbits', ['Purchase/RM Cost Today']),
+    Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['RM Cost Today'])
+  };
+  return (data.pnl ?? []).map((row) => {
+    const revenueToday = String(row.revenueToday ?? '').trim() || revenueByUnit[row.unit]?.() || '';
+    const purchasesToday = String(row.purchasesToday ?? '').trim() || purchasesByUnit[row.unit]?.() || '';
+    return { ...row, revenueToday, purchasesToday };
+  });
+}
+
+function mergePnlRows(seedRows = [], savedRows = []) {
+  const savedByUnit = new Map(savedRows.map((row) => [row.unit, row]));
+  return seedRows.map((seedRow) => {
+    const savedRow = savedByUnit.get(seedRow.unit);
+    if (!savedRow) return seedRow;
+    if (hasEnteredPnlValues(savedRow)) return { ...seedRow, ...savedRow };
+    return seedRow;
+  });
+}
+
+function mergeDailyData(seed, saved) {
+  if (!saved) return seed;
+  const merged = {
+    ...seed,
+    ...saved,
+    pnl: mergePnlRows(seed.pnl, saved.pnl)
+  };
+  return { ...merged, pnl: derivePnlRows(merged) };
+}
+
 async function readDailyData(date = dateKey()) {
   const db = await getDb();
   if (db) {
@@ -144,7 +210,8 @@ for (const route of ['bank-position', 'pnl', 'hotels', 'fnb', 'rabbits', 'mickys
     const key = route.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
     const seed = buildSeedData();
     const saved = await readDailyData(req.query.date || dateKey());
-    res.json(saved?.[key] ?? seed[key] ?? null);
+    const data = mergeDailyData(seed, saved);
+    res.json(data[key] ?? null);
   }));
 }
 
@@ -157,20 +224,20 @@ app.post('/api/data', wrap(async (req, res) => {
 app.get('/api/flags', wrap(async (req, res) => {
   const seed = buildSeedData();
   const saved = await readDailyData(req.query.date || dateKey());
-  res.json(collectFlags({ ...seed, ...(saved ?? {}) }));
+  res.json(collectFlags(mergeDailyData(seed, saved)));
 }));
 
 app.get('/api/source-status', wrap(async (req, res) => {
   const seed = buildSeedData();
   const saved = await readDailyData(req.query.date || dateKey());
-  res.json(buildSourceStatus({ ...seed, ...(saved ?? {}) }));
+  res.json(buildSourceStatus(mergeDailyData(seed, saved)));
 }));
 
 app.get('/api/report.pdf', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
   const seed = buildSeedData();
   const saved = await readDailyData(date);
-  const data = { ...seed, ...(saved ?? {}) };
+  const data = mergeDailyData(seed, saved);
   const filename = `cp-daily-flash-${date}.pdf`;
 
   const disposition = req.query.inline ? 'inline' : 'attachment';

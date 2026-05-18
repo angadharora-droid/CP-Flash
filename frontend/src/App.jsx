@@ -22,6 +22,41 @@ function hasEnteredPnlValues(row) {
   return PNL_VALUE_KEYS.some((key) => String(row?.[key] ?? '').trim() !== '');
 }
 
+function firstKpiValue(rows = [], unit, names = []) {
+  const match = rows.find((row) => row.unit === unit && names.some((name) => row.name === name));
+  return match?.actual;
+}
+
+function sumKpiValues(rows = [], unit, names = []) {
+  const total = rows
+    .filter((row) => row.unit === unit && names.some((name) => row.name === name))
+    .reduce((sum, row) => sum + numberValue(row.actual), 0);
+  return total ? String(Math.round(total * 100) / 100) : '';
+}
+
+function derivePnlRows(data) {
+  const revenueByUnit = {
+    'CP Nagpur': () => sumKpiValues(data.hotels, 'CP Nagpur', ['Room Revenue', 'Meeting Point Revenue', 'Freakk Revenue', 'Bougainvillea Revenue', 'High Steaks Revenue', 'In-Room Dining Revenue', 'Revenue Today']),
+    'CP NM': () => sumKpiValues(data.hotels, 'CP NM', ['Room Revenue', 'Meeting Point Revenue', 'Freakk Revenue', 'Bougainvillea Revenue', 'High Steaks Revenue', 'In-Room Dining Revenue', 'Revenue Today']),
+    Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Gross Sales']),
+    Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Gross Sales']),
+    Rabbits: () => firstKpiValue(data.rabbits, 'Rabbits', ['Total Revenue']),
+    "Micky's": () => firstKpiValue(data.mickys, "Micky's", ['Order Revenue Today']),
+    Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['Total Revenue Today'])
+  };
+  const purchasesByUnit = {
+    Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Total Purchase']),
+    Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Total Purchase']),
+    Rabbits: () => firstKpiValue(data.rabbits, 'Rabbits', ['Purchase/RM Cost Today']),
+    Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['RM Cost Today'])
+  };
+  return (data.pnl ?? []).map((row) => {
+    const revenueToday = String(row.revenueToday ?? '').trim() || revenueByUnit[row.unit]?.() || '';
+    const purchasesToday = String(row.purchasesToday ?? '').trim() || purchasesByUnit[row.unit]?.() || '';
+    return { ...row, revenueToday, purchasesToday };
+  });
+}
+
 function mergePnlRows(seedRows = [], savedRows = [], previousRows = []) {
   const savedByUnit = new Map(savedRows.map((row) => [row.unit, row]));
   const previousByUnit = new Map(previousRows.map((row) => [row.unit, row]));
@@ -48,6 +83,7 @@ function mergeWithSeed(seed, saved, previous = null) {
     }
   }
   merged.pnl = mergePnlRows(seed.pnl, saved.pnl, previous?.pnl);
+  merged.pnl = derivePnlRows(merged);
   return merged;
 }
 const SHEET_URLS = {
