@@ -802,8 +802,8 @@ function SourceReportPreviewScreen({ preview, loading, error, onClose }) {
   if (!preview && !loading && !error) return null;
 
   return (
-    <div className="min-h-screen bg-slate-200 p-0 sm:p-4 lg:p-6">
-      <div className="flex min-h-screen flex-col overflow-hidden bg-white shadow-glass sm:min-h-[calc(100vh-2rem)] sm:rounded-2xl sm:border sm:border-white/70 lg:min-h-[calc(100vh-3rem)]">
+    <div className="fixed inset-0 z-[100] overflow-hidden bg-slate-200 p-0 sm:p-4 lg:p-6">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white shadow-glass sm:rounded-2xl sm:border sm:border-white/70">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-app-divider px-5 py-4">
           <div className="min-w-0">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-app-subtle">Email report preview</p>
