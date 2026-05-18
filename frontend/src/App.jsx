@@ -982,11 +982,11 @@ function SourceControlPage({ date, authToken, onOpenReportPreview }) {
         { label: 'Entered', value: sourceStatus?.entered ?? '-', tone: 'text-teal-700' },
         { label: 'Pending', value: sourceStatus?.pending ?? '-', tone: sourceStatus?.pending ? 'text-amber-700' : 'text-emerald-700' }
       ]} />
-      <SectionCard title="Daily Sources">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-app-muted">{loading ? 'Checking sources...' : `Status for ${date}`}</div>
-          <ActionButton onClick={() => load()} disabled={loading}>Refresh</ActionButton>
-        </div>
+      <SectionCard
+        title="Daily Sources"
+        meta={loading ? 'Checking sources...' : `Status for ${date}`}
+        actions={<ActionButton onClick={() => load()} disabled={loading}>Refresh</ActionButton>}
+      >
         {error ? (
           <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
             <svg className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
