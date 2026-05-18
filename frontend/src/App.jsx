@@ -633,7 +633,7 @@ function BankPage({ data, date }) {
       />
     </>
   );
-}
+                    {row.unit}
 
 function PnlPage({ data, date }) {
   const rows = pnlRows(data);
@@ -1466,7 +1466,6 @@ export default function App() {
     if (active === 'mickys') return <GroupedKpiPage title="Micky's Data" subtitle="B2B HORECA lead, order, revenue, and SKU KPIs." dataKey="mickys" data={data} setData={setData} sections={[...new Set((data.mickys ?? []).map((row) => row.section))]} date={date} importedAt={data.importSource?.mickysLeadsImportedAt} sheetUrl={SHEET_URLS.mickysLeads} />;
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
-    if (active === 'pdf') return <PdfPreviewPage date={date} authToken={authToken} onSave={() => saveData(date, data, authToken)} />;
     return <AiPage data={data} authToken={authToken} />;
   }, [active, data, date, authToken, openSourceReportPreview]);
 
@@ -1525,6 +1524,10 @@ export default function App() {
         }}
       />
     );
+  }
+
+  if (active === 'pdf') {
+    return <PdfPreviewPage date={date} authToken={authToken} onSave={() => saveData(date, data, authToken)} />;
   }
 
   const renderSidebar = (collapsed, { onItemClick, asDrawer = false } = {}) => (
