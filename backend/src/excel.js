@@ -39,6 +39,7 @@ export function buildSeedData() {
       { unit: 'CP NM', account: 'VIJAN MOTORS SERVICE PVT. LTD.', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
       { unit: 'Pablo', account: 'UFO HDFC', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
       { unit: 'Dali', account: 'DALI SCB', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
+      { unit: "Micky's", account: 'C P FOODS HDFC BANK 980197', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
       { unit: "Micky's", account: 'C P FOODS 36961', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
       { unit: 'Purosoul', account: 'AFVPL YES Bank', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' },
       { unit: 'Purosoul', account: 'AFVPL IDBI', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' }
