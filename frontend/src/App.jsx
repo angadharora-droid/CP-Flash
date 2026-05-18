@@ -11,6 +11,26 @@ const NOW = new Date().toISOString().slice(0, 10);
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
 const d = new Date(); d.setDate(d.getDate() - 1);
 const today = d.toISOString().slice(0, 10);
+
+// Keys that should always carry seed defaults when the saved value is empty/missing.
+// MongoDB has historically saved some of these as `[]`, which would otherwise blank the page.
+const SEED_FALLBACK_KEYS = ['pnl', 'bankPosition', 'hotels', 'rabbits', 'mickys', 'purosoul', 'purosoulSku', 'fixedCosts'];
+
+function mergeWithSeed(seed, saved) {
+  if (!saved) return seed;
+  const merged = { ...seed, ...saved };
+  for (const key of SEED_FALLBACK_KEYS) {
+    const savedVal = saved[key];
+    const seedVal = seed[key];
+    if (Array.isArray(seedVal) && (!Array.isArray(savedVal) || savedVal.length === 0)) {
+      merged[key] = seedVal;
+    } else if (seedVal && typeof seedVal === 'object' && !Array.isArray(seedVal)
+      && (savedVal == null || (typeof savedVal === 'object' && Object.keys(savedVal).length === 0))) {
+      merged[key] = seedVal;
+    }
+  }
+  return merged;
+}
 const SHEET_URLS = {
   bankPosition: 'https://docs.google.com/spreadsheets/d/1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf/',
   pabloCost: 'https://docs.google.com/spreadsheets/d/1SliCSYQIhRekgYy-6YN0nn5nFtlZQooH/',
@@ -1060,7 +1080,7 @@ export default function App() {
     try {
       const { seed, saved } = await getSeed(currentDate, token);
       if (requestId !== loadRequestRef.current) return;
-      setData({ ...seed, ...(saved ?? {}) });
+      setData(mergeWithSeed(seed, saved));
       if (silent) {
         setStatus(`Auto refreshed ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
       } else {
