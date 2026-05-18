@@ -83,6 +83,7 @@ export async function importHotelReport(file, outDate) {
   };
 
   data.importSource = {
+    ...(data.importSource ?? {}),
     file: path.basename(file),
     importedAt: new Date().toISOString(),
     notes: `Mapped from sheet "${usedSheet}": room, F&B, collections.`
