@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSeedData } from './excel.js';
+import { normalizeRabbitsCategoryBreakdown } from './schema.js';
 
 function num(str) {
   const n = parseFloat(String(str ?? '').replace(/,/g, ''));
@@ -24,6 +25,21 @@ function stripHtmlTags(str) {
 
 function normalizeText(str) {
   return String(str ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+const RABBITS_CATEGORIES = [
+  { key: 'foodit', label: 'FOOD(I.T.)' },
+  { key: 'rolls', label: 'Rolls' },
+  { key: 'maincourse', label: 'Main Course' },
+  { key: 'kebabs', label: 'Kebabs' },
+  { key: 'sides', label: 'Sides' }
+];
+
+function normalizeCategoryKey(str) {
+  return normalizeText(str)
+    .replace(/â|Â/g, '')
+    .replace(/\[[^\]]*]/g, '')
+    .replace(/[^a-z0-9]/g, '');
 }
 
 /**
@@ -89,6 +105,40 @@ function parseTopCategories(html) {
     .map((item) => `${item.name} - ${round(item.totalSales)} (${round(item.qty)} qty)`);
 }
 
+function parseCategoryBreakdown(html) {
+  const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  const categories = new Map();
+  let inCategoryTable = false;
+
+  for (const row of rows) {
+    const cells = [...row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+      .map((m) => stripHtmlTags(m[1]))
+      .filter(Boolean);
+    if (!cells.length) continue;
+
+    const normalized = cells.map(normalizeText);
+    const rowText = normalized.join(' ');
+
+    if (normalized.includes('category') && normalized.includes('qty') && rowText.includes('total sales')) {
+      inCategoryTable = true;
+      continue;
+    }
+
+    if (!inCategoryTable) continue;
+    if (rowText.includes('last 7 days')) break;
+    if (cells.length < 6) continue;
+
+    const key = normalizeCategoryKey(cells[0]);
+    const qty = num(cells[1]);
+    const totalSales = num(cells[cells.length - 1]);
+    if (!key || qty === null || totalSales === null) continue;
+
+    categories.set(key, { qty, totalSales });
+  }
+
+  return categories;
+}
+
 function get(map, ...labels) {
   for (const label of labels) {
     if (map.has(label)) return map.get(label);
@@ -106,6 +156,7 @@ function getMatching(map, ...patterns) {
 export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const values = parseHtml(emailHtml);
   const topCategories = parseTopCategories(emailHtml);
+  const categoryBreakdown = parseCategoryBreakdown(emailHtml);
 
   const dataPath = path.resolve(process.cwd(), 'data', `${outDate}.json`);
   let data;
@@ -114,6 +165,10 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   } catch (err) {
     if (err.code !== 'ENOENT') throw err;
     data = buildSeedData();
+  }
+
+  if (outlet === 'Rabbits') {
+    normalizeRabbitsCategoryBreakdown(data);
   }
 
   const fnbRows = outlet === 'Pablo'
@@ -145,9 +200,17 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
       setKpi('Swiggy Revenue', get(values, 'swiggy online'));
       setKpi('Zomato Revenue', get(values, 'zomato online'));
     }
-    setKpi('Rolls Revenue', getMatching(values, 'rolls'));
-    setKpi('Kebabs Revenue', getMatching(values, 'kebabs'));
-    setKpi('Bowls Revenue', getMatching(values, 'main course'));
+    if (categoryBreakdown.size) {
+      for (const category of RABBITS_CATEGORIES) {
+        const item = categoryBreakdown.get(category.key);
+        setKpi(`${category.label} Orders`, item?.qty ?? 0);
+        setKpi(`${category.label} Revenue`, item?.totalSales ?? 0);
+      }
+    } else {
+      setKpi('Rolls Revenue', getMatching(values, 'rolls'));
+      setKpi('Kebabs Revenue', getMatching(values, 'kebabs'));
+      setKpi('Main Course Revenue', getMatching(values, 'main course'));
+    }
   } else {
     if (!hasPaymentImport) {
       setKpi('Gross Sales', grossSales);
