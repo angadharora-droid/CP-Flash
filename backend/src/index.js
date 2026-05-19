@@ -22,6 +22,16 @@ const dataDir = path.resolve(process.cwd(), 'data');
 const attachmentsDir = path.resolve(__dirname, '..', 'data', 'attachments');
 const accessPin = process.env.DAILYFLASH_PIN || process.env.ACCESS_PIN;
 const tokenSecret = process.env.JWT_SECRET || process.env.DAILYFLASH_PIN || 'change-me';
+const emailImportScript = path.join(__dirname, 'fetchEmailReport.js');
+const backendDir = path.resolve(__dirname, '..');
+let emailImportJob = {
+  running: false,
+  startedAt: null,
+  finishedAt: null,
+  exitCode: null,
+  error: '',
+  output: ''
+};
 
 // MongoDB — used when MONGODB_URI is set; falls back to local JSON files otherwise.
 let _mongoDb = null;
@@ -72,6 +82,22 @@ function authToken(req) {
   const header = req.get('authorization') || '';
   if (header.toLowerCase().startsWith('bearer ')) return header.slice(7).trim();
   return String(req.query.token ?? '');
+}
+
+function appendEmailImportOutput(chunk) {
+  const text = String(chunk ?? '');
+  emailImportJob.output = `${emailImportJob.output}${text}`.slice(-12000);
+}
+
+function emailImportStatus() {
+  return {
+    running: emailImportJob.running,
+    startedAt: emailImportJob.startedAt,
+    finishedAt: emailImportJob.finishedAt,
+    exitCode: emailImportJob.exitCode,
+    error: emailImportJob.error,
+    output: emailImportJob.output
+  };
 }
 
 async function ensureDataDir() {
@@ -236,6 +262,49 @@ app.get('/api/source-status', wrap(async (req, res) => {
   const saved = await readDailyData(req.query.date || dateKey());
   res.json(buildSourceStatus(mergeDailyData(seed, saved)));
 }));
+
+app.get('/api/email-import', (_req, res) => {
+  res.json(emailImportStatus());
+});
+
+app.post('/api/email-import', (_req, res) => {
+  if (emailImportJob.running) {
+    res.json({ ok: true, alreadyRunning: true, ...emailImportStatus() });
+    return;
+  }
+
+  emailImportJob = {
+    running: true,
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    exitCode: null,
+    error: '',
+    output: ''
+  };
+
+  const child = spawn(process.execPath, [emailImportScript], {
+    cwd: backendDir,
+    env: process.env,
+    windowsHide: true
+  });
+
+  child.stdout.on('data', appendEmailImportOutput);
+  child.stderr.on('data', appendEmailImportOutput);
+  child.on('error', (err) => {
+    emailImportJob.running = false;
+    emailImportJob.finishedAt = new Date().toISOString();
+    emailImportJob.exitCode = 1;
+    emailImportJob.error = err.message;
+    appendEmailImportOutput(`\n${err.message}\n`);
+  });
+  child.on('exit', (code) => {
+    emailImportJob.running = false;
+    emailImportJob.finishedAt = new Date().toISOString();
+    emailImportJob.exitCode = code ?? 0;
+  });
+
+  res.json({ ok: true, started: true, ...emailImportStatus() });
+});
 
 app.get('/api/source-report-preview', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
