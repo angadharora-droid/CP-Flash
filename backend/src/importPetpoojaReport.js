@@ -8,6 +8,10 @@ function num(str) {
   return Number.isFinite(n) ? n : null;
 }
 
+function round(value) {
+  return String(Math.round(value * 100) / 100);
+}
+
 function stripHtmlTags(str) {
   return str
     .replace(/<br\s*\/?>/gi, ' ')
@@ -51,6 +55,13 @@ function get(map, ...labels) {
   return null;
 }
 
+function getMatching(map, ...patterns) {
+  for (const [label, value] of map) {
+    if (patterns.some((pattern) => label.includes(pattern))) return value;
+  }
+  return null;
+}
+
 export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const values = parseHtml(emailHtml);
 
@@ -71,7 +82,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   function setKpi(name, actual) {
     const row = fnbRows?.find((item) => item.name === name);
     if (!row || actual === null) return;
-    row.actual = String(Math.round(actual * 100) / 100);
+    row.actual = round(actual);
   }
 
   // Net Sales = Core Amount − Discount (pre-tax revenue, what management tracks)
@@ -83,9 +94,17 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     ?? (grossSales && bills ? grossSales / bills : null);
 
   if (outlet === 'Rabbits') {
-    setKpi('Total Revenue', grossSales);
-    setKpi('Total Orders', bills);
-    setKpi('AOV', avgBill);
+    const hasPaymentImport = Boolean(data.importSource?.rabbitsPaymentImportedAt);
+    if (!hasPaymentImport) {
+      setKpi('Total Revenue', grossSales);
+      setKpi('Total Orders', bills);
+      setKpi('AOV', avgBill);
+      setKpi('Swiggy Revenue', get(values, 'swiggy online'));
+      setKpi('Zomato Revenue', get(values, 'zomato online'));
+    }
+    setKpi('Rolls Revenue', getMatching(values, 'rolls'));
+    setKpi('Kebabs Revenue', getMatching(values, 'kebabs'));
+    setKpi('Bowls Revenue', getMatching(values, 'main course'));
   } else {
     setKpi('Gross Sales', grossSales);
     setKpi('Covers', bills);
@@ -94,9 +113,11 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     setKpi('Dinner Revenue', get(values, 'dinner', 'dinner sales', 'dinner revenue'));
   }
 
-  data.pnl = (data.pnl ?? []).map((row) =>
-    row.unit === outlet ? { ...row, revenueToday: String(Math.round((grossSales ?? 0) * 100) / 100) } : row
-  );
+  if (outlet !== 'Rabbits' || !data.importSource?.rabbitsPaymentImportedAt) {
+    data.pnl = (data.pnl ?? []).map((row) =>
+      row.unit === outlet ? { ...row, revenueToday: round(grossSales ?? 0) } : row
+    );
+  }
 
   const key = outlet.toLowerCase();
   data.importSource = {
