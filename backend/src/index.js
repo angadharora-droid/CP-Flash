@@ -14,6 +14,7 @@ import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
 import { buildSourceStatus } from './sources.js';
+import { normalizeRabbitsCategoryBreakdown } from './schema.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -144,7 +145,7 @@ function mergeDailyData(seed, saved) {
     ...saved,
     pnl: mergePnlRows(seed.pnl, saved.pnl)
   };
-  return { ...merged, pnl: derivePnlRows(merged) };
+  return normalizeRabbitsCategoryBreakdown({ ...merged, pnl: derivePnlRows(merged) });
 }
 
 async function readDailyData(date = dateKey()) {

@@ -10,6 +10,19 @@ export const fixedCostDefaults = {
   Purosoul: 8000
 };
 
+export const rabbitsCategoryRows = [
+  ['FOOD(I.T.) Orders', 15],
+  ['FOOD(I.T.) Revenue', 338],
+  ['Rolls Orders', 20],
+  ['Rolls Revenue', 4000],
+  ['Main Course Orders', 15],
+  ['Main Course Revenue', 1000],
+  ['Kebabs Orders', 15],
+  ['Kebabs Revenue', 3000],
+  ['Sides Orders', 2],
+  ['Sides Revenue', 50]
+];
+
 export const pageSchemas = {
   hotels: [
     {
@@ -79,7 +92,7 @@ export const pageSchemas = {
   rabbits: [
     { title: 'Sales', rows: [['Total Revenue', 15000], ['Total Orders', 80], ['AOV', 180], ['Cancelled Orders', 8, 'max'], ['Revenue MTD', 450000]] },
     { title: 'Platform Split', rows: [['Swiggy Revenue', 7500], ['Swiggy Orders', 38], ['Zomato Revenue', 6000], ['Zomato Orders', 32], ['Direct Revenue', 1500], ['Direct Orders', 10], ['Swiggy MTD', 225000], ['Zomato MTD', 180000]] },
-    { title: 'Category Breakdown', rows: [['Biryani Orders', 30], ['Biryani Revenue', 7000], ['Rolls Orders', 20], ['Rolls Revenue', 4000], ['Kebabs Orders', 15], ['Kebabs Revenue', 3000], ['Bowls Orders', 15], ['Bowls Revenue', 1000]] },
+    { title: 'Category Breakdown', rows: rabbitsCategoryRows },
     { title: 'Cost', rows: [['Purchase/RM Cost Today', 5200], ['Purchase/RM Cost MTD', 156000], ['Purchase/RM Cost YTD', 1600000]] }
   ],
   mickys: [
@@ -119,4 +132,33 @@ export function schemaRowsToKpis(unit, pageKey, sections) {
       direction
     }))
   );
+}
+
+export function normalizeRabbitsCategoryBreakdown(data) {
+  if (!data?.rabbits) return data;
+
+  const categorySection = pageSchemas.rabbits.find((section) => section.title === 'Category Breakdown');
+  const fixedRows = schemaRowsToKpis('Rabbits', 'rabbits', [categorySection]);
+  const savedByName = new Map(data.rabbits.map((row) => [row.name, row]));
+  const normalizedCategoryRows = fixedRows.map((seedRow) => {
+    const savedRow = savedByName.get(seedRow.name);
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
+  });
+  const nextRows = [];
+  let inserted = false;
+
+  for (const row of data.rabbits) {
+    if (row.section === 'Category Breakdown') {
+      if (!inserted) {
+        nextRows.push(...normalizedCategoryRows);
+        inserted = true;
+      }
+      continue;
+    }
+    nextRows.push(row);
+  }
+
+  data.rabbits = inserted ? nextRows : [...data.rabbits, ...normalizedCategoryRows];
+
+  return data;
 }
