@@ -206,36 +206,28 @@ function TopItemsList({ items = [] }) {
   }
 
   return (
-    <div className="grid gap-3 lg:grid-cols-3">
+    <div className="overflow-hidden rounded-xl border border-app-border bg-white/90 shadow-sm ring-1 ring-white/70">
+      <div className="grid grid-cols-[64px_minmax(0,1fr)_120px_88px] gap-3 border-b border-app-divider bg-app-panel/80 px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider text-app-muted">
+        <span>Rank</span>
+        <span>Item</span>
+        <span className="text-right">Revenue</span>
+        <span className="text-right">Qty</span>
+      </div>
       {parsed.map((item, index) => (
         <div
           key={`${item.name}-${index}`}
-          className="relative overflow-hidden rounded-xl border border-app-border bg-white/90 p-4 shadow-sm ring-1 ring-white/70"
+          className="grid grid-cols-[64px_minmax(0,1fr)_120px_88px] gap-3 border-b border-app-divider px-4 py-3 last:border-b-0"
         >
-          <div className="flex items-start gap-3">
-            <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-extrabold tabular-nums ${
-              index === 0 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' :
-                index === 1 ? 'bg-slate-100 text-slate-600 ring-1 ring-slate-200' :
-                  'bg-teal-50 text-teal-700 ring-1 ring-teal-100'
-            }`}>
-              {index + 1}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="line-clamp-2 text-sm font-bold leading-snug text-app-text">{item.name}</div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {item.sales ? (
-                  <span className="num rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-extrabold tabular-nums text-emerald-700 ring-1 ring-emerald-100">
-                    {money(item.sales)}
-                  </span>
-                ) : null}
-                {item.qty ? (
-                  <span className="num rounded-lg bg-app-panel px-2.5 py-1 text-xs font-bold tabular-nums text-app-muted ring-1 ring-app-border/70">
-                    {item.qty} qty
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </div>
+          <span className={`flex size-8 items-center justify-center rounded-lg text-sm font-extrabold tabular-nums ${
+            index === 0 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' :
+              index === 1 ? 'bg-slate-100 text-slate-600 ring-1 ring-slate-200' :
+                'bg-teal-50 text-teal-700 ring-1 ring-teal-100'
+          }`}>
+            {index + 1}
+          </span>
+          <span className="min-w-0 truncate text-sm font-bold text-app-text">{item.name}</span>
+          <span className="num text-right text-sm font-extrabold tabular-nums text-emerald-700">{item.sales ? money(item.sales) : '-'}</span>
+          <span className="num text-right text-sm font-bold tabular-nums text-app-muted">{item.qty || '-'}</span>
         </div>
       ))}
     </div>
