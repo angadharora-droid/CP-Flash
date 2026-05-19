@@ -184,6 +184,64 @@ function ReportValue({ value, className = '', numeric = false }) {
   );
 }
 
+function parseTopItem(value) {
+  const text = String(value ?? '').trim();
+  const match = text.match(/^(.*) - ([\d,.]+) \(([\d,.]+) qty\)$/);
+  if (!match) return { name: text, sales: '', qty: '' };
+  return {
+    name: match[1],
+    sales: match[2],
+    qty: match[3]
+  };
+}
+
+function TopItemsList({ items = [] }) {
+  const parsed = items.map(parseTopItem).filter((item) => item.name);
+  if (!parsed.length) {
+    return (
+      <div className="rounded-xl border border-dashed border-app-border bg-app-panel/60 px-4 py-5 text-sm font-medium text-app-muted">
+        Top items pending
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 lg:grid-cols-3">
+      {parsed.map((item, index) => (
+        <div
+          key={`${item.name}-${index}`}
+          className="relative overflow-hidden rounded-xl border border-app-border bg-white/90 p-4 shadow-sm ring-1 ring-white/70"
+        >
+          <div className="flex items-start gap-3">
+            <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-extrabold tabular-nums ${
+              index === 0 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' :
+                index === 1 ? 'bg-slate-100 text-slate-600 ring-1 ring-slate-200' :
+                  'bg-teal-50 text-teal-700 ring-1 ring-teal-100'
+            }`}>
+              {index + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="line-clamp-2 text-sm font-bold leading-snug text-app-text">{item.name}</div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {item.sales ? (
+                  <span className="num rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-extrabold tabular-nums text-emerald-700 ring-1 ring-emerald-100">
+                    {money(item.sales)}
+                  </span>
+                ) : null}
+                {item.qty ? (
+                  <span className="num rounded-lg bg-app-panel px-2.5 py-1 text-xs font-bold tabular-nums text-app-muted ring-1 ring-app-border/70">
+                    {item.qty} qty
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const SECTION_ACCENTS = {
   Overview: {
     stripe: 'bg-gradient-to-b from-teal-400 to-teal-600',
@@ -1119,9 +1177,7 @@ function FnbPage({ data, date }) {
       </div>
       {sections.map((section) => <SectionCard key={section} title={`${tab}: ${section}`}><KpiTable rows={rows.filter((row) => row.section === section)} /></SectionCard>)}
       <SectionCard title={`${tab}: Top 3 Items`}>
-        <div className="grid gap-3 md:grid-cols-3">
-          {(data.topItems?.[tab] ?? ['', '', '']).map((item, index) => <ReportValue key={index} value={item} />)}
-        </div>
+        <TopItemsList items={data.topItems?.[tab] ?? []} />
       </SectionCard>
     </>
   );
