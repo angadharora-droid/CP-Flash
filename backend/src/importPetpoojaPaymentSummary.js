@@ -23,6 +23,52 @@ function rowAmount(row) {
   return [9, 10, 11, 12, 13, 14, 15].reduce((sum, index) => sum + num(row[index]), 0);
 }
 
+function isSuccessRow(row) {
+  return String(row[4]).trim().toLowerCase() === 'success';
+}
+
+function isDineInRow(row) {
+  return String(row[3]).trim().toLowerCase() === 'dine in';
+}
+
+function buildSuccessTotals(rows) {
+  const totals = {
+    cash: 0,
+    card: 0,
+    other: 0,
+    upi: 0,
+    online: 0,
+    revenue: 0,
+    covers: 0,
+    dineInRevenue: 0
+  };
+
+  for (const row of rows) {
+    if (!isSuccessRow(row)) continue;
+
+    const cash = num(row[9]);
+    const card = num(row[10]);
+    const other = num(row[12]);
+    const upi = num(row[14]);
+    const online = num(row[15]);
+    const amount = cash + card + other + upi + online;
+
+    totals.cash += cash;
+    totals.card += card;
+    totals.other += other;
+    totals.upi += upi;
+    totals.online += online;
+    totals.revenue += amount;
+
+    if (isDineInRow(row)) {
+      totals.covers += num(row[5]);
+      totals.dineInRevenue += amount;
+    }
+  }
+
+  return totals;
+}
+
 function buildAreaSplit(rows) {
   const split = {
     swiggy: { revenue: 0, orders: 0 },
@@ -32,7 +78,7 @@ function buildAreaSplit(rows) {
 
   for (const row of rows) {
     if (String(row[0]).trim() === 'Total') continue;
-    if (String(row[4]).trim().toLowerCase() !== 'success') continue;
+    if (!isSuccessRow(row)) continue;
 
     const area = String(row[6] ?? '').trim().toLowerCase();
     const bucket = area.includes('swiggy')
@@ -62,11 +108,12 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
   const totalRow = rows.find((r) => String(r[0]).trim() === 'Total');
   if (!totalRow) throw new Error('No "Total" row found in payment summary');
 
-  const cash   = num(totalRow[9]);
-  const card   = num(totalRow[10]);
-  const other  = num(totalRow[12]); // Zomato Gold, Swiggy Dineout (aggregator dine-in)
-  const upi    = num(totalRow[14]);
-  const online = num(totalRow[15]); // Zomato/Swiggy delivery
+  const successTotals = buildSuccessTotals(rows);
+  const cash   = successTotals.cash;
+  const card   = successTotals.card;
+  const other  = successTotals.other; // Zomato Gold, Swiggy Dineout (aggregator dine-in)
+  const upi    = successTotals.upi;
+  const online = successTotals.online; // Zomato/Swiggy delivery
 
   const dataPath = path.resolve(process.cwd(), 'data', `${outDate}.json`);
   let data;
@@ -85,6 +132,26 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
     ...(data.settlement['Zomato/Swiggy'] ?? {}),
     [outlet]: String(other + online)
   };
+
+  if (outlet === 'Pablo' || outlet === 'Dali') {
+    const rowsToUpdate = data.fnb?.[outlet] ?? [];
+    const averagePerCover = successTotals.covers
+      ? successTotals.dineInRevenue / successTotals.covers
+      : null;
+
+    setKpi(rowsToUpdate, 'Gross Sales', successTotals.revenue);
+    if (outlet === 'Pablo') {
+      setKpi(rowsToUpdate, 'Covers', successTotals.covers);
+      setKpi(rowsToUpdate, 'Avg Bill', averagePerCover);
+    } else {
+      setKpi(rowsToUpdate, 'Covers/day', successTotals.covers);
+      setKpi(rowsToUpdate, 'APC', averagePerCover);
+    }
+
+    data.pnl = (data.pnl ?? []).map((row) =>
+      row.unit === outlet ? { ...row, revenueToday: round(successTotals.revenue) } : row
+    );
+  }
 
   let rabbitSplit = null;
   if (outlet === 'Rabbits') {

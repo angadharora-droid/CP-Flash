@@ -92,9 +92,10 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const bills = get(values, 'no. of bills', 'number of bills', 'covers', 'total bills', 'no of bills');
   const avgBill = get(values, 'avg bill', 'average bill', 'avg. bill')
     ?? (grossSales && bills ? grossSales / bills : null);
+  const key = outlet.toLowerCase();
+  const hasPaymentImport = Boolean(data.importSource?.[`${key}PaymentImportedAt`]);
 
   if (outlet === 'Rabbits') {
-    const hasPaymentImport = Boolean(data.importSource?.rabbitsPaymentImportedAt);
     if (!hasPaymentImport) {
       setKpi('Total Revenue', grossSales);
       setKpi('Total Orders', bills);
@@ -106,20 +107,23 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     setKpi('Kebabs Revenue', getMatching(values, 'kebabs'));
     setKpi('Bowls Revenue', getMatching(values, 'main course'));
   } else {
-    setKpi('Gross Sales', grossSales);
-    setKpi('Covers', bills);
-    setKpi('Avg Bill', avgBill);
+    if (!hasPaymentImport) {
+      setKpi('Gross Sales', grossSales);
+      setKpi('Covers', bills);
+      setKpi('Covers/day', bills);
+      setKpi('Avg Bill', avgBill);
+      setKpi('APC', avgBill);
+    }
     setKpi('Lunch Revenue', get(values, 'lunch', 'lunch sales', 'lunch revenue'));
     setKpi('Dinner Revenue', get(values, 'dinner', 'dinner sales', 'dinner revenue'));
   }
 
-  if (outlet !== 'Rabbits' || !data.importSource?.rabbitsPaymentImportedAt) {
+  if (!hasPaymentImport) {
     data.pnl = (data.pnl ?? []).map((row) =>
       row.unit === outlet ? { ...row, revenueToday: round(grossSales ?? 0) } : row
     );
   }
 
-  const key = outlet.toLowerCase();
   data.importSource = {
     ...(data.importSource ?? {}),
     [`${key}PetpoojaImportedAt`]: new Date().toISOString(),
