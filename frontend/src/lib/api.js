@@ -97,6 +97,19 @@ export async function getSourceStatus(date, token) {
   }, 'Unable to load source status');
 }
 
+export async function getEmailImportStatus(token) {
+  return apiFetch('/api/email-import', {
+    headers: authHeaders(token)
+  }, 'Unable to load email import status');
+}
+
+export async function runEmailImport(token) {
+  return apiFetch('/api/email-import', {
+    method: 'POST',
+    headers: authHeaders(token)
+  }, 'Unable to run email import');
+}
+
 export async function getSourceReportPreview(date, sourceId, file, token) {
   const params = new URLSearchParams({ date, sourceId, file });
   return apiFetch(`/api/source-report-preview?${params.toString()}`, {

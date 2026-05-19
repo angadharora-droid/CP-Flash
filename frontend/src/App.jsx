@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { generateAiNotes, getSeed, getSourceReportPreview, getSourceStatus, loginWithPin, reportPdfPreviewUrl, reportPdfUrl, saveData } from './lib/api';
+import { generateAiNotes, getEmailImportStatus, getSeed, getSourceReportPreview, getSourceStatus, loginWithPin, reportPdfPreviewUrl, reportPdfUrl, runEmailImport, saveData } from './lib/api';
 import { groupRevenue, money, moneyCompact, numberValue, percent, pnlRows, relativeTime, settlementModes, settlementTotals, UNITS, withFlags } from './lib/calculations';
 import DataTable from './components/DataTable';
 import FlagBadge from './components/FlagBadge';
@@ -1017,8 +1017,10 @@ function SourceReportPreviewScreen({ preview, loading, error, onClose }) {
   );
 }
 
-function SourceControlPage({ date, authToken, onOpenReportPreview }) {
+function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData }) {
   const [sourceStatus, setSourceStatus] = useState(null);
+  const [emailImport, setEmailImport] = useState(null);
+  const [runningImport, setRunningImport] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -1036,9 +1038,36 @@ function SourceControlPage({ date, authToken, onOpenReportPreview }) {
     }
   }, [date, authToken]);
 
+  const loadEmailImportStatus = React.useCallback(async () => {
+    if (!authToken) return;
+    try {
+      setEmailImport(await getEmailImportStatus(authToken));
+    } catch {
+      // Source status is the primary signal on this page; keep this quiet if the status check races server startup.
+    }
+  }, [authToken]);
+
+  const handleRunEmailImport = React.useCallback(async () => {
+    setRunningImport(true);
+    setError('');
+    try {
+      const status = await runEmailImport(authToken);
+      setEmailImport(status);
+      window.setTimeout(() => {
+        load(true);
+        onRefreshData?.();
+      }, 1500);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRunningImport(false);
+    }
+  }, [authToken, load, onRefreshData]);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadEmailImportStatus();
+  }, [load, loadEmailImportStatus]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -1047,8 +1076,24 @@ function SourceControlPage({ date, authToken, onOpenReportPreview }) {
     return () => clearInterval(timer);
   }, [load]);
 
+  useEffect(() => {
+    if (!emailImport?.running) return undefined;
+    const timer = setInterval(() => {
+      loadEmailImportStatus();
+      load(true);
+      onRefreshData?.();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [emailImport?.running, load, loadEmailImportStatus, onRefreshData]);
+
   const sources = sourceStatus?.sources ?? [];
   const formatTime = (value) => value ? new Date(value).toLocaleString() : '-';
+  const importRunning = runningImport || emailImport?.running;
+  const importMeta = emailImport?.running
+    ? `Email import running since ${formatTime(emailImport.startedAt)}`
+    : emailImport?.finishedAt
+      ? `Last email import ${emailImport.exitCode === 0 ? 'finished' : 'failed'} at ${formatTime(emailImport.finishedAt)}`
+      : 'Ready to run email import';
 
   return (
     <>
@@ -1062,8 +1107,18 @@ function SourceControlPage({ date, authToken, onOpenReportPreview }) {
       <SectionCard
         title="Daily Sources"
         meta={loading ? 'Checking sources...' : `Status for ${date}`}
-        actions={<ActionButton onClick={() => load()} disabled={loading}>Refresh</ActionButton>}
+        actions={(
+          <div className="flex flex-wrap justify-end gap-2">
+            <ActionButton onClick={handleRunEmailImport} disabled={importRunning} variant="primary">
+              {importRunning ? 'Importing...' : 'Run Email Import'}
+            </ActionButton>
+            <ActionButton onClick={() => load()} disabled={loading}>Refresh</ActionButton>
+          </div>
+        )}
       >
+        <div className={`mb-4 rounded-xl border px-3.5 py-2.5 text-sm font-medium ${emailImport?.exitCode && !emailImport?.running ? 'border-red-200 bg-red-50 text-red-700' : 'border-app-border bg-app-panel/70 text-app-muted'}`}>
+          {importMeta}
+        </div>
         {error ? (
           <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
             <svg className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -1606,10 +1661,14 @@ export default function App() {
     }
   }, [date, authToken]);
 
+  const handleRefresh = React.useCallback(() => {
+    if (authToken) loadData(date, authToken);
+  }, [authToken, date, loadData]);
+
   const page = useMemo(() => {
     if (!data) return null;
     const common = { data, setData, date, authToken };
-    if (active === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} />;
+    if (active === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
     if (active === 'bank') return <BankPage {...common} />;
     if (active === 'pnl') return <PnlPage {...common} />;
     if (active === 'flags') return <FlagsPage data={data} />;
@@ -1620,7 +1679,7 @@ export default function App() {
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
     return <AiPage data={data} authToken={authToken} />;
-  }, [active, data, date, authToken, openSourceReportPreview]);
+  }, [active, data, date, authToken, openSourceReportPreview, handleRefresh]);
 
   const lockApp = React.useCallback(() => {
     localStorage.removeItem('dailyflashToken');
@@ -1628,10 +1687,6 @@ export default function App() {
     setAuthToken('');
     setData(null);
   }, []);
-
-  const handleRefresh = React.useCallback(() => {
-    if (authToken) loadData(date, authToken);
-  }, [authToken, date, loadData]);
 
   React.useEffect(() => {
     if (!authToken) return undefined;
