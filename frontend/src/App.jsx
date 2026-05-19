@@ -392,9 +392,8 @@ function shiftIso(iso, delta) {
   return d.toISOString().slice(0, 10);
 }
 
-function DateControl({ value, onChange, latest, refreshing, onRefresh }) {
+function DateControl({ value, onChange, latest }) {
   const inputRef = React.useRef(null);
-  const isLatest = value >= latest;
   const isAfter = value > latest;
   const display = formatDisplayDate(value);
 
@@ -444,23 +443,6 @@ function DateControl({ value, onChange, latest, refreshing, onRefresh }) {
         <svg className="size-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
         </svg>
-      </button>
-      <div className="mx-0.5 w-px self-stretch bg-app-divider" />
-      <button
-        type="button"
-        onClick={() => isLatest ? onRefresh?.() : onChange(latest)}
-        disabled={refreshing}
-        title={isLatest ? 'Refresh (R)' : 'Jump to latest (T)'}
-        className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-bold uppercase tracking-wider text-app-accentDark transition-all duration-150 hover:bg-app-accentTint active:scale-[0.97] disabled:opacity-50"
-      >
-        <svg className={`size-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
-          {isLatest ? (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992V4.356M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.183m0-4.991v4.99" />
-          ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          )}
-        </svg>
-        {isLatest ? (refreshing ? 'Loading' : 'Refresh') : 'Today'}
       </button>
       <input
         ref={inputRef}
@@ -1110,9 +1092,8 @@ function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData
         actions={(
           <div className="flex flex-wrap justify-end gap-2">
             <ActionButton onClick={handleRunEmailImport} disabled={importRunning} variant="primary">
-              {importRunning ? 'Importing...' : 'Run Email Import'}
+              {importRunning ? 'Refreshing...' : 'Refresh'}
             </ActionButton>
-            <ActionButton onClick={() => load()} disabled={loading}>Refresh</ActionButton>
           </div>
         )}
       >
@@ -1924,8 +1905,6 @@ export default function App() {
                   value={date}
                   onChange={setDate}
                   latest={today}
-                  refreshing={refreshing}
-                  onRefresh={handleRefresh}
                 />
                 {status ? (
                   <span className="max-w-xs truncate text-xs font-medium text-app-muted">{status}</span>
