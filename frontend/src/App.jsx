@@ -70,6 +70,32 @@ function mergePnlRows(seedRows = [], savedRows = [], previousRows = []) {
   });
 }
 
+function normalizeRabbitsCategoryBreakdown(seedRows = [], savedRows = []) {
+  const fixedCategoryRows = seedRows.filter((row) => row.section === 'Category Breakdown');
+  if (!fixedCategoryRows.length) return savedRows;
+
+  const savedByName = new Map(savedRows.map((row) => [row.name, row]));
+  const normalizedCategoryRows = fixedCategoryRows.map((seedRow) => {
+    const savedRow = savedByName.get(seedRow.name);
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
+  });
+  const nextRows = [];
+  let inserted = false;
+
+  for (const row of savedRows) {
+    if (row.section === 'Category Breakdown') {
+      if (!inserted) {
+        nextRows.push(...normalizedCategoryRows);
+        inserted = true;
+      }
+      continue;
+    }
+    nextRows.push(row);
+  }
+
+  return inserted ? nextRows : [...savedRows, ...normalizedCategoryRows];
+}
+
 function mergeWithSeed(seed, saved, previous = null) {
   if (!saved) return seed;
   const merged = { ...seed, ...saved };
@@ -83,6 +109,7 @@ function mergeWithSeed(seed, saved, previous = null) {
       merged[key] = seedVal;
     }
   }
+  merged.rabbits = normalizeRabbitsCategoryBreakdown(seed.rabbits, merged.rabbits);
   merged.pnl = mergePnlRows(seed.pnl, saved.pnl, previous?.pnl);
   merged.pnl = derivePnlRows(merged);
   return merged;
