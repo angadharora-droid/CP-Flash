@@ -205,6 +205,7 @@ app.get('/api/seed', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
   const seed = buildSeedData();
   const saved = await readDailyData(date);
+  if (saved) normalizeRabbitsCategoryBreakdown(saved);
   res.json({ seed, saved, date });
 }));
 
