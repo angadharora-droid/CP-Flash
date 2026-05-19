@@ -75,11 +75,13 @@ export async function importHotelReport(file, outDate) {
   const ccRow = findRow(rows, 'Credit Card');
   const companyRow = findRow(rows, 'Company');
 
-  data.settlement = {
-    Cash: { [unit]: String(num(cashRow[3])) },
-    'Credit Card': { [unit]: String(num(ccRow[3])) },
-    UPI: { [unit]: String(num(upiRow[3])) },
-    'City Ledger/Credit': { [unit]: String(num(companyRow[3])) }
+  data.settlement = data.settlement ?? {};
+  data.settlement.Cash = { ...(data.settlement.Cash ?? {}), [unit]: String(num(cashRow[3])) };
+  data.settlement['Credit Card'] = { ...(data.settlement['Credit Card'] ?? {}), [unit]: String(num(ccRow[3])) };
+  data.settlement.UPI = { ...(data.settlement.UPI ?? {}), [unit]: String(num(upiRow[3])) };
+  data.settlement['City Ledger/Credit'] = {
+    ...(data.settlement['City Ledger/Credit'] ?? {}),
+    [unit]: String(num(companyRow[3]))
   };
 
   data.importSource = {
