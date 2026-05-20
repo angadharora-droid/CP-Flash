@@ -319,7 +319,7 @@ function KpiTable({ rows }) {
         <thead>
           <tr className="bg-gradient-to-b from-slate-50/90 to-white text-left">
             {headers.map((h, i) => (
-              <th key={h} className={`whitespace-nowrap border-b border-app-divider px-3 py-3 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-app-subtle sm:px-4 sm:py-3.5 ${i === 2 ? 'bg-app-accentTint/40 text-app-accentDark' : ''}`}>
+              <th key={h} className={`whitespace-nowrap border-b border-app-divider px-3 py-3 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-app-subtle sm:px-4 sm:py-3.5 ${i === 0 ? 'sticky left-0 z-[2] bg-gradient-to-b from-slate-50 to-white' : ''} ${i === 2 ? 'bg-app-accentTint/40 text-app-accentDark' : ''}`}>
                 {h}
               </th>
             ))}
