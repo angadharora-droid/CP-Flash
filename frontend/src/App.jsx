@@ -234,7 +234,7 @@ function TopItemsList({ items = [] }) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-app-border bg-white/90 shadow-sm ring-1 ring-white/70">
-      <div className="grid grid-cols-[64px_minmax(0,1fr)_120px_88px] gap-3 border-b border-app-divider bg-app-panel/80 px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider text-app-muted">
+      <div className="grid grid-cols-[40px_minmax(0,1fr)_82px_52px] gap-2 border-b border-app-divider bg-app-panel/80 px-3 py-2.5 text-[11px] font-extrabold uppercase tracking-wider text-app-muted sm:grid-cols-[64px_minmax(0,1fr)_120px_88px] sm:gap-3 sm:px-4 sm:text-xs">
         <span>Rank</span>
         <span>Item</span>
         <span className="text-right">Revenue</span>
@@ -243,18 +243,18 @@ function TopItemsList({ items = [] }) {
       {parsed.map((item, index) => (
         <div
           key={`${item.name}-${index}`}
-          className="grid grid-cols-[64px_minmax(0,1fr)_120px_88px] gap-3 border-b border-app-divider px-4 py-3 last:border-b-0"
+          className="grid grid-cols-[40px_minmax(0,1fr)_82px_52px] items-center gap-2 border-b border-app-divider px-3 py-2.5 last:border-b-0 sm:grid-cols-[64px_minmax(0,1fr)_120px_88px] sm:gap-3 sm:px-4 sm:py-3"
         >
-          <span className={`flex size-8 items-center justify-center rounded-lg text-sm font-extrabold tabular-nums ${
+          <span className={`flex size-7 items-center justify-center rounded-lg text-[13px] font-extrabold tabular-nums sm:size-8 sm:text-sm ${
             index === 0 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' :
               index === 1 ? 'bg-slate-100 text-slate-600 ring-1 ring-slate-200' :
                 'bg-teal-50 text-teal-700 ring-1 ring-teal-100'
           }`}>
             {index + 1}
           </span>
-          <span className="min-w-0 truncate text-sm font-bold text-app-text">{item.name}</span>
-          <span className="num text-right text-sm font-extrabold tabular-nums text-emerald-700">{item.sales ? money(item.sales) : '-'}</span>
-          <span className="num text-right text-sm font-bold tabular-nums text-app-muted">{item.qty || '-'}</span>
+          <span className="min-w-0 truncate text-[13px] font-bold text-app-text sm:text-sm">{item.name}</span>
+          <span className="num text-right text-[13px] font-extrabold tabular-nums text-emerald-700 sm:text-sm">{item.sales ? money(item.sales) : '-'}</span>
+          <span className="num text-right text-[13px] font-bold tabular-nums text-app-muted sm:text-sm">{item.qty || '-'}</span>
         </div>
       ))}
     </div>
@@ -287,13 +287,13 @@ function PageTitle({ title, subtitle, badge, actions, activeKey }) {
     <div className="relative overflow-hidden rounded-2xl border border-app-border bg-white/85 backdrop-blur-xl shadow-card animate-fade-in-up">
       <div className="absolute inset-0 opacity-[0.6] pointer-events-none" style={{ background: accent.glow }} />
       <div className={`absolute inset-y-3 left-0 w-[3px] rounded-r-full ${accent.stripe}`} />
-      <div className="relative flex flex-wrap items-start justify-between gap-4 px-7 py-6">
+      <div className="relative flex flex-wrap items-start justify-between gap-3 px-4 py-5 sm:gap-4 sm:px-7 sm:py-6">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-app-text text-balance">{title}</h1>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-lg font-bold tracking-tight text-app-text text-balance sm:text-2xl">{title}</h1>
             {badge ? <FreshnessBadge {...badge} /> : null}
           </div>
-          {subtitle ? <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-app-muted">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-app-muted sm:text-sm">{subtitle}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
@@ -304,12 +304,12 @@ function PageTitle({ title, subtitle, badge, actions, activeKey }) {
 function KpiTable({ rows }) {
   const headers = ['KPI Name', 'AOP Target', 'Today Actual', 'MTD', 'YTD', 'Status'];
   return (
-    <div className="overflow-auto rounded-2xl border border-app-border bg-white/90 backdrop-blur-xl shadow-card">
+    <div className="scroll-touch overflow-auto rounded-2xl border border-app-border bg-white/90 backdrop-blur-xl shadow-card">
       <table className="min-w-full text-sm">
         <thead>
           <tr className="bg-gradient-to-b from-slate-50/90 to-white text-left">
             {headers.map((h, i) => (
-              <th key={h} className={`whitespace-nowrap border-b border-app-divider px-4 py-3.5 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-app-subtle ${i === 2 ? 'bg-app-accentTint/40 text-app-accentDark' : ''}`}>
+              <th key={h} className={`whitespace-nowrap border-b border-app-divider px-3 py-3 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-app-subtle sm:px-4 sm:py-3.5 ${i === 2 ? 'bg-app-accentTint/40 text-app-accentDark' : ''}`}>
                 {h}
               </th>
             ))}
@@ -1118,8 +1118,8 @@ function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData
               source.type,
               <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${statusTone[source.status]}`}>{source.status}</span>,
               formatTime(source.importedAt),
-              <div className="max-w-xl">
-                <div className="font-medium text-app-text">{source.file || '-'}</div>
+              <div className="max-w-[260px] sm:max-w-xl">
+                <div className="break-words font-medium text-app-text">{source.file || '-'}</div>
                 {source.notes ? <div className="mt-1 text-xs leading-5 text-app-muted">{source.notes}</div> : null}
                 {source.sheetUrl ? <div className="mt-2"><SheetLink url={source.sheetUrl} label="Open Sheet" /></div> : null}
                 {source.reportFiles?.length ? (
@@ -1407,7 +1407,7 @@ Please summarize performance, call out concerns, highlight wins, and give 3 acti
             {error}
           </div>
         ) : null}
-        <div className="min-h-96 whitespace-pre-wrap rounded-xl border border-app-border bg-app-panel p-6 leading-7 text-sm text-app-text">
+        <div className="min-h-96 whitespace-pre-wrap rounded-xl border border-app-border bg-app-panel p-4 leading-7 text-sm text-app-text sm:p-6">
           {loading ? (
             <div className="flex items-center gap-3 text-app-muted">
               <div className="size-4 animate-spin rounded-full border-2 border-teal-600 border-t-transparent" />
@@ -1925,8 +1925,11 @@ export default function App() {
             </div>
             {/* Right: actions */}
             <div className="flex shrink-0 items-center gap-1.5">
-              <ActionButton onClick={() => { setPdfReturnTo(active); setActive('pdf'); }} disabled={!data} variant="primary">Preview PDF</ActionButton>
-              <div className="ml-1 h-5 w-px bg-app-border" />
+              <ActionButton onClick={() => { setPdfReturnTo(active); setActive('pdf'); }} disabled={!data} variant="primary">
+                <span className="sm:hidden">PDF</span>
+                <span className="hidden sm:inline">Preview PDF</span>
+              </ActionButton>
+              <div className="ml-1 hidden h-5 w-px bg-app-border sm:block" />
               <button
                 onClick={lockApp}
                 title="Lock dashboard"
