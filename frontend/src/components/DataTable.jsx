@@ -4,14 +4,14 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
   const isNumeric = (i) => typeof numericFrom === 'number' && i >= numericFrom;
 
   return (
-    <div className={`overflow-auto rounded-2xl border border-app-border bg-white/90 backdrop-blur-xl shadow-card ${className}`}>
+    <div className={`scroll-touch overflow-auto rounded-2xl border border-app-border bg-white/90 backdrop-blur-xl shadow-card ${className}`}>
       <table className="min-w-full border-collapse text-sm">
         <thead>
           <tr className="bg-gradient-to-b from-slate-50/90 to-white text-left">
             {columns.map((col, i) => (
               <th
                 key={col}
-                className={`whitespace-nowrap border-b border-app-divider px-4 py-3.5 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-app-subtle ${
+                className={`whitespace-nowrap border-b border-app-divider px-3 py-3 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-app-subtle sm:px-4 sm:py-3.5 ${
                   isNumeric(i) ? 'text-right' : ''
                 } ${
                   i === 0 ? 'sticky left-0 z-[2] bg-gradient-to-b from-slate-50/95 to-white/95 backdrop-blur-sm' : ''
@@ -27,11 +27,11 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
             <tr key={row.key ?? index} className="group transition-colors duration-100 odd:bg-white even:bg-app-panel/40 hover:bg-app-accentTint/60">
               {row.cells.map((cell, cellIndex) => {
                 const sticky = cellIndex === 0
-                  ? 'sticky left-0 z-[1] min-w-44 bg-inherit font-semibold shadow-[1px_0_0_0_rgba(230,235,243,1)]'
+                  ? 'sticky left-0 z-[1] min-w-32 bg-inherit font-semibold shadow-[1px_0_0_0_rgba(230,235,243,1)] sm:min-w-44'
                   : '';
                 const align = isNumeric(cellIndex) ? 'text-right' : '';
                 return (
-                  <td key={cellIndex} className={`num px-4 py-3 align-middle text-app-text ${sticky} ${align}`}>
+                  <td key={cellIndex} className={`num px-3 py-2.5 align-middle text-app-text sm:px-4 sm:py-3 ${sticky} ${align}`}>
                     {cell}
                   </td>
                 );

@@ -4,7 +4,7 @@ export default function SectionCard({ title, children, defaultOpen = true, meta 
   const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="overflow-hidden rounded-2xl border border-app-border bg-white/90 backdrop-blur-xl shadow-card transition-all duration-200 hover:border-app-borderStrong">
-      <div className="flex w-full flex-wrap items-center justify-between gap-3 px-5 py-4 transition-colors duration-150 hover:bg-app-panel/60">
+      <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-app-panel/60 sm:px-5 sm:py-4">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -37,7 +37,7 @@ export default function SectionCard({ title, children, defaultOpen = true, meta 
         </div>
       </div>
       {open ? (
-        <div className="border-t border-app-divider px-5 py-5 animate-fade-in-up">
+        <div className="border-t border-app-divider px-3 py-4 animate-fade-in-up sm:px-5 sm:py-5">
           {children}
         </div>
       ) : null}

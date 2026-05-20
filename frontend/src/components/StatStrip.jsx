@@ -34,7 +34,7 @@ const defaultIconPath = (
 
 export default function StatStrip({ items }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
       {items.map((item) => {
         const gradient = accentGradient[item.tone] ?? 'from-teal-400/80 via-teal-500 to-teal-600';
         const dot = dotStyle[item.tone] ?? 'bg-teal-500';
@@ -45,19 +45,19 @@ export default function StatStrip({ items }) {
             className="group relative overflow-hidden rounded-2xl border border-app-border bg-white/90 backdrop-blur-xl shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover hover:border-app-borderStrong"
           >
             <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${gradient}`} />
-            <div className="px-5 py-4">
+            <div className="px-3.5 py-3.5 sm:px-5 sm:py-4">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className={`flex size-6 items-center justify-center rounded-lg ring-1 ${halo}`}>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className={`flex size-6 shrink-0 items-center justify-center rounded-lg ring-1 ${halo}`}>
                     <svg className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       {item.icon ?? defaultIconPath}
                     </svg>
                   </span>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-app-muted">{item.label}</div>
+                  <div className="truncate text-[9.5px] font-bold uppercase tracking-[0.14em] text-app-muted sm:text-[10px] sm:tracking-[0.18em]">{item.label}</div>
                 </div>
-                {item.meta ? <div className="text-[11px] font-medium text-app-subtle">{item.meta}</div> : null}
+                {item.meta ? <div className="hidden text-[11px] font-medium text-app-subtle sm:block">{item.meta}</div> : null}
               </div>
-              <div className={`num mt-3 flex items-baseline gap-1.5 text-[26px] font-extrabold leading-none tracking-tight ${item.tone ?? 'text-app-text'}`}>
+              <div className={`num mt-2.5 flex items-baseline gap-1.5 text-[22px] font-extrabold leading-none tracking-tight sm:mt-3 sm:text-[26px] ${item.tone ?? 'text-app-text'}`}>
                 <span>{item.value}</span>
                 {item.delta ? (
                   <span className={`text-xs font-bold ${item.delta.tone ?? 'text-app-muted'}`}>{item.delta.label}</span>

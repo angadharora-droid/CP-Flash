@@ -130,4 +130,10 @@ input[type='date'] {
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Smooth momentum scrolling for horizontally-scrollable tables on touch devices */
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
 }
