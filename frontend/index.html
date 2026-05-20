@@ -6,6 +6,10 @@
     <link rel="apple-touch-icon" href="/cp-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CP Flash Report</title>
+    <!-- Load Inter without blocking first paint: system fonts render immediately, Inter swaps in once ready -->
+    <link rel="preconnect" href="https://rsms.me" crossorigin />
+    <link rel="preload" as="style" href="https://rsms.me/inter/inter.css" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link rel="stylesheet" href="https://rsms.me/inter/inter.css" /></noscript>
   </head>
   <body>
     <div id="root"></div>

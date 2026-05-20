@@ -1886,7 +1886,7 @@ export default function App() {
       {/* Main */}
       <main className={`transition-[padding] duration-300 ease-out ${mainPaddingClass}`}>
         {/* Topbar */}
-        <header className="sticky top-0 z-20 border-b border-app-border/80 bg-white/75 backdrop-blur-2xl">
+        <header className="sticky top-0 z-20 border-b border-app-border/80 bg-white/95 backdrop-blur-2xl">
           <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-8">
             {/* Left: breadcrumb + date */}
             <div className="flex min-w-0 flex-col gap-2">
