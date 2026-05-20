@@ -1,4 +1,4 @@
-@import url('https://rsms.me/inter/inter.css');
+/* Inter is loaded non-blocking from index.html (preload + swap) to keep first paint fast. */
 
 @tailwind base;
 @tailwind components;
@@ -30,7 +30,21 @@ body {
   background:
     linear-gradient(135deg, rgba(13, 148, 136, 0.08) 0%, rgba(30, 58, 95, 0.07) 46%, rgba(180, 83, 9, 0.07) 100%),
     linear-gradient(180deg, #fbfcfe 0%, #edf2f8 100%);
-  background-attachment: fixed;
+  /* `fixed` forces a full repaint on every scroll frame on mobile — keep it scrolling instead. */
+  background-attachment: scroll;
+}
+
+/*
+ * backdrop-filter (frosted glass) is one of the most expensive things to paint and is
+ * re-evaluated on every scroll/interaction, which tanks INP/FID and scroll smoothness —
+ * especially on mobile. The translucent backgrounds (white/85–95) read fine without it,
+ * so we drop the actual blur while keeping the layered look.
+ */
+[class*='backdrop-blur'],
+.glass-card,
+.glass-card-solid {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 input,
