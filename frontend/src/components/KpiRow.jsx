@@ -21,7 +21,7 @@ function Cell({ value, highlight }) {
 export default function KpiRow({ kpi }) {
   const flag = calcFlag(kpi.actual, kpi.target, kpi.direction);
   return (
-    <tr className="group border-b border-app-divider/60 last:border-0 transition-colors duration-100 odd:bg-white even:bg-app-panel/40 hover:bg-app-accentTint/50">
+    <tr className="group border-b border-app-divider/60 last:border-0 transition-colors duration-100 odd:bg-white even:bg-app-panel hover:bg-app-accentTint">
       <td className="sticky left-0 z-[1] min-w-40 bg-inherit px-3 py-2.5 text-sm font-semibold text-app-text shadow-[1px_0_0_0_rgba(230,235,243,1)] sm:min-w-56 sm:px-4">
         {kpi.name}
       </td>

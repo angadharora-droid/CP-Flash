@@ -14,7 +14,7 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
                 className={`whitespace-nowrap border-b border-app-divider px-3 py-3 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-app-subtle sm:px-4 sm:py-3.5 ${
                   isNumeric(i) ? 'text-right' : ''
                 } ${
-                  i === 0 ? 'sticky left-0 z-[2] bg-gradient-to-b from-slate-50/95 to-white/95 backdrop-blur-sm' : ''
+                  i === 0 ? 'sticky left-0 z-[2] bg-gradient-to-b from-slate-50 to-white' : ''
                 }`}
               >
                 {col}
@@ -24,7 +24,7 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
         </thead>
         <tbody className="divide-y divide-app-divider/70">
           {rows.length ? rows.map((row, index) => (
-            <tr key={row.key ?? index} className="group transition-colors duration-100 odd:bg-white even:bg-app-panel/40 hover:bg-app-accentTint/60">
+            <tr key={row.key ?? index} className="group transition-colors duration-100 odd:bg-white even:bg-app-panel hover:bg-app-accentTint">
               {row.cells.map((cell, cellIndex) => {
                 const sticky = cellIndex === 0
                   ? 'sticky left-0 z-[1] min-w-32 bg-inherit font-semibold shadow-[1px_0_0_0_rgba(230,235,243,1)] sm:min-w-44'
