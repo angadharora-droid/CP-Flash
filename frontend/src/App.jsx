@@ -166,6 +166,16 @@ const NAV_GROUPS = [
   }
 ];
 
+const NAV_ITEM_BY_KEY = Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items).map((i) => [i.key, i]));
+
+// Primary destinations surfaced in the mobile bottom tab bar (the full list lives in the drawer behind "More").
+const BOTTOM_TABS = [
+  { key: 'sources', label: 'Sources' },
+  { key: 'bank', label: 'Bank' },
+  { key: 'pnl', label: 'P&L' },
+  { key: 'flags', label: 'Flags' }
+];
+
 const statusTone = {
   Imported: 'border-emerald-200/80 bg-emerald-50/80 text-emerald-700 ring-1 ring-emerald-100',
   Entered: 'border-teal-200/80 bg-teal-50/80 text-teal-700 ring-1 ring-teal-100',
@@ -1879,26 +1889,16 @@ export default function App() {
         <header className="sticky top-0 z-20 border-b border-app-border/80 bg-white/75 backdrop-blur-2xl">
           <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-8">
             {/* Left: breadcrumb + date */}
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <div className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.18em] text-app-muted">
-                <button
-                  type="button"
-                  onClick={() => setMobileNavOpen(true)}
-                  aria-label="Open menu"
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-app-border bg-white/85 text-app-text shadow-card backdrop-blur-xl transition-all hover:border-app-borderStrong hover:bg-white lg:hidden"
-                >
-                  <svg className="size-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                  </svg>
-                </button>
-                <span className="hidden size-5 items-center justify-center rounded-md bg-app-accentTint text-app-accentDark sm:flex">
+            <div className="flex min-w-0 flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-app-accentTint text-app-accentDark">
                   <svg className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
-                    {NAV_GROUPS.flatMap(g => g.items).find(i => i.key === active)?.icon}
+                    {NAV_ITEM_BY_KEY[active]?.icon}
                   </svg>
                 </span>
-                <span className="text-app-subtle">{activePage[1]}</span>
-                <span className="text-app-subtle">·</span>
-                <span className="text-app-text">{activePage[2]}</span>
+                <span className="hidden text-[10.5px] font-bold uppercase tracking-[0.18em] text-app-subtle sm:inline">{activePage[1]}</span>
+                <span className="hidden text-app-subtle sm:inline">·</span>
+                <span className="truncate text-[15px] font-bold tracking-tight text-app-text sm:text-[10.5px] sm:font-bold sm:uppercase sm:tracking-[0.18em]">{activePage[2]}</span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <DateControl
@@ -1907,7 +1907,7 @@ export default function App() {
                   latest={today}
                 />
                 {status ? (
-                  <span className="max-w-xs truncate text-xs font-medium text-app-muted">{status}</span>
+                  <span className="hidden max-w-xs truncate text-xs font-medium text-app-muted sm:inline">{status}</span>
                 ) : null}
                 {riskCount > 0 ? (
                   <button
@@ -1945,7 +1945,7 @@ export default function App() {
         </header>
 
         {/* Page content */}
-        <div className="space-y-5 p-4 lg:p-8">
+        <div className="space-y-5 p-4 pb-28 lg:p-8 lg:pb-8">
           {data && !Object.values(data.importSource ?? {}).some((v) => v) ? (
             <div className="flex items-start gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/80 px-5 py-4 text-sm text-amber-800 ring-1 ring-amber-100 backdrop-blur-xl animate-fade-in-up">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white/80 text-amber-600 ring-1 ring-amber-100">
@@ -1971,6 +1971,54 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* Mobile bottom tab bar */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-app-border bg-white/95 backdrop-blur-xl shadow-[0_-6px_24px_-12px_rgba(15,23,42,0.25)] lg:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {BOTTOM_TABS.map(({ key, label }) => {
+          const isActive = active === key;
+          const hasBadge = key === 'flags' && riskCount > 0;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActive(key)}
+              aria-current={isActive ? 'page' : undefined}
+              className={`relative flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-bold transition-colors duration-150 ${
+                isActive ? 'text-app-accentDark' : 'text-app-muted active:text-app-text'
+              }`}
+            >
+              {isActive ? <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-accent-stripe" /> : null}
+              <span className={`relative flex size-7 items-center justify-center rounded-lg transition-colors duration-150 ${isActive ? 'bg-app-accentTint' : ''}`}>
+                <svg className="size-[18px]" fill="none" stroke="currentColor" strokeWidth={isActive ? 2.2 : 1.85} viewBox="0 0 24 24">
+                  {NAV_ITEM_BY_KEY[key]?.icon}
+                </svg>
+                {hasBadge ? (
+                  <span className="absolute -right-1.5 -top-1 flex min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-4 text-white ring-2 ring-white">
+                    {riskCount}
+                  </span>
+                ) : null}
+              </span>
+              <span className="max-w-full truncate leading-none">{label}</span>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen(true)}
+          aria-label="More sections"
+          className="relative flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-bold text-app-muted transition-colors duration-150 active:text-app-text"
+        >
+          <span className="flex size-7 items-center justify-center">
+            <svg className="size-[18px]" fill="none" stroke="currentColor" strokeWidth={1.85} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </span>
+          <span className="leading-none">More</span>
+        </button>
+      </nav>
     </div>
   );
 }

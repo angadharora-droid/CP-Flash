@@ -12,6 +12,13 @@ html {
   background: #f5f7fb;
 }
 
+/* Slightly smaller, less cramped type scale on phones */
+@media (max-width: 640px) {
+  html {
+    font-size: 15px;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100vh;
