@@ -468,15 +468,51 @@ function DateControl({ value, onChange, latest }) {
   );
 }
 
+function formatLockoutRemaining(lockedUntil) {
+  if (!lockedUntil) return '';
+  const remainingMs = Math.max(0, new Date(lockedUntil).getTime() - Date.now());
+  const totalMinutes = Math.ceil(remainingMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours && minutes) return `${hours} hr ${minutes} min`;
+  if (hours) return `${hours} hr`;
+  return `${Math.max(1, minutes)} min`;
+}
+
 function PinGate({ onUnlock }) {
   const [pin, setPin] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const [shake, setShake] = useState(false);
+  const [lockedUntil, setLockedUntil] = useState('');
+  const [lockoutRemaining, setLockoutRemaining] = useState('');
+  const isLocked = lockedUntil && Date.now() < new Date(lockedUntil).getTime();
+
+  useEffect(() => {
+    if (!lockedUntil) {
+      setLockoutRemaining('');
+      return undefined;
+    }
+
+    const updateRemaining = () => {
+      if (Date.now() >= new Date(lockedUntil).getTime()) {
+        setLockedUntil('');
+        setStatus('');
+        setLockoutRemaining('');
+        return;
+      }
+      setLockoutRemaining(formatLockoutRemaining(lockedUntil));
+    };
+
+    updateRemaining();
+    const timer = setInterval(updateRemaining, 30000);
+    return () => clearInterval(timer);
+  }, [lockedUntil]);
 
   const submit = async (event) => {
     event.preventDefault();
+    if (isLocked) return;
     setLoading(true);
     setStatus('');
     try {
@@ -485,6 +521,7 @@ function PinGate({ onUnlock }) {
       onUnlock(token);
     } catch (err) {
       setStatus(err.message);
+      if (err.lockedUntil) setLockedUntil(err.lockedUntil);
       setPin('');
       setShake(true);
       setTimeout(() => setShake(false), 520);
@@ -573,10 +610,13 @@ function PinGate({ onUnlock }) {
                 type="password"
                 autoComplete="new-password"
                 value={pin}
-                onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
+                onChange={(event) => {
+                  if (!isLocked) setPin(event.target.value.replace(/\D/g, '').slice(0, 8));
+                }}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
                 aria-label="PIN"
+                disabled={isLocked}
                 className="absolute inset-0 w-full cursor-text bg-transparent text-center text-transparent caret-transparent outline-none"
               />
             </label>
@@ -586,13 +626,16 @@ function PinGate({ onUnlock }) {
                 <svg className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                 </svg>
-                {status}
+                <span>
+                  {status}
+                  {isLocked && lockoutRemaining ? ` Try again in ${lockoutRemaining}.` : ''}
+                </span>
               </div>
             ) : null}
 
             <button
               type="submit"
-              disabled={loading || pin.length < 4}
+              disabled={loading || isLocked || pin.length < 4}
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-app-accentSoft to-app-accent px-4 py-3.5 text-sm font-bold text-white transition-all duration-200 hover:from-teal-400 hover:to-teal-600 disabled:cursor-not-allowed disabled:opacity-40"
               style={{ boxShadow: '0 14px 36px -10px rgba(13, 148, 136, 0.55)' }}
             >
@@ -604,7 +647,7 @@ function PinGate({ onUnlock }) {
                   </svg>
                   Verifying...
                 </>
-              ) : 'Unlock Dashboard'}
+              ) : isLocked ? `Blocked ${lockoutRemaining || ''}` : 'Unlock Dashboard'}
             </button>
           </div>
         </div>
