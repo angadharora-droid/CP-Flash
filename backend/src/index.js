@@ -24,6 +24,10 @@ const accessPin = process.env.DAILYFLASH_PIN || process.env.ACCESS_PIN;
 const tokenSecret = process.env.JWT_SECRET || process.env.DAILYFLASH_PIN || 'change-me';
 const emailImportScript = path.join(__dirname, 'fetchEmailReport.js');
 const backendDir = path.resolve(__dirname, '..');
+const LOGIN_LOCKOUT_FILE = path.join(dataDir, 'auth-lockout.json');
+const MAX_FAILED_LOGIN_ATTEMPTS = 3;
+const LOGIN_LOCKOUT_MS = 5 * 60 * 60 * 1000;
+let loginLockoutState = null;
 let emailImportJob = {
   running: false,
   startedAt: null,
@@ -102,6 +106,60 @@ function emailImportStatus() {
 
 async function ensureDataDir() {
   await fs.mkdir(dataDir, { recursive: true });
+}
+
+async function readLoginLockoutState() {
+  if (loginLockoutState) return loginLockoutState;
+  const fallback = { failedAttempts: 0, lockedUntil: null };
+  const db = await getDb();
+  if (db) {
+    const doc = await db.collection('authLockouts').findOne({ _id: 'pin' });
+    loginLockoutState = {
+      failedAttempts: Number(doc?.failedAttempts ?? 0),
+      lockedUntil: doc?.lockedUntil ?? null
+    };
+    return loginLockoutState;
+  }
+  await ensureDataDir();
+  try {
+    const saved = JSON.parse(await fs.readFile(LOGIN_LOCKOUT_FILE, 'utf8'));
+    loginLockoutState = {
+      failedAttempts: Number(saved?.failedAttempts ?? 0),
+      lockedUntil: saved?.lockedUntil ?? null
+    };
+  } catch {
+    loginLockoutState = fallback;
+  }
+  return loginLockoutState;
+}
+
+async function writeLoginLockoutState(state) {
+  loginLockoutState = {
+    failedAttempts: Number(state.failedAttempts ?? 0),
+    lockedUntil: state.lockedUntil ?? null
+  };
+  const db = await getDb();
+  if (db) {
+    await db.collection('authLockouts').updateOne(
+      { _id: 'pin' },
+      { $set: loginLockoutState },
+      { upsert: true }
+    );
+    return;
+  }
+  await ensureDataDir();
+  await fs.writeFile(LOGIN_LOCKOUT_FILE, JSON.stringify(loginLockoutState, null, 2));
+}
+
+function isLoginLocked(state) {
+  return state.lockedUntil && Date.now() < new Date(state.lockedUntil).getTime();
+}
+
+function sendLoginLockout(res, lockedUntil) {
+  res.status(423).json({
+    error: 'Too many unsuccessful attempts. Desktop access is blocked for 5 hours.',
+    lockedUntil
+  });
 }
 
 function dateKey(date = new Date()) {
@@ -205,18 +263,44 @@ async function writeDailyData(date, payload) {
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', wrap(async (req, res) => {
   if (!accessPin) {
     res.status(500).json({ error: 'DAILYFLASH_PIN is not configured on the backend.' });
     return;
   }
-  const pin = String(req.body.pin ?? '').trim();
-  if (!pin || pin !== accessPin) {
-    res.status(401).json({ error: 'Invalid PIN' });
+
+  const lockout = await readLoginLockoutState();
+  if (isLoginLocked(lockout)) {
+    sendLoginLockout(res, lockout.lockedUntil);
     return;
   }
+  if (lockout.lockedUntil) {
+    await writeLoginLockoutState({ failedAttempts: 0, lockedUntil: null });
+    lockout.failedAttempts = 0;
+    lockout.lockedUntil = null;
+  }
+
+  const pin = String(req.body.pin ?? '').trim();
+  if (!pin || pin !== accessPin) {
+    const failedAttempts = lockout.failedAttempts + 1;
+    const lockedUntil = failedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS
+      ? new Date(Date.now() + LOGIN_LOCKOUT_MS).toISOString()
+      : null;
+    await writeLoginLockoutState({ failedAttempts, lockedUntil });
+
+    if (lockedUntil) {
+      sendLoginLockout(res, lockedUntil);
+      return;
+    }
+
+    res.status(401).json({
+      error: `Invalid PIN. ${MAX_FAILED_LOGIN_ATTEMPTS - failedAttempts} attempt${MAX_FAILED_LOGIN_ATTEMPTS - failedAttempts === 1 ? '' : 's'} remaining before a 5-hour block.`
+    });
+    return;
+  }
+  await writeLoginLockoutState({ failedAttempts: 0, lockedUntil: null });
   res.json({ ok: true, token: createSession() });
-});
+}));
 
 app.use('/api', (req, res, next) => {
   if (req.path === '/login') return next();

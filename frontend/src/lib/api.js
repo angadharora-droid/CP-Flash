@@ -48,7 +48,10 @@ async function apiFetch(path, options = {}, fallbackMessage = 'Request failed') 
         const message = typeof json === 'object' && json?.error
           ? json.error
           : `${fallbackMessage} (${res.status})`;
-        throw new Error(message);
+        const error = new Error(message);
+        error.status = res.status;
+        if (typeof json === 'object' && json?.lockedUntil) error.lockedUntil = json.lockedUntil;
+        throw error;
       }
       return json;
     } catch (err) {
