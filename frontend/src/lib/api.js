@@ -106,10 +106,11 @@ export async function getEmailImportStatus(token) {
   }, 'Unable to load email import status');
 }
 
-export async function runEmailImport(token) {
+export async function runEmailImport(token, { force = false } = {}) {
   return apiFetch('/api/email-import', {
     method: 'POST',
-    headers: authHeaders(token)
+    headers: { 'content-type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ force })
   }, 'Unable to run email import');
 }
 

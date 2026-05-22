@@ -34,7 +34,8 @@ let emailImportJob = {
   finishedAt: null,
   exitCode: null,
   error: '',
-  output: ''
+  output: '',
+  force: false
 };
 
 // MongoDB — used when MONGODB_URI is set; falls back to local JSON files otherwise.
@@ -100,7 +101,8 @@ function emailImportStatus() {
     finishedAt: emailImportJob.finishedAt,
     exitCode: emailImportJob.exitCode,
     error: emailImportJob.error,
-    output: emailImportJob.output
+    output: emailImportJob.output,
+    force: Boolean(emailImportJob.force)
   };
 }
 
@@ -351,24 +353,29 @@ app.get('/api/email-import', (_req, res) => {
   res.json(emailImportStatus());
 });
 
-app.post('/api/email-import', (_req, res) => {
+app.post('/api/email-import', (req, res) => {
   if (emailImportJob.running) {
     res.json({ ok: true, alreadyRunning: true, ...emailImportStatus() });
     return;
   }
 
+  const force = req.body?.force === true || req.query.force === 'true';
   emailImportJob = {
     running: true,
     startedAt: new Date().toISOString(),
     finishedAt: null,
     exitCode: null,
     error: '',
-    output: ''
+    output: '',
+    force
   };
 
   const child = spawn(process.execPath, [emailImportScript], {
     cwd: backendDir,
-    env: process.env,
+    env: {
+      ...process.env,
+      ...(force ? { FORCE_IMPORT: 'true' } : {})
+    },
     windowsHide: true
   });
 

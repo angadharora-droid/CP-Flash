@@ -1086,7 +1086,7 @@ function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData
     setRunningImport(true);
     setError('');
     try {
-      const status = await runEmailImport(authToken);
+      const status = await runEmailImport(authToken, { force: true });
       setEmailImport(status);
       window.setTimeout(() => {
         load(true);
