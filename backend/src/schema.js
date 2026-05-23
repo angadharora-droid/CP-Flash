@@ -68,7 +68,7 @@ export const pageSchemas = {
   ],
   fnb: {
     Pablo: [
-      { title: 'Sales', rows: [['Gross Sales', 160000], ['Covers', 135], ['Avg Bill', 1185], ['Lunch Revenue', 55000], ['Dinner Revenue', 105000]] },
+      { title: 'Sales', rows: [['Gross Sales', 160000], ['Covers', 135], ['Avg Bill', 1185], ['Lunch Revenue', 55000], ['Supper Revenue', 25000], ['Dinner Revenue', 80000]] },
       { title: 'Cost', rows: [['Food Cost %', 40], ['Liquor Cost %', 42], ['Food Purchase Today', 42000], ['Liquor Purchase Today', 30000], ['Total Purchase', 72000]] }
     ],
     Dali: [
@@ -83,7 +83,8 @@ export const pageSchemas = {
           ['Core 4 Revenue %', 65],
           ['Combo Sales %', 28, 'max'],
           ['Lunch Revenue', 35000],
-          ['Dinner Revenue', 65700]
+          ['Supper Revenue', 20000],
+          ['Dinner Revenue', 45700]
         ]
       },
       { title: 'Cost', rows: [['Food Cost %', 28], ['Liquor Cost %', 30], ['Food Purchase Today', 25000], ['Liquor Purchase Today', 18000], ['Total Purchase', 43000]] }

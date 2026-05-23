@@ -56,7 +56,7 @@ export const dailySources = [
     type: 'Petpooja / Mail',
     paths: ['fnb', 'topItems', 'settlement'],
     meta: {
-      files: ['pabloPaymentFile', 'daliPaymentFile'],
+      files: ['pabloPaymentFile', 'daliPaymentFile', 'pabloTimeSalesFile', 'daliTimeSalesFile'],
       importedAt: 'pabloPetpoojaImportedAt'
     },
     cadence: 'Daily'
@@ -69,6 +69,7 @@ export const dailySources = [
     paths: ['rabbits', 'settlement'],
     meta: {
       file: 'rabbitsPaymentFile',
+      files: ['rabbitsTimeSalesFile'],
       importedAt: 'rabbitsPetpoojaImportedAt'
     },
     cadence: 'Daily'

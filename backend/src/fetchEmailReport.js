@@ -22,6 +22,7 @@ import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
 import { importPetpoojaReport } from './importPetpoojaReport.js';
 import { importPetpoojaPaymentSummary } from './importPetpoojaPaymentSummary.js';
+import { importPetpoojaTimeSalesReport } from './importPetpoojaTimeSalesReport.js';
 import { importBankPosition } from './importBankPosition.js';
 import { importDaliCostHistory } from './importDaliCostHistory.js';
 import { importPabloCostHistory } from './importPabloCostHistory.js';
@@ -101,6 +102,14 @@ async function saveAttachment(attachment, label, date) {
   return filePath;
 }
 
+function isDetailedSalesReport(subject, parsed, outletPattern) {
+  const text = messageText(parsed);
+  return outletPattern.test(text)
+    && !subjectContains(subject, 'payment wise')
+    && !subjectContains(subject, 'daily sales report')
+    && /(bill|order|sales).*(wise|detail|summary|register|report)|day\s*end|broader|border/i.test(text);
+}
+
 /**
  * Handlers — each receives the full mailparser `parsed` object and the date string.
  * Attachment-based handlers call findSpreadsheet(); HTML-body handlers use parsed.text.
@@ -168,6 +177,30 @@ const HANDLERS = [
     }
   },
   {
+    name: 'Petpooja Time Sales - Pablo',
+    importSourceKey: 'pabloTimeSalesImportedAt',
+    matches: (s, parsed) => isDetailedSalesReport(s, parsed, /pablo/i),
+    run: async (parsed, date) => {
+      const att = findSpreadsheet(parsed);
+      if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'petpooja-pablo-time-sales', date);
+      return importPetpoojaTimeSalesReport(filePath, 'Pablo', date);
+    }
+  },
+  {
+    name: 'Petpooja Time Sales - Dali',
+    importSourceKey: 'daliTimeSalesImportedAt',
+    matches: (s, parsed) => isDetailedSalesReport(s, parsed, /dali/i),
+    run: async (parsed, date) => {
+      const att = findSpreadsheet(parsed);
+      if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'petpooja-dali-time-sales', date);
+      return importPetpoojaTimeSalesReport(filePath, 'Dali', date);
+    }
+  },
+  {
     name: 'Petpooja Billing - Rabbits',
     importSourceKey: 'rabbitsPetpoojaImportedAt',
     matches: (s) => subjectContains(s, 'report notification') && subjectContains(s, 'rabbit') && !subjectContains(s, 'payment wise'),
@@ -183,6 +216,18 @@ const HANDLERS = [
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'petpooja-rabbits-payment', date);
       return importPetpoojaPaymentSummary(filePath, 'Rabbits', date);
+    }
+  },
+  {
+    name: 'Petpooja Time Sales - Rabbits',
+    importSourceKey: 'rabbitsTimeSalesImportedAt',
+    matches: (s, parsed) => isDetailedSalesReport(s, parsed, /rabbit/i),
+    run: async (parsed, date) => {
+      const att = findSpreadsheet(parsed);
+      if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'petpooja-rabbits-time-sales', date);
+      return importPetpoojaTimeSalesReport(filePath, 'Rabbits', date);
     }
   },
   {
