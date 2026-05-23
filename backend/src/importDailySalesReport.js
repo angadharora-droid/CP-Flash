@@ -33,25 +33,37 @@ function setKpi(rows, name, actual, mtd) {
   if (mtd !== undefined) row.mtd = String(mtd);
 }
 
+function normalizeHeader(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function findColumn(header, names, fallback) {
+  const normalizedNames = names.map(normalizeHeader);
+  const idx = header.findIndex((cell) => normalizedNames.includes(normalizeHeader(cell)));
+  return idx === -1 ? fallback : idx;
+}
+
 function parseInvoiceSheet(rows) {
   // Find header row (has "Date" in col[0])
   const headerIdx = rows.findIndex((r) => String(r[0]).trim() === 'Date');
   if (headerIdx === -1) throw new Error('No header row found');
 
+  const header = rows[headerIdx];
+  const amountCol = findColumn(header, ['Sales', 'Sales A/c', 'Basic Value', 'Value'], 9);
   const byDate = {};
   let grandTotal = null;
 
   for (const row of rows.slice(headerIdx + 1)) {
     // Grand Total row
-    if (String(row[1]).trim() === 'Grand Total') {
-      grandTotal = num(row[9]);
+    if (row.some((cell) => String(cell).trim() === 'Grand Total')) {
+      grandTotal = num(row[amountCol]);
       continue;
     }
 
     const date = parseDate(row[0]);
     if (!date) continue;
 
-    const value = num(row[9]);
+    const value = num(row[amountCol]);
     byDate[date] = (byDate[date] || 0) + value;
   }
 
@@ -62,19 +74,39 @@ function parseInvoiceSheet(rows) {
   return { byDate, latestDate, mtd };
 }
 
+function getInvoiceRows(wb, preferredSheetNames, reportName) {
+  const errors = [];
+  for (const sheetName of preferredSheetNames) {
+    const sheet = wb.Sheets[sheetName];
+    if (!sheet) {
+      errors.push(`${sheetName}: sheet not found`);
+      continue;
+    }
+
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
+    try {
+      parseInvoiceSheet(rows);
+      return { rows, sheetName };
+    } catch (err) {
+      errors.push(`${sheetName}: ${err.message}`);
+    }
+  }
+
+  throw new Error(`No invoice sheet found in ${reportName}. Tried: ${errors.join('; ')}`);
+}
+
 // ─── Purosoul ────────────────────────────────────────────────────────────────
 
 export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate) {
   const wb = XLSX.read(xlsBuffer, { type: 'buffer', cellDates: true });
-  const sheet = wb.Sheets['Sheet1'];
-  if (!sheet) throw new Error('Sheet "Sheet1" not found in Purosoul report');
 
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
+  const { rows, sheetName } = getInvoiceRows(wb, ['Sales'], 'Purosoul report');
   const { latestDate, mtd, byDate } = parseInvoiceSheet(rows);
   if (!latestDate) throw new Error('No dated invoice rows found in Purosoul report');
 
-  const revenueToday = byDate[latestDate];
-  const fileDate = targetDate ?? latestDate;
+  const salesDate = targetDate && Object.hasOwn(byDate, targetDate) ? targetDate : latestDate;
+  const revenueToday = byDate[salesDate];
+  const fileDate = targetDate ?? salesDate;
   const dataPath = path.resolve(process.cwd(), 'data', `${fileDate}.json`);
   const data = await readData(dataPath);
 
@@ -87,13 +119,15 @@ export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate)
   data.importSource = {
     ...(data.importSource ?? {}),
     purosoulSalesFile: fileName,
+    purosoulSalesSheet: sheetName,
+    purosoulSalesDate: salesDate,
     purosoulSalesImportedAt: new Date().toISOString(),
   };
 
   await fs.mkdir(path.dirname(dataPath), { recursive: true });
   await fs.writeFile(dataPath, JSON.stringify({ ...data, date: fileDate, savedAt: new Date().toISOString() }, null, 2));
 
-  return { ok: true, date: fileDate, revenueToday, mtd };
+  return { ok: true, date: fileDate, sheetName, salesDate, revenueToday, mtd };
 }
 
 // ─── Micky's ─────────────────────────────────────────────────────────────────

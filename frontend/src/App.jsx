@@ -976,6 +976,8 @@ function SourceReportPreviewScreen({ preview, loading, error, onClose }) {
   const [activeSheet, setActiveSheet] = useState('');
   const sheets = preview?.sheets ?? [];
   const selectedSheet = sheets.find((sheet) => sheet.name === activeSheet) ?? sheets[0];
+  const selectedRowCount = selectedSheet?.rows?.length ?? 0;
+  const selectedColumnCount = selectedSheet?.rows?.reduce((max, row) => Math.max(max, row.length), 0) ?? 0;
 
   useEffect(() => {
     setActiveSheet(sheets[0]?.name ?? '');
@@ -1041,7 +1043,7 @@ function SourceReportPreviewScreen({ preview, loading, error, onClose }) {
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-app-muted">Showing the first 100 rows and 40 columns from the saved email attachment.</p>
+              <p className="text-xs text-app-muted">Showing {selectedRowCount} rows and {selectedColumnCount} columns from the saved email attachment.</p>
             </div>
           ) : (
             <div className="grid min-h-64 place-items-center text-sm font-medium text-app-muted">No previewable rows found.</div>

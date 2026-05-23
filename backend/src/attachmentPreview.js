@@ -3,7 +3,9 @@ import path from 'node:path';
 import XLSX from 'xlsx';
 import { dailySources } from './sources.js';
 
-export function trimSheetRows(rows, maxRows = 100, maxColumns = 40) {
+const PREVIEW_VERSION = 2;
+
+export function trimSheetRows(rows, maxRows = rows.length, maxColumns = 40) {
   const trimmed = rows
     .slice(0, maxRows)
     .map((row) => row.slice(0, maxColumns).map((cell) => String(cell ?? '').trimEnd()));
@@ -47,7 +49,7 @@ export async function readAttachmentPreview(fileName, attachmentsDir) {
     }))
   })).filter((sheet) => sheet.rows.length);
 
-  return { file: safeName, sheets };
+  return { file: safeName, previewVersion: PREVIEW_VERSION, sheets };
 }
 
 function referencedReportFiles(data = {}) {
@@ -69,7 +71,7 @@ export async function attachReportPreviews(data = {}, attachmentsDir, log = () =
   const reportPreviews = { ...existingPreviews };
 
   for (const file of files) {
-    if (reportPreviews[file]) continue;
+    if (reportPreviews[file]?.previewVersion === PREVIEW_VERSION) continue;
     try {
       reportPreviews[file] = await readAttachmentPreview(file, attachmentsDir);
     } catch (err) {
