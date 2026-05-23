@@ -334,8 +334,8 @@ app.use('/api', (req, res, next) => {
 app.get('/api/seed', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
   const seed = buildSeedData();
-  const saved = await readDailyData(date);
-  if (saved) normalizeRabbitsCategoryBreakdown(saved);
+  const rawSaved = await readDailyData(date);
+  const saved = rawSaved ? mergeDailyData(seed, rawSaved) : null;
   res.json({ seed, saved, date });
 }));
 
