@@ -190,7 +190,7 @@ const HANDLERS = [
   {
     name: "Micky's Daily Sales Report",
     importSourceKey: 'mickysSalesImportedAt',
-    matches: (s) => subjectContains(s, 'micky') && subjectContains(s, 'daily sales report'),
+    matches: (s) => subjectContains(s, 'cp foods') && subjectContains(s, 'daily sales report'),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
