@@ -3,8 +3,7 @@ import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, PageTitle, ReportValue, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
-import { SHEET_URLS } from '../lib/navigation';
+import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, PageTitle, ReportValue, SegmentedControl, TopItemsList } from '../components/DashboardUi';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, numberValue, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
 
@@ -38,7 +37,6 @@ export default function BankPage({ data, date }) {
         subtitle="Daily unit-wise cash visibility."
         badge={badge}
         activeKey="bank"
-        actions={<SheetLink url={SHEET_URLS.bankPosition} />}
       />
       <StatStrip items={[
         {

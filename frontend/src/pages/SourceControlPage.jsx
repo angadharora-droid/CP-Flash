@@ -137,7 +137,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
             const imported = unitSources.filter((source) => source.status === 'Imported').length;
             const reportsCount = unitSources.reduce((sum, source) => sum + sourceReports(source).length, 0);
             return (
-              <details key={unit} className="rounded-xl border border-app-border bg-white/80 px-4 py-3 shadow-sm" open={unit === 'Pablo' || unit === 'Dali' || unit === 'Rabbits'}>
+              <details key={unit} className="rounded-xl border border-app-border bg-white/80 px-4 py-3 shadow-sm">
                 <summary className="flex cursor-pointer select-none flex-wrap items-center justify-between gap-3">
                   <span className="font-extrabold text-app-text">{unit}</span>
                   <span className="text-xs font-bold text-app-muted">{imported}/{unitSources.length} imported · {reportsCount} report{reportsCount === 1 ? '' : 's'}</span>
