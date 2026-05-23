@@ -224,11 +224,29 @@ function mergePnlRows(seedRows = [], savedRows = []) {
   });
 }
 
+function mergeSeedKpiRows(seedRows = [], savedRows = []) {
+  if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
+  const savedById = new Map(savedRows.map((row) => [row.id, row]));
+  const seen = new Set();
+  const mergedSeedRows = seedRows.map((seedRow) => {
+    const savedRow = savedById.get(seedRow.id);
+    seen.add(seedRow.id);
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
+  });
+  const extraRows = savedRows.filter((row) => !seen.has(row.id));
+  return [...mergedSeedRows, ...extraRows];
+}
+
 function mergeDailyData(seed, saved) {
   if (!saved) return seed;
   const merged = {
     ...seed,
     ...saved,
+    fnb: {
+      ...(saved.fnb ?? {}),
+      Pablo: mergeSeedKpiRows(seed.fnb?.Pablo, saved.fnb?.Pablo),
+      Dali: mergeSeedKpiRows(seed.fnb?.Dali, saved.fnb?.Dali)
+    },
     pnl: mergePnlRows(seed.pnl, saved.pnl)
   };
   return normalizeRabbitsCategoryBreakdown({ ...merged, pnl: derivePnlRows(merged) });

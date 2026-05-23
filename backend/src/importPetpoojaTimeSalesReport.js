@@ -22,6 +22,18 @@ function setKpi(rows, name, actual) {
   if (row && actual !== null && actual !== undefined) row.actual = round(actual);
 }
 
+function mergeSeedKpiRows(seedRows = [], savedRows = []) {
+  if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
+  const savedById = new Map(savedRows.map((row) => [row.id, row]));
+  const seen = new Set();
+  const mergedSeedRows = seedRows.map((seedRow) => {
+    const savedRow = savedById.get(seedRow.id);
+    seen.add(seedRow.id);
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
+  });
+  return [...mergedSeedRows, ...savedRows.filter((row) => !seen.has(row.id))];
+}
+
 function parseDate(value) {
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   const text = String(value ?? '').trim();
@@ -127,6 +139,14 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
   catch (err) {
     if (err.code !== 'ENOENT') throw err;
     data = buildSeedData();
+  }
+
+  if (outlet === 'Pablo' || outlet === 'Dali') {
+    const seed = buildSeedData();
+    data.fnb = {
+      ...(data.fnb ?? {}),
+      [outlet]: mergeSeedKpiRows(seed.fnb?.[outlet], data.fnb?.[outlet])
+    };
   }
 
   const targetRows = outlet === 'Rabbits' ? data.rabbits : data.fnb?.[outlet];

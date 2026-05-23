@@ -96,6 +96,19 @@ function normalizeRabbitsCategoryBreakdown(seedRows = [], savedRows = []) {
   return inserted ? nextRows : [...savedRows, ...normalizedCategoryRows];
 }
 
+function mergeSeedKpiRows(seedRows = [], savedRows = []) {
+  if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
+  const savedById = new Map(savedRows.map((row) => [row.id, row]));
+  const seen = new Set();
+  const mergedSeedRows = seedRows.map((seedRow) => {
+    const savedRow = savedById.get(seedRow.id);
+    seen.add(seedRow.id);
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
+  });
+  const extraRows = savedRows.filter((row) => !seen.has(row.id));
+  return [...mergedSeedRows, ...extraRows];
+}
+
 function mergeWithSeed(seed, saved, previous = null) {
   if (!saved) return seed;
   const merged = { ...seed, ...saved };
@@ -109,6 +122,11 @@ function mergeWithSeed(seed, saved, previous = null) {
       merged[key] = seedVal;
     }
   }
+  merged.fnb = {
+    ...(merged.fnb ?? {}),
+    Pablo: mergeSeedKpiRows(seed.fnb?.Pablo, merged.fnb?.Pablo),
+    Dali: mergeSeedKpiRows(seed.fnb?.Dali, merged.fnb?.Dali)
+  };
   merged.rabbits = normalizeRabbitsCategoryBreakdown(seed.rabbits, merged.rabbits);
   merged.pnl = mergePnlRows(seed.pnl, saved.pnl, previous?.pnl);
   merged.pnl = derivePnlRows(merged);
