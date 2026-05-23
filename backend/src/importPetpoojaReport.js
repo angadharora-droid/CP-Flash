@@ -139,6 +139,36 @@ function parseCategoryBreakdown(html) {
   return categories;
 }
 
+function parseComboCategorySales(html) {
+  const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  let inCategoryTable = false;
+  let comboSales = 0;
+
+  for (const row of rows) {
+    const cells = [...row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+      .map((m) => stripHtmlTags(m[1]))
+      .filter(Boolean);
+    if (!cells.length) continue;
+
+    const normalized = cells.map(normalizeText);
+    const rowText = normalized.join(' ');
+
+    if (normalized.includes('category') && normalized.includes('qty') && rowText.includes('total sales')) {
+      inCategoryTable = true;
+      continue;
+    }
+
+    if (!inCategoryTable) continue;
+    if (rowText.includes('last 7 days')) break;
+    if (cells.length < 6) continue;
+    if (!/mix|match|combo/i.test(cells[0])) continue;
+
+    comboSales += num(cells[cells.length - 1]) ?? 0;
+  }
+
+  return comboSales;
+}
+
 function get(map, ...labels) {
   for (const label of labels) {
     if (map.has(label)) return map.get(label);
@@ -157,6 +187,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const values = parseHtml(emailHtml);
   const topCategories = parseTopCategories(emailHtml);
   const categoryBreakdown = parseCategoryBreakdown(emailHtml);
+  const comboCategorySales = parseComboCategorySales(emailHtml);
 
   const dataPath = path.resolve(process.cwd(), 'data', `${outDate}.json`);
   let data;
@@ -221,6 +252,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     }
     setKpi('Lunch Revenue', get(values, 'lunch', 'lunch sales', 'lunch revenue'));
     setKpi('Dinner Revenue', get(values, 'dinner', 'dinner sales', 'dinner revenue'));
+    if (grossSales) setKpi('Combo Sales %', (comboCategorySales / grossSales) * 100);
     if (topCategories.length) {
       data.topItems = {
         ...(data.topItems ?? {}),
