@@ -169,6 +169,18 @@ function parseComboCategorySales(html) {
   return comboSales;
 }
 
+function mergeSeedKpiRows(seedRows = [], savedRows = []) {
+  if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
+  const savedById = new Map(savedRows.map((row) => [row.id, row]));
+  const seen = new Set();
+  const mergedSeedRows = seedRows.map((seedRow) => {
+    const savedRow = savedById.get(seedRow.id);
+    seen.add(seedRow.id);
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
+  });
+  return [...mergedSeedRows, ...savedRows.filter((row) => !seen.has(row.id))];
+}
+
 function get(map, ...labels) {
   for (const label of labels) {
     if (map.has(label)) return map.get(label);
@@ -200,6 +212,12 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
 
   if (outlet === 'Rabbits') {
     normalizeRabbitsCategoryBreakdown(data);
+  } else if (outlet === 'Pablo' || outlet === 'Dali') {
+    const seed = buildSeedData();
+    data.fnb = {
+      ...(data.fnb ?? {}),
+      [outlet]: mergeSeedKpiRows(seed.fnb?.[outlet], data.fnb?.[outlet])
+    };
   }
 
   const fnbRows = outlet === 'Pablo'
