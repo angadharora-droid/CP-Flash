@@ -8,6 +8,8 @@ import { SHEET_URLS } from '../lib/navigation';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
 
+const AUTO_REFRESH_MS = 2 * 60 * 1000;
+
 export default function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData }) {
   const [sourceStatus, setSourceStatus] = useState(null);
   const [emailImport, setEmailImport] = useState(null);
