@@ -55,6 +55,16 @@ function subjectContains(subject, ...keywords) {
   return keywords.every((kw) => lower.includes(kw.toLowerCase()));
 }
 
+function messageText(parsed) {
+  const attachments = parsed.attachments ?? [];
+  return [
+    parsed.subject,
+    parsed.from?.text,
+    parsed.from?.value?.map((addr) => addr.address).join(' '),
+    attachments.map((att) => att.filename).join(' ')
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
 function shouldRefreshSheetSource(importSource, key) {
   if (process.env.FORCE_IMPORT === 'true') return true;
   const importedAt = importSource?.[key];
@@ -178,7 +188,7 @@ const HANDLERS = [
   {
     name: 'Purosoul Daily Sales Report',
     importSourceKey: 'purosoulSalesImportedAt',
-    matches: (s) => subjectContains(s, 'amarjit fiscal') && subjectContains(s, 'daily sales report'),
+    matches: (s, parsed) => subjectContains(s, 'daily sales report') && /amarjit fiscal|afvpl/i.test(messageText(parsed)),
     currentFile: (file) => /AFVPL/i.test(file),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
@@ -191,7 +201,7 @@ const HANDLERS = [
   {
     name: "Micky's Daily Sales Report",
     importSourceKey: 'mickysSalesImportedAt',
-    matches: (s) => subjectContains(s, 'cp foods') && subjectContains(s, 'daily sales report'),
+    matches: (s, parsed) => subjectContains(s, 'daily sales report') && /cp foods|cp_foods|cpfoods/i.test(messageText(parsed)),
     currentFile: (file) => /CP_FOODS|CP FOODS/i.test(file),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
@@ -208,7 +218,7 @@ async function processMessage(msg, date, existingData) {
   const subject = parsed.subject || '';
   log(`Processing: "${subject}"`);
 
-  const handler = HANDLERS.find((h) => h.matches(subject));
+  const handler = HANDLERS.find((h) => h.matches(subject, parsed));
   if (!handler) {
     log('  No handler — skipping.');
     return;
