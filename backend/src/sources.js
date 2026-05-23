@@ -4,7 +4,7 @@ export const dailySources = [
   {
     id: 'bank-position',
     label: 'Bank Position',
-    unit: 'Group',
+    unit: 'Bank Statement',
     type: 'Google Sheet',
     paths: ['bankPosition'],
     meta: { importedAt: 'bankPositionImportedAt' },
@@ -167,14 +167,6 @@ export const dailySources = [
       importedAt: 'purosoulFlashImportedAt',
       reportLabels: { purosoulFlashFile: 'Flash Report' }
     },
-    cadence: 'Daily'
-  },
-  {
-    id: 'settlement',
-    label: 'Settlement Reconciliation',
-    unit: 'Group',
-    type: 'Mail / Sheet',
-    paths: ['settlement'],
     cadence: 'Daily'
   }
 ];
