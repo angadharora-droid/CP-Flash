@@ -34,7 +34,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
 const SHEET_REFRESH_MINUTES = Number(process.env.SHEET_REFRESH_MINUTES) || 30;
 const SHEET_REFRESH_MS = SHEET_REFRESH_MINUTES * 60 * 1000;
-const TIME_SALES_IMPORT_VERSION = 2;
+const TIME_SALES_IMPORT_VERSION = 3;
 
 const IMAP_HOST = process.env.REPORT_IMAP_HOST || 'imap.rediffmailpro.com';
 const IMAP_PORT = Number(process.env.REPORT_IMAP_PORT) || 993;
