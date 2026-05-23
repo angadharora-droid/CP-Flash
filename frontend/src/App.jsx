@@ -1149,6 +1149,16 @@ function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData
     : emailImport?.finishedAt
       ? `Last email import ${emailImport.exitCode === 0 ? 'finished' : 'failed'} at ${formatTime(emailImport.finishedAt)}`
       : 'Ready to run email import';
+  const reportLabel = (report, index) => report?.label || `Report ${index + 1}`;
+  const reportFile = (report) => typeof report === 'string' ? report : report?.file;
+  const sourceReports = (source) => (source.reports?.length
+    ? source.reports
+    : (source.reportFiles ?? []).map((file, index) => ({ label: `Report ${index + 1}`, file })));
+  const groupedSources = sources.reduce((groups, source) => {
+    const key = source.unit || 'Other';
+    groups[key] = [...(groups[key] ?? []), source];
+    return groups;
+  }, {});
 
   return (
     <>
@@ -1181,43 +1191,65 @@ function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData
             {error}
           </div>
         ) : null}
-        <DataTable
-          columns={['Source', 'Unit', 'Type', 'Status', 'Last Import', 'File / Notes']}
-          rows={sources.map((source) => ({
-            key: source.id,
-            cells: [
-              <span className="font-semibold text-app-text">{source.label}</span>,
-              source.unit,
-              source.type,
-              <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${statusTone[source.status]}`}>{source.status}</span>,
-              formatTime(source.importedAt),
-              <div className="max-w-[260px] sm:max-w-xl">
-                <div className="break-words font-medium text-app-text">{source.file || '-'}</div>
-                {source.notes ? <div className="mt-1 text-xs leading-5 text-app-muted">{source.notes}</div> : null}
-                {source.sheetUrl ? <div className="mt-2"><SheetLink url={source.sheetUrl} label="Open Sheet" /></div> : null}
-                {source.reportFiles?.length ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {source.reportFiles.map((file, index) => (
-                      <button
-                        key={`${source.id}-${file}-${index}`}
-                        type="button"
-                        onClick={() => onOpenReportPreview(source, file)}
-                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-app-border bg-white/85 px-3.5 py-2 text-xs font-bold text-app-text shadow-card backdrop-blur-xl transition-all duration-200 hover:-translate-y-px hover:border-app-borderStrong hover:bg-white hover:shadow-cardHover"
-                      >
-                        <span className="flex size-5 items-center justify-center rounded-md bg-app-accentTint text-app-accentDark">
-                          <svg className="size-3" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 12.75h3m-3 3h3M6.75 3h6.879a3 3 0 012.121.879l2.871 2.871a3 3 0 01.879 2.121v10.379A1.75 1.75 0 0117.75 21H6.75A1.75 1.75 0 015 19.25V4.75C5 3.784 5.784 3 6.75 3z" />
-                          </svg>
-                        </span>
-                        {source.reportFiles.length > 1 ? `Preview ${index + 1}` : 'Preview Report'}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ]
-          }))}
-        />
+        <div className="space-y-3">
+          {Object.entries(groupedSources).map(([unit, unitSources]) => {
+            const imported = unitSources.filter((source) => source.status === 'Imported').length;
+            const reportsCount = unitSources.reduce((sum, source) => sum + sourceReports(source).length + (source.sheetUrl ? 1 : 0), 0);
+            return (
+              <details key={unit} className="rounded-xl border border-app-border bg-white/80 px-4 py-3 shadow-sm" open={unit === 'Pablo' || unit === 'Dali' || unit === 'Rabbits'}>
+                <summary className="flex cursor-pointer select-none flex-wrap items-center justify-between gap-3">
+                  <span className="font-extrabold text-app-text">{unit}</span>
+                  <span className="text-xs font-bold text-app-muted">{imported}/{unitSources.length} imported · {reportsCount} report{reportsCount === 1 ? '' : 's'}</span>
+                </summary>
+                <div className="mt-3 divide-y divide-app-divider">
+                  {unitSources.map((source) => (
+                    <div key={source.id} className="grid gap-3 py-3 lg:grid-cols-[1.1fr_0.8fr_0.8fr_1.8fr]">
+                      <div>
+                        <div className="font-bold text-app-text">{source.label}</div>
+                        <div className="mt-1 text-xs font-medium text-app-muted">{source.type}</div>
+                      </div>
+                      <div>
+                        <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${statusTone[source.status]}`}>{source.status}</span>
+                      </div>
+                      <div className="text-xs font-semibold text-app-muted">{formatTime(source.importedAt)}</div>
+                      <div className="min-w-0">
+                        {source.notes ? <div className="mb-2 text-xs leading-5 text-app-muted">{source.notes}</div> : null}
+                        {source.sheetUrl ? <div className="mb-2"><SheetLink url={source.sheetUrl} label="Open Source Sheet" /></div> : null}
+                        {sourceReports(source).length ? (
+                          <details className="rounded-lg border border-app-border bg-app-panel/60 px-3 py-2">
+                            <summary className="cursor-pointer select-none text-xs font-extrabold text-app-accentDark">
+                              Reports ({sourceReports(source).length})
+                            </summary>
+                            <div className="mt-2 space-y-2">
+                              {sourceReports(source).map((report, index) => {
+                                const file = reportFile(report);
+                                return (
+                                  <div key={`${source.id}-${file}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-2">
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-bold text-app-text">{reportLabel(report, index)}</div>
+                                      <div className="break-all text-[11px] font-medium text-app-muted">{file}</div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => onOpenReportPreview(source, file)}
+                                      className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-app-border bg-white px-3 py-1.5 text-xs font-bold text-app-text shadow-sm transition-colors hover:border-app-borderStrong hover:bg-app-accentTint"
+                                    >
+                                      Preview
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </details>
+                        ) : source.file ? <div className="break-all text-xs font-medium text-app-muted">{source.file}</div> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            );
+          })}
+        </div>
       </SectionCard>
     </>
   );

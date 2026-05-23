@@ -17,7 +17,12 @@ export const dailySources = [
     unit: 'CP Nagpur',
     type: 'Mail / Excel',
     paths: ['hotels', 'pnl', 'settlement', 'banquetToday'],
-    meta: { file: 'file', importedAt: 'importedAt', notes: 'notes' },
+    meta: {
+      file: 'file',
+      importedAt: 'importedAt',
+      notes: 'notes',
+      reportLabels: { file: 'Night Audit Report' }
+    },
     cadence: 'Daily'
   },
   {
@@ -26,7 +31,12 @@ export const dailySources = [
     unit: 'CP Nagpur',
     type: 'Mail / Excel',
     paths: ['hotels', 'pnl'],
-    meta: { file: 'occupancyFile', importedAt: 'occupancyImportedAt', notes: 'occupancyNotes' },
+    meta: {
+      file: 'occupancyFile',
+      importedAt: 'occupancyImportedAt',
+      notes: 'occupancyNotes',
+      reportLabels: { occupancyFile: 'Occupancy Report' }
+    },
     cadence: 'Daily'
   },
   {
@@ -35,7 +45,12 @@ export const dailySources = [
     unit: 'Pablo',
     type: 'Excel / Sheet',
     paths: ['fnb', 'pnl'],
-    meta: { file: 'pabloCostFile', importedAt: 'pabloCostImportedAt', notes: 'pabloCostNotes' },
+    meta: {
+      file: 'pabloCostFile',
+      importedAt: 'pabloCostImportedAt',
+      notes: 'pabloCostNotes',
+      reportLabels: { pabloCostFile: 'Cost Sheet' }
+    },
     cadence: 'Daily',
     sheetUrl: 'https://docs.google.com/spreadsheets/d/1SliCSYQIhRekgYy-6YN0nn5nFtlZQooH/'
   },
@@ -45,19 +60,44 @@ export const dailySources = [
     unit: 'Dali',
     type: 'Excel / Sheet',
     paths: ['fnb', 'pnl'],
-    meta: { file: 'daliCostFile', importedAt: 'daliCostImportedAt', notes: 'daliCostNotes' },
+    meta: {
+      file: 'daliCostFile',
+      importedAt: 'daliCostImportedAt',
+      notes: 'daliCostNotes',
+      reportLabels: { daliCostFile: 'Cost Sheet' }
+    },
     cadence: 'Daily',
     sheetUrl: 'https://docs.google.com/spreadsheets/d/1cgU6utD59v57HwlunQtSBCsVfpiMwX7F/'
   },
   {
-    id: 'fnb-sales',
-    label: 'F&B Sales EOD',
-    unit: 'Pablo / Dali',
+    id: 'pablo-sales',
+    label: 'Pablo Sales Reports',
+    unit: 'Pablo',
     type: 'Petpooja / Mail',
     paths: ['fnb', 'topItems', 'settlement'],
     meta: {
-      files: ['pabloPaymentFile', 'daliPaymentFile', 'pabloTimeSalesFile', 'daliTimeSalesFile'],
-      importedAt: 'pabloPetpoojaImportedAt'
+      files: ['pabloPaymentFile', 'pabloTimeSalesFile'],
+      importedAtFields: ['pabloPetpoojaImportedAt', 'pabloPaymentImportedAt', 'pabloTimeSalesImportedAt'],
+      reportLabels: {
+        pabloPaymentFile: 'Payment Wise Summary',
+        pabloTimeSalesFile: 'Item Wise Bill Report'
+      }
+    },
+    cadence: 'Daily'
+  },
+  {
+    id: 'dali-sales',
+    label: 'Dali Sales Reports',
+    unit: 'Dali',
+    type: 'Petpooja / Mail',
+    paths: ['fnb', 'topItems', 'settlement'],
+    meta: {
+      files: ['daliPaymentFile', 'daliTimeSalesFile'],
+      importedAtFields: ['daliPetpoojaImportedAt', 'daliPaymentImportedAt', 'daliTimeSalesImportedAt'],
+      reportLabels: {
+        daliPaymentFile: 'Payment Wise Summary',
+        daliTimeSalesFile: 'Item Wise Bill Report'
+      }
     },
     cadence: 'Daily'
   },
@@ -70,7 +110,11 @@ export const dailySources = [
     meta: {
       file: 'rabbitsPaymentFile',
       files: ['rabbitsTimeSalesFile'],
-      importedAt: 'rabbitsPetpoojaImportedAt'
+      importedAtFields: ['rabbitsPetpoojaImportedAt', 'rabbitsPaymentImportedAt', 'rabbitsTimeSalesImportedAt'],
+      reportLabels: {
+        rabbitsPaymentFile: 'Payment Wise Summary',
+        rabbitsTimeSalesFile: 'Item Wise Bill Report'
+      }
     },
     cadence: 'Daily'
   },
@@ -80,7 +124,12 @@ export const dailySources = [
     unit: "Micky's",
     type: 'Mail / Excel',
     paths: ['mickys'],
-    meta: { file: 'mickysSalesFile', importedAt: 'mickysSalesImportedAt', filePattern: /CP_FOODS|CP FOODS/i },
+    meta: {
+      file: 'mickysSalesFile',
+      importedAt: 'mickysSalesImportedAt',
+      filePattern: /CP_FOODS|CP FOODS/i,
+      reportLabels: { mickysSalesFile: 'Daily Sales Report' }
+    },
     cadence: 'Daily'
   },
   {
@@ -99,7 +148,12 @@ export const dailySources = [
     unit: 'Purosoul',
     type: 'Mail / Excel',
     paths: ['purosoul', 'purosoulSku'],
-    meta: { file: 'purosoulSalesFile', importedAt: 'purosoulSalesImportedAt', filePattern: /AFVPL/i },
+    meta: {
+      file: 'purosoulSalesFile',
+      importedAt: 'purosoulSalesImportedAt',
+      filePattern: /AFVPL/i,
+      reportLabels: { purosoulSalesFile: 'Daily Sales Report' }
+    },
     cadence: 'Daily'
   },
   {
@@ -108,7 +162,11 @@ export const dailySources = [
     unit: 'Purosoul',
     type: 'Excel / CSV',
     paths: ['purosoulSku'],
-    meta: { file: 'purosoulFlashFile', importedAt: 'purosoulFlashImportedAt' },
+    meta: {
+      file: 'purosoulFlashFile',
+      importedAt: 'purosoulFlashImportedAt',
+      reportLabels: { purosoulFlashFile: 'Flash Report' }
+    },
     cadence: 'Daily'
   },
   {
@@ -139,18 +197,30 @@ function hasEnteredValue(value) {
 function pickMeta(importSource, source) {
   if (!source.meta) return {};
 
-  const files = [
-    source.meta.file ? importSource[source.meta.file] : '',
-    ...(source.meta.files ?? []).map((key) => importSource[key])
-  ].filter((file) => isFilled(file))
-    .filter((file) => !source.meta.filePattern || source.meta.filePattern.test(String(file)));
-  const reportFiles = files.filter((file) => /\.(xlsx|xls|csv)$/i.test(String(file)));
-  const importedFile = files[0] ?? '';
+  const fileKeys = [
+    source.meta.file,
+    ...(source.meta.files ?? [])
+  ].filter(Boolean);
+  const reports = fileKeys
+    .map((key) => ({ key, label: source.meta.reportLabels?.[key] ?? source.label, file: importSource[key] }))
+    .filter((report) => isFilled(report.file))
+    .filter((report) => !source.meta.filePattern || source.meta.filePattern.test(String(report.file)));
+  const reportFiles = reports
+    .map((report) => report.file)
+    .filter((file) => /\.(xlsx|xls|csv)$/i.test(String(file)));
+  const importedFile = reports[0]?.file ?? '';
+  const importedAtFields = source.meta.importedAtFields ?? [source.meta.importedAt];
+  const importedAt = importedAtFields
+    .map((key) => importSource[key])
+    .filter(isFilled)
+    .sort()
+    .at(-1) ?? '';
 
   return {
     file: importedFile,
     reportFiles,
-    importedAt: importedFile || !source.meta.filePattern ? importSource[source.meta.importedAt] ?? '' : '',
+    reports,
+    importedAt: importedFile || !source.meta.filePattern ? importedAt : '',
     notes: importSource[source.meta.notes] ?? ''
   };
 }
@@ -169,6 +239,7 @@ export function buildSourceStatus(data = {}) {
       importedAt: meta.importedAt,
       file: meta.file,
       reportFiles: meta.reportFiles ?? [],
+      reports: meta.reports ?? [],
       notes: meta.notes
     };
   });
