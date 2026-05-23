@@ -134,15 +134,14 @@ export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate)
 
 export async function importMickysSalesReport(xlsBuffer, fileName, targetDate) {
   const wb = XLSX.read(xlsBuffer, { type: 'buffer', cellDates: true });
-  const sheet = wb.Sheets['Sales'];
-  if (!sheet) throw new Error('Sheet "Sales" not found in Micky\'s report');
 
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
+  const { rows, sheetName } = getInvoiceRows(wb, ['Sheet1'], 'Micky\'s report');
   const { latestDate, mtd, byDate } = parseInvoiceSheet(rows);
   if (!latestDate) throw new Error('No dated invoice rows found in Micky\'s report');
 
-  const revenueToday = byDate[latestDate];
-  const fileDate = targetDate ?? latestDate;
+  const salesDate = targetDate && Object.hasOwn(byDate, targetDate) ? targetDate : latestDate;
+  const revenueToday = byDate[salesDate];
+  const fileDate = targetDate ?? salesDate;
   const dataPath = path.resolve(process.cwd(), 'data', `${fileDate}.json`);
   const data = await readData(dataPath);
 
@@ -155,11 +154,13 @@ export async function importMickysSalesReport(xlsBuffer, fileName, targetDate) {
   data.importSource = {
     ...(data.importSource ?? {}),
     mickysSalesFile: fileName,
+    mickysSalesSheet: sheetName,
+    mickysSalesDate: salesDate,
     mickysSalesImportedAt: new Date().toISOString(),
   };
 
   await fs.mkdir(path.dirname(dataPath), { recursive: true });
   await fs.writeFile(dataPath, JSON.stringify({ ...data, date: fileDate, savedAt: new Date().toISOString() }, null, 2));
 
-  return { ok: true, date: fileDate, revenueToday, mtd };
+  return { ok: true, date: fileDate, sheetName, salesDate, revenueToday, mtd };
 }
