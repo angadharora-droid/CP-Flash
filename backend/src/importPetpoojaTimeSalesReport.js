@@ -49,6 +49,12 @@ function parseHour(value) {
   if (value instanceof Date) return value.getHours();
   if (typeof value === 'number') return Math.floor(value * 24) % 24;
   const text = String(value ?? '').trim().toLowerCase();
+  const timestamp = text.match(/^\d{4}-\d{1,2}-\d{1,2}\s+(\d{1,2})(?::\d{2})/);
+  if (timestamp) {
+    const hour = Number(timestamp[1]);
+    return hour >= 0 && hour <= 23 ? hour : null;
+  }
+
   const match = text.match(/(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*(am|pm)?/);
   if (!match) return null;
   let hour = Number(match[1]);
@@ -61,8 +67,8 @@ function parseHour(value) {
 function findHeader(rows) {
   for (let rowIndex = 0; rowIndex < Math.min(rows.length, 20); rowIndex += 1) {
     const normalized = rows[rowIndex].map(norm);
-    const hasTime = normalized.some((cell) => ['time', 'ordertime', 'billtime', 'invoicetime', 'settlementtime'].includes(cell));
-    const hasAmount = normalized.some((cell) => /^(netamount|nettotal|total|amount|grandtotal|billamount|sales|totalsales)$/.test(cell));
+    const hasTime = normalized.some((cell) => /time/.test(cell));
+    const hasAmount = normalized.some((cell) => /(net|gross|grand|bill|total|amount|sale|subtotal)/.test(cell));
     if (hasTime && hasAmount) return rowIndex;
   }
   return -1;
@@ -107,8 +113,8 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
   const timeCol = findColumn(header, ['Time', 'Bill Time', 'Invoice Time', 'Order Time', 'Settlement Time'], [/time/]);
   const amountCol = findColumn(
     header,
-    ['Net Amount', 'Net Total', 'Bill Amount', 'Grand Total', 'Total', 'Amount', 'Sales', 'Total Sales'],
-    [/net.*amount/, /grand.*total/, /bill.*amount/, /^amount$/, /^total$/, /sales/]
+    ['Net Amount', 'Net Total', 'Net Sales', 'Bill Amount', 'Grand Total', 'Sub Total', 'Subtotal', 'Total', 'Amount', 'Sales', 'Total Sales'],
+    [/net.*amount/, /net.*sale/, /grand.*total/, /bill.*amount/, /sub.*total/, /^amount$/, /^total$/, /sales/]
   );
   const statusCol = findColumn(header, ['Status', 'Order Status', 'Bill Status'], [/status/]);
 
@@ -161,6 +167,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     ...(data.importSource ?? {}),
     [`${key}TimeSalesFile`]: path.basename(file),
     [`${key}TimeSalesImportedAt`]: new Date().toISOString(),
+    [`${key}TimeSalesVersion`]: 2,
     [`${key}TimeSalesSplit`]: split
   };
 

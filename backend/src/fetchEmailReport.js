@@ -34,6 +34,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
 const SHEET_REFRESH_MINUTES = Number(process.env.SHEET_REFRESH_MINUTES) || 30;
 const SHEET_REFRESH_MS = SHEET_REFRESH_MINUTES * 60 * 1000;
+const TIME_SALES_IMPORT_VERSION = 2;
 
 const IMAP_HOST = process.env.REPORT_IMAP_HOST || 'imap.rediffmailpro.com';
 const IMAP_PORT = Number(process.env.REPORT_IMAP_PORT) || 993;
@@ -80,9 +81,9 @@ function logSheetSkip(label, importedAt) {
   log(`${label} refreshed recently — skipping until ${nextAt.toLocaleString('en-IN')}.`);
 }
 
-/** Accepts .xls, .xlsx, .XLS, .XLSX */
+/** Accepts spreadsheet attachments */
 function findSpreadsheet(parsed) {
-  return parsed.attachments?.find((a) => /\.(xlsx|xls)$/i.test(a.filename ?? ''));
+  return parsed.attachments?.find((a) => /\.(xlsx|xls|csv)$/i.test(a.filename ?? ''));
 }
 
 function logAttachments(parsed) {
@@ -143,13 +144,13 @@ const HANDLERS = [
   {
     name: 'Petpooja Billing – Pablo',
     importSourceKey: 'pabloPetpoojaImportedAt',
-    matches: (s) => subjectContains(s, 'report notification') && subjectContains(s, 'pablo') && !subjectContains(s, 'payment wise'),
+    matches: (s, parsed) => !findSpreadsheet(parsed) && subjectContains(s, 'report notification') && subjectContains(s, 'pablo') && !subjectContains(s, 'payment wise'),
     run: async (parsed, date) => importPetpoojaReport(parsed.html || '', 'Pablo', date)
   },
   {
     name: 'Petpooja Billing – Dali',
     importSourceKey: 'daliPetpoojaImportedAt',
-    matches: (s) => subjectContains(s, 'report notification') && subjectContains(s, 'dali') && !subjectContains(s, 'payment wise'),
+    matches: (s, parsed) => !findSpreadsheet(parsed) && subjectContains(s, 'report notification') && subjectContains(s, 'dali') && !subjectContains(s, 'payment wise'),
     run: async (parsed, date) => importPetpoojaReport(parsed.html || '', 'Dali', date)
   },
   {
@@ -180,6 +181,8 @@ const HANDLERS = [
     name: 'Petpooja Time Sales - Pablo',
     importSourceKey: 'pabloTimeSalesImportedAt',
     matches: (s, parsed) => isDetailedSalesReport(s, parsed, /pablo/i),
+    currentFile: (file) => /item.*bill|item_bill/i.test(file),
+    importVersion: TIME_SALES_IMPORT_VERSION,
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
@@ -192,6 +195,8 @@ const HANDLERS = [
     name: 'Petpooja Time Sales - Dali',
     importSourceKey: 'daliTimeSalesImportedAt',
     matches: (s, parsed) => isDetailedSalesReport(s, parsed, /dali/i),
+    currentFile: (file) => /item.*bill|item_bill/i.test(file),
+    importVersion: TIME_SALES_IMPORT_VERSION,
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
@@ -203,7 +208,7 @@ const HANDLERS = [
   {
     name: 'Petpooja Billing - Rabbits',
     importSourceKey: 'rabbitsPetpoojaImportedAt',
-    matches: (s) => subjectContains(s, 'report notification') && subjectContains(s, 'rabbit') && !subjectContains(s, 'payment wise'),
+    matches: (s, parsed) => !findSpreadsheet(parsed) && subjectContains(s, 'report notification') && subjectContains(s, 'rabbit') && !subjectContains(s, 'payment wise'),
     run: async (parsed, date) => importPetpoojaReport(parsed.html || '', 'Rabbits', date)
   },
   {
@@ -222,6 +227,8 @@ const HANDLERS = [
     name: 'Petpooja Time Sales - Rabbits',
     importSourceKey: 'rabbitsTimeSalesImportedAt',
     matches: (s, parsed) => isDetailedSalesReport(s, parsed, /rabbit/i),
+    currentFile: (file) => /item.*bill|item_bill/i.test(file),
+    importVersion: TIME_SALES_IMPORT_VERSION,
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
@@ -274,12 +281,15 @@ async function processMessage(msg, date, existingData) {
   if (handler.importSourceKey && existingData?.importSource?.[handler.importSourceKey]) {
     const att = findSpreadsheet(parsed);
     const existingFileKey = handler.importSourceKey.replace(/ImportedAt$/, 'File');
+    const existingVersionKey = handler.importSourceKey.replace(/ImportedAt$/, 'Version');
     const existingFile = existingData?.importSource?.[existingFileKey] ?? '';
+    const existingVersionIsCurrent = !handler.importVersion
+      || existingData?.importSource?.[existingVersionKey] === handler.importVersion;
     const importedFileIsCurrent = handler.currentFile
       ? handler.currentFile(String(existingFile)) && (!att?.filename || handler.currentFile(String(att.filename)))
       : true;
 
-    if (importedFileIsCurrent) {
+    if (importedFileIsCurrent && existingVersionIsCurrent) {
       log(`  Already imported today — skipping.`);
       return;
     }
