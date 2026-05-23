@@ -160,10 +160,10 @@ function parseComboCategorySales(html) {
 
     if (!inCategoryTable) continue;
     if (rowText.includes('last 7 days')) break;
-    if (cells.length < 6) continue;
     if (!/mix|match|combo/i.test(cells[0])) continue;
 
-    comboSales += num(cells[cells.length - 1]) ?? 0;
+    const numericCells = cells.map(num).filter((value) => value !== null);
+    comboSales += numericCells.at(-1) ?? 0;
   }
 
   return comboSales;
