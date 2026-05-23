@@ -1180,6 +1180,7 @@ function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData
   const reportLabel = (report, index) => report?.label || `Report ${index + 1}`;
   const reportFile = (report) => typeof report === 'string' ? report : report?.file;
   const sourceReports = (source) => {
+    if (source.sheetUrl) return [];
     return source.reports?.length
       ? source.reports
       : (source.reportFiles ?? []).map((file, index) => ({ label: `Report ${index + 1}`, file }));
