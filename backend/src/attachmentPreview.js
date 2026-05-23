@@ -59,7 +59,11 @@ function referencedReportFiles(data = {}) {
     return [
       source.meta.file ? importSource[source.meta.file] : '',
       ...(source.meta.files ?? []).map((key) => importSource[key])
-    ].filter((file) => file && /\.(xlsx|xls|csv)$/i.test(String(file)));
+    ].filter((file) =>
+      file
+      && /\.(xlsx|xls|csv)$/i.test(String(file))
+      && (!source.meta.filePattern || source.meta.filePattern.test(String(file)))
+    );
   });
 }
 

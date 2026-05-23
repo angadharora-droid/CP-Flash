@@ -79,7 +79,7 @@ export const dailySources = [
     unit: "Micky's",
     type: 'Mail / Excel',
     paths: ['mickys'],
-    meta: { file: 'mickysSalesFile', importedAt: 'mickysSalesImportedAt' },
+    meta: { file: 'mickysSalesFile', importedAt: 'mickysSalesImportedAt', filePattern: /CP_FOODS|CP FOODS/i },
     cadence: 'Daily'
   },
   {
@@ -98,7 +98,7 @@ export const dailySources = [
     unit: 'Purosoul',
     type: 'Mail / Excel',
     paths: ['purosoul', 'purosoulSku'],
-    meta: { file: 'purosoulSalesFile', importedAt: 'purosoulSalesImportedAt' },
+    meta: { file: 'purosoulSalesFile', importedAt: 'purosoulSalesImportedAt', filePattern: /AFVPL/i },
     cadence: 'Daily'
   },
   {
@@ -141,13 +141,15 @@ function pickMeta(importSource, source) {
   const files = [
     source.meta.file ? importSource[source.meta.file] : '',
     ...(source.meta.files ?? []).map((key) => importSource[key])
-  ].filter((file) => isFilled(file));
+  ].filter((file) => isFilled(file))
+    .filter((file) => !source.meta.filePattern || source.meta.filePattern.test(String(file)));
   const reportFiles = files.filter((file) => /\.(xlsx|xls|csv)$/i.test(String(file)));
+  const importedFile = files[0] ?? '';
 
   return {
-    file: files[0] ?? '',
+    file: importedFile,
     reportFiles,
-    importedAt: importSource[source.meta.importedAt] ?? '',
+    importedAt: importedFile || !source.meta.filePattern ? importSource[source.meta.importedAt] ?? '' : '',
     notes: importSource[source.meta.notes] ?? ''
   };
 }
