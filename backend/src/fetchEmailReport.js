@@ -179,6 +179,7 @@ const HANDLERS = [
     name: 'Purosoul Daily Sales Report',
     importSourceKey: 'purosoulSalesImportedAt',
     matches: (s) => subjectContains(s, 'amarjit fiscal') && subjectContains(s, 'daily sales report'),
+    currentFile: (file) => /AFVPL/i.test(file),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
@@ -191,6 +192,7 @@ const HANDLERS = [
     name: "Micky's Daily Sales Report",
     importSourceKey: 'mickysSalesImportedAt',
     matches: (s) => subjectContains(s, 'cp foods') && subjectContains(s, 'daily sales report'),
+    currentFile: (file) => /CP_FOODS|CP FOODS/i.test(file),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
@@ -215,8 +217,19 @@ async function processMessage(msg, date, existingData) {
   log(`  → Handler: ${handler.name}`);
 
   if (handler.importSourceKey && existingData?.importSource?.[handler.importSourceKey]) {
-    log(`  Already imported today — skipping.`);
-    return;
+    const att = findSpreadsheet(parsed);
+    const existingFileKey = handler.importSourceKey.replace(/ImportedAt$/, 'File');
+    const existingFile = existingData?.importSource?.[existingFileKey] ?? '';
+    const importedFileIsCurrent = handler.currentFile
+      ? handler.currentFile(String(existingFile)) && (!att?.filename || handler.currentFile(String(att.filename)))
+      : true;
+
+    if (importedFileIsCurrent) {
+      log(`  Already imported today — skipping.`);
+      return;
+    }
+
+    log(`  Re-importing because saved file "${existingFile}" does not match ${handler.name}.`);
   }
 
   try {
