@@ -370,6 +370,21 @@ function SheetLink({ url, label = 'View Source Sheet' }) {
   );
 }
 
+function googleSheetPreviewUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const match = parsed.pathname.match(/\/spreadsheets\/d\/([^/]+)/);
+    if (!match) return url;
+    const gid = parsed.searchParams.get('gid');
+    const previewUrl = new URL(`https://docs.google.com/spreadsheets/d/${match[1]}/preview`);
+    previewUrl.searchParams.set('rm', 'minimal');
+    if (gid) previewUrl.searchParams.set('gid', gid);
+    return previewUrl.toString();
+  } catch {
+    return url;
+  }
+}
+
 function ActionButton({ children, onClick, type = 'button', variant = 'secondary', disabled = false, className = '' }) {
   const cls = variant === 'primary'
     ? 'border-app-accentDark bg-gradient-to-b from-app-accentSoft to-app-accent text-white shadow-pop hover:from-teal-400 hover:to-teal-600 active:from-app-accent active:to-app-accentDark'
@@ -992,6 +1007,7 @@ function FlagsPage({ data }) {
 
 function SourceReportPreviewScreen({ preview, loading, error, onClose }) {
   const [activeSheet, setActiveSheet] = useState('');
+  const isSheetPreview = preview?.type === 'google-sheet';
   const sheets = preview?.sheets ?? [];
   const selectedSheet = sheets.find((sheet) => sheet.name === activeSheet) ?? sheets[0];
   const selectedRowCount = selectedSheet?.rows?.length ?? 0;
@@ -1008,8 +1024,8 @@ function SourceReportPreviewScreen({ preview, loading, error, onClose }) {
       <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white shadow-glass sm:rounded-2xl sm:border sm:border-white/70">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-app-divider px-5 py-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-app-subtle">Email report preview</p>
-            <h2 className="mt-1 truncate text-base font-bold text-app-text">{preview?.file ?? 'Loading report'}</h2>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-app-subtle">{isSheetPreview ? 'Google Sheet preview' : 'Email report preview'}</p>
+            <h2 className="mt-1 truncate text-base font-bold text-app-text">{preview?.title ?? preview?.file ?? 'Loading report'}</h2>
           </div>
           <button
             type="button"
@@ -1028,6 +1044,18 @@ function SourceReportPreviewScreen({ preview, loading, error, onClose }) {
             <div className="grid min-h-64 place-items-center text-sm font-medium text-app-muted">Preparing preview...</div>
           ) : error ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">{error}</div>
+          ) : isSheetPreview ? (
+            <div className="flex h-full min-h-0 flex-col gap-3">
+              <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-app-border bg-white">
+                <iframe
+                  title={preview?.title ?? 'Google Sheet preview'}
+                  src={preview?.url}
+                  className="h-full w-full"
+                  loading="lazy"
+                />
+              </div>
+              <p className="text-xs text-app-muted">Showing the live Google Sheet inside DailyFlash.</p>
+            </div>
           ) : selectedSheet ? (
             <div className="flex h-full min-h-0 flex-col gap-3">
               {sheets.length > 1 ? (
@@ -1151,9 +1179,11 @@ function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData
       : 'Ready to run email import';
   const reportLabel = (report, index) => report?.label || `Report ${index + 1}`;
   const reportFile = (report) => typeof report === 'string' ? report : report?.file;
-  const sourceReports = (source) => (source.reports?.length
-    ? source.reports
-    : (source.reportFiles ?? []).map((file, index) => ({ label: `Report ${index + 1}`, file })));
+  const sourceReports = (source) => {
+    return source.reports?.length
+      ? source.reports
+      : (source.reportFiles ?? []).map((file, index) => ({ label: `Report ${index + 1}`, file }));
+  };
   const groupedSources = sources.reduce((groups, source) => {
     const key = source.unit || 'Other';
     groups[key] = [...(groups[key] ?? []), source];
@@ -1194,7 +1224,7 @@ function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData
         <div className="space-y-3">
           {Object.entries(groupedSources).map(([unit, unitSources]) => {
             const imported = unitSources.filter((source) => source.status === 'Imported').length;
-            const reportsCount = unitSources.reduce((sum, source) => sum + sourceReports(source).length + (source.sheetUrl ? 1 : 0), 0);
+            const reportsCount = unitSources.reduce((sum, source) => sum + sourceReports(source).length, 0);
             return (
               <details key={unit} className="rounded-xl border border-app-border bg-white/80 px-4 py-3 shadow-sm" open={unit === 'Pablo' || unit === 'Dali' || unit === 'Rabbits'}>
                 <summary className="flex cursor-pointer select-none flex-wrap items-center justify-between gap-3">
@@ -1214,7 +1244,15 @@ function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData
                       <div className="text-xs font-semibold text-app-muted">{formatTime(source.importedAt)}</div>
                       <div className="min-w-0">
                         {source.notes ? <div className="mb-2 text-xs leading-5 text-app-muted">{source.notes}</div> : null}
-                        {source.sheetUrl ? <div className="mb-2"><SheetLink url={source.sheetUrl} label="Open Source Sheet" /></div> : null}
+                        {source.sheetUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenReportPreview(source, source.sheetUrl, { type: 'google-sheet', title: `${source.label}: Source Sheet` })}
+                            className="mb-2 inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-app-border bg-white px-3 py-1.5 text-xs font-bold text-app-text shadow-sm transition-colors hover:border-app-borderStrong hover:bg-app-accentTint"
+                          >
+                            Preview Sheet
+                          </button>
+                        ) : null}
                         {sourceReports(source).length ? (
                           <details className="rounded-lg border border-app-border bg-app-panel/60 px-3 py-2">
                             <summary className="cursor-pointer select-none text-xs font-extrabold text-app-accentDark">
@@ -1223,11 +1261,12 @@ function SourceControlPage({ date, authToken, onOpenReportPreview, onRefreshData
                             <div className="mt-2 space-y-2">
                               {sourceReports(source).map((report, index) => {
                                 const file = reportFile(report);
+                                const title = reportLabel(report, index);
                                 return (
-                                  <div key={`${source.id}-${file}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-2">
+                                  <div key={`${source.id}-${file ?? report.url}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-2">
                                     <div className="min-w-0">
-                                      <div className="text-xs font-bold text-app-text">{reportLabel(report, index)}</div>
-                                      <div className="break-all text-[11px] font-medium text-app-muted">{file}</div>
+                                      <div className="text-xs font-bold text-app-text">{title}</div>
+                                      <div className="break-all text-[11px] font-medium text-app-muted">{file ?? report.url}</div>
                                     </div>
                                     <button
                                       type="button"
@@ -1734,7 +1773,20 @@ export default function App() {
     return () => clearInterval(timer);
   }, [date, authToken, loadData]);
 
-  const openSourceReportPreview = React.useCallback(async (source, file) => {
+  const openSourceReportPreview = React.useCallback(async (source, file, options = {}) => {
+    if (options.type === 'google-sheet') {
+      setSourceReportPreview({
+        type: 'google-sheet',
+        title: options.title ?? source.label,
+        file: source.label,
+        url: googleSheetPreviewUrl(file),
+        sheets: []
+      });
+      setSourceReportPreviewError('');
+      setSourceReportPreviewLoading(false);
+      return;
+    }
+
     setSourceReportPreview({ file, sheets: [] });
     setSourceReportPreviewError('');
     setSourceReportPreviewLoading(true);
