@@ -546,7 +546,7 @@ export default function App() {
               title="Refresh"
               className="rounded-lg p-2.5 text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-90 disabled:opacity-40"
             >
-              {refreshing ? <MIcon name="sync" /> : <MIcon name="sync" />}
+              {refreshing ? <MIcon name="sync" rotate={180} /> : <MIcon name="sync" />}
             </button>
             <div className="mx-1 h-6 w-px bg-outline-variant/30" />
           </div>
