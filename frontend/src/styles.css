@@ -1,4 +1,4 @@
-/* Inter is loaded non-blocking from index.html (preload + swap) to keep first paint fast. */
+/* Hanken Grotesk + Material Symbols are loaded from index.html via Google Fonts. */
 
 @tailwind base;
 @tailwind components;
@@ -9,10 +9,9 @@
 }
 
 html {
-  background: #f5f7fb;
+  background: #f7f9fb;
 }
 
-/* Slightly smaller, less cramped type scale on phones */
 @media (max-width: 640px) {
   html {
     font-size: 15px;
@@ -22,29 +21,18 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  color: #0f172a;
-  font-family: 'Inter var', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+  color: #191c1e;
+  font-family: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background:
-    linear-gradient(135deg, rgba(13, 148, 136, 0.08) 0%, rgba(30, 58, 95, 0.07) 46%, rgba(180, 83, 9, 0.07) 100%),
-    linear-gradient(180deg, #fbfcfe 0%, #edf2f8 100%);
-  /* `fixed` forces a full repaint on every scroll frame on mobile — keep it scrolling instead. */
+  background: #f7f9fb;
   background-attachment: scroll;
+  overflow-x: hidden;
 }
 
-/*
- * backdrop-filter (frosted glass) is one of the most expensive things to paint and is
- * re-evaluated on every scroll/interaction, which tanks INP/FID and scroll smoothness —
- * especially on mobile. The translucent backgrounds (white/85–95) read fine without it,
- * so we drop the actual blur while keeping the layered look.
- */
-[class*='backdrop-blur'],
-.glass-card,
-.glass-card-solid {
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
+::selection {
+  background: #ffd9e5;
+  color: #3d0023;
 }
 
 input,
@@ -70,17 +58,12 @@ button,
 input,
 textarea,
 select {
-  outline-color: #0d9488;
+  outline-color: #b70072;
   outline-offset: 2px;
 }
 
 button:disabled {
   cursor: not-allowed;
-}
-
-::selection {
-  background: rgba(13, 148, 136, 0.22);
-  color: #0f172a;
 }
 
 ::-webkit-scrollbar {
@@ -93,14 +76,14 @@ button:disabled {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.28);
+  background: rgba(140, 0, 86, 0.18);
   border: 2px solid transparent;
   background-clip: padding-box;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.52);
+  background: rgba(140, 0, 86, 0.36);
   background-clip: padding-box;
 }
 
@@ -118,17 +101,53 @@ input[type='date'] {
   font-variant-numeric: tabular-nums;
 }
 
+/* Material Symbols default sizing/weight matches the Stitch design. */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.material-symbols-outlined.fill-1 {
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+
 @layer components {
+  /* Frosted-glass card — the primary surface for the M3 redesign. */
   .glass-card {
-    @apply rounded-2xl border border-app-border bg-app-glass backdrop-blur-xl shadow-card;
+    background: rgba(255, 255, 255, 0.7);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px 0 rgba(140, 0, 86, 0.05);
+    border-radius: 1rem;
+    transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
   }
-
+  .glass-card:hover {
+    border-color: rgba(183, 0, 114, 0.25);
+  }
   .glass-card-solid {
-    @apply rounded-2xl border border-app-border bg-white shadow-card;
+    background: #ffffff;
+    border: 1px solid #dfbec9;
+    box-shadow: 0 8px 32px 0 rgba(140, 0, 86, 0.05);
+    border-radius: 1rem;
   }
 
-  .surface-hover {
-    @apply transition-all duration-200 hover:shadow-cardHover hover:border-app-borderStrong;
+  /* Active state used by the narrow sidebar — pink rail + tinted background. */
+  .sidebar-item-active {
+    position: relative;
+    background: rgba(183, 0, 114, 0.08);
+    color: #8c0056 !important;
+  }
+  .sidebar-item-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 25%;
+    height: 50%;
+    width: 4px;
+    background: #b70072;
+    border-radius: 0 4px 4px 0;
   }
 
   .num {
@@ -145,6 +164,11 @@ input[type='date'] {
     background-size: 200% 100%;
     animation: shimmer 1.8s linear infinite;
   }
+
+  /* Safe-area helper for the floating mobile bottom nav. */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
 
 @layer utilities {
@@ -152,7 +176,6 @@ input[type='date'] {
     text-wrap: balance;
   }
 
-  /* Smooth momentum scrolling for horizontally-scrollable tables on touch devices */
   .scroll-touch {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
