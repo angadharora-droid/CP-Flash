@@ -152,8 +152,8 @@ function mergeWithSeed(seed, saved, previous = null) {
 }
 
 // Material Symbol shortcut.
-const MIcon = ({ name, className = '', filled = false }) => (
-  <span className={`material-symbols-outlined ${filled ? 'fill-1' : ''} ${className}`} aria-hidden>
+const MIcon = ({ name, className = '', filled = false, rotating = false }) => (
+  <span className={`material-symbols-outlined ${filled ? 'fill-1' : ''} ${rotating ? 'animate-spin' : ''} ${className}`} aria-hidden>
     {name}
   </span>
 );
