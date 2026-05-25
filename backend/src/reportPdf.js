@@ -392,8 +392,6 @@ export function createDailyFlashPdf(data, date) {
     { widths: [132, 132, 132, 127] }
   );
 
-  notesPage(doc, data, ensureSpace);
-
   return doc;
 }
 
@@ -410,50 +408,3 @@ function actionFor(row) {
   return 'Track closely in daily meeting.';
 }
 
-function notesPage(doc, data, ensureSpace) {
-  const pnl = pnlRows(data);
-  const settlement = settlementTotals(data);
-  const risks = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED');
-  const bestUnit = [...pnl].sort((a, b) => b.netProfit - a.netProfit)[0];
-  const weakestUnit = [...pnl].sort((a, b) => a.netProfit - b.netProfit)[0];
-  const notes = [
-    `Group estimated net profit: ${money(pnl.reduce((sum, row) => sum + row.netProfit, 0))} today.`,
-    bestUnit ? `Best contribution: ${bestUnit.unit} at ${money(bestUnit.netProfit)} estimated net profit.` : '',
-    weakestUnit ? `Needs attention: ${weakestUnit.unit} at ${money(weakestUnit.netProfit)} estimated net profit.` : '',
-    `${risks.length} watch/action flags need manager review.`,
-    `Settlement difference: ${money(groupRevenue(data) - settlement.groupTotal)} across all units.`,
-    'Use this report as the daily morning review copy for unit heads.'
-  ].filter(Boolean);
-
-  const checklist = [
-    'Review WATCH and ACTION flags with unit owners.',
-    'Resolve settlement mismatch before final archive.',
-    'Confirm closing position before circulation.'
-  ];
-  const noteRowH = 22;
-  const totalH = 30 + notes.length * noteRowH + 16 + 22 + checklist.length * 14 + 12;
-  ensureSpace(totalH);
-
-  let y = doc.y;
-  doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(11).text('Management Notes', 36, y);
-  doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text('Prepared from the current daily flash data.', 36, y + 14);
-  doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 26).lineTo(559, y + 26).stroke();
-  y += 32;
-
-  doc.roundedRect(36, y, 523, notes.length * noteRowH + 8, 3).fill(colors.white).strokeColor(colors.line).lineWidth(0.5).stroke();
-  notes.forEach((note, index) => {
-    const rowY = y + 6 + index * noteRowH;
-    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(7.5).text(String(index + 1).padStart(2, '0'), 48, rowY, { width: 18 });
-    doc.fillColor(colors.ink).font('Helvetica').fontSize(8).text(safeText(note), 72, rowY, { width: 470, lineGap: 2 });
-  });
-  y += notes.length * noteRowH + 14;
-
-  doc.roundedRect(36, y, 523, checklist.length * 14 + 22, 3).fill(colors.panel).strokeColor(colors.line).lineWidth(0.5).stroke();
-  doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8.5).text('Close-of-day checklist', 48, y + 6);
-  checklist.forEach((item, index) => {
-    const rowY = y + 22 + index * 14;
-    doc.rect(48, rowY, 8, 8).strokeColor(colors.lineDark).lineWidth(0.6).stroke();
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5).text(item, 64, rowY - 1, { width: 480 });
-  });
-  doc.y = y + checklist.length * 14 + 30;
-}
