@@ -4,8 +4,8 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
   const isNumeric = (i) => typeof numericFrom === 'number' && i >= numericFrom;
 
   return (
-    <div className={`scroll-touch glass-card mb-6 overflow-auto ${className}`}>
-      <table className="min-w-full border-collapse text-sm">
+    <div className={`scroll-touch glass-card mb-6 max-w-full overflow-auto ${className}`}>
+      <table className="min-w-[720px] border-collapse text-sm md:min-w-full">
         <thead>
           <tr className="bg-surface-container text-left">
             {columns.map((col, i) => (
@@ -27,7 +27,7 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
             <tr key={row.key ?? index} className="group transition-colors duration-100 odd:bg-surface-container-lowest even:bg-surface-container-low/45 hover:bg-primary/5">
               {row.cells.map((cell, cellIndex) => {
                 const sticky = cellIndex === 0
-                  ? 'sticky left-0 z-[1] min-w-32 bg-inherit font-semibold shadow-[1px_0_0_0_rgba(202,211,218,0.9)] sm:min-w-44'
+                  ? 'sticky left-0 z-[1] min-w-28 max-w-[11rem] bg-inherit font-semibold shadow-[1px_0_0_0_rgba(202,211,218,0.9)] sm:min-w-40 sm:max-w-none'
                   : '';
                 const align = isNumeric(cellIndex) ? 'text-right' : '';
                 return (

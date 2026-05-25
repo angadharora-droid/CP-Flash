@@ -29,7 +29,7 @@ function IconSlot({ icon, className }) {
 
 export default function StatStrip({ items }) {
   return (
-    <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className="mb-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:gap-3 2xl:grid-cols-4">
       {items.map((item) => {
         const accent = ACCENT[item.tone] ?? DEFAULT_ACCENT;
         const progress = typeof item.progress === 'number'
@@ -38,7 +38,7 @@ export default function StatStrip({ items }) {
         return (
           <div
             key={item.label}
-            className="glass-card group flex min-h-[104px] items-start gap-3 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover"
+            className="glass-card group flex min-h-[88px] items-start gap-3 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover sm:min-h-[96px] sm:p-4"
           >
             <div className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${accent.iconBg} ${accent.iconText} transition-transform duration-200 group-hover:scale-105`}>
               <IconSlot icon={item.icon} className="text-[21px]" />
@@ -58,7 +58,7 @@ export default function StatStrip({ items }) {
                   <span className="shrink-0 text-[10.5px] font-medium text-on-surface-variant">{item.meta}</span>
                 ) : null}
               </div>
-              <div className={`num mt-2 flex min-w-0 items-baseline gap-2 text-[23px] font-bold leading-none tracking-normal tabular-nums sm:text-[25px] ${accent.value}`}>
+              <div className={`num mt-2 flex min-w-0 items-baseline gap-2 text-[21px] font-bold leading-none tracking-normal tabular-nums sm:text-[23px] xl:text-[25px] ${accent.value}`}>
                 <span className="truncate">{item.value}</span>
                 {item.delta ? (
                   <span className={`shrink-0 text-xs font-bold ${item.delta.tone ?? 'text-on-surface-variant'}`}>{item.delta.label}</span>
