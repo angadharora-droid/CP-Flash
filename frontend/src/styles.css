@@ -203,15 +203,19 @@ input[type='date'] {
   }
 
   .brand-loader-petals {
-    animation: brand-petal-spin 5.8s linear infinite;
+    animation: brand-petal-spin 7.2s linear infinite;
+    backface-visibility: hidden;
+    filter: drop-shadow(0 6px 14px rgba(167, 0, 98, 0.16));
     transform-origin: center;
-    -webkit-mask-image: radial-gradient(circle at center, transparent 0 46%, #000 47% 100%);
-    mask-image: radial-gradient(circle at center, transparent 0 46%, #000 47% 100%);
+    will-change: transform;
+    -webkit-mask-image: radial-gradient(circle at center, transparent 0 33%, #000 34.25% 100%);
+    mask-image: radial-gradient(circle at center, transparent 0 33%, #000 34.25% 100%);
   }
 
   .brand-loader-center {
-    -webkit-mask-image: radial-gradient(circle at center, #000 0 50%, transparent 51% 100%);
-    mask-image: radial-gradient(circle at center, #000 0 50%, transparent 51% 100%);
+    filter: drop-shadow(0 5px 10px rgba(23, 32, 38, 0.08));
+    -webkit-mask-image: radial-gradient(circle at center, #000 0 36.25%, transparent 37.5% 100%);
+    mask-image: radial-gradient(circle at center, #000 0 36.25%, transparent 37.5% 100%);
   }
 
   /* Safe-area helper for the floating mobile bottom nav. */
@@ -232,8 +236,11 @@ input[type='date'] {
 }
 
 @keyframes brand-petal-spin {
+  from {
+    transform: translateZ(0) rotate(0deg);
+  }
   to {
-    transform: rotate(360deg);
+    transform: translateZ(0) rotate(360deg);
   }
 }
 
