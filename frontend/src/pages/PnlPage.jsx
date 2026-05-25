@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
 import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
 import { SHEET_URLS } from '../lib/navigation';
-import { generateAiNotes, getEmailImportStatus, getPnlPeriod, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
+import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, numberValue, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
 
 const EMPTY_PERIOD_ENTRY = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0 };
@@ -21,20 +21,7 @@ function sumPeriod(period) {
   }, { revenue: 0, purchases: 0, gp: 0, netProfit: 0 });
 }
 
-export default function PnlPage({ data, date, authToken }) {
-  const [period, setPeriod] = useState(null);
-  const [periodError, setPeriodError] = useState('');
-
-  useEffect(() => {
-    if (!authToken || !date) return undefined;
-    let cancelled = false;
-    setPeriodError('');
-    getPnlPeriod(date, authToken)
-      .then((payload) => { if (!cancelled) setPeriod(payload); })
-      .catch((err) => { if (!cancelled) setPeriodError(err.message || 'Unable to load MTD/YTD totals'); });
-    return () => { cancelled = true; };
-  }, [date, authToken]);
-
+export default function PnlPage({ data, period }) {
   const rows = pnlRows(data);
   const mtdByUnit = period?.mtd ?? {};
   const ytdByUnit = period?.ytd ?? {};

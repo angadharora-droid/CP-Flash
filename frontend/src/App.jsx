@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getSeed, getSourceReportPreview, saveData } from './lib/api';
+import { getPnlPeriod, getSeed, getSourceReportPreview, saveData } from './lib/api';
 import { numberValue, withFlags } from './lib/calculations';
 import { ActionButton, BrandLoader, DateControl, googleSheetPreviewUrl, PinGate } from './components/DashboardUi';
 import { BOTTOM_TABS, NAV_GROUPS, NAV_ITEM_BY_KEY, pages } from './lib/navigation';
@@ -127,6 +127,43 @@ function mergeSeedKpiRows(seedRows = [], savedRows = []) {
   return [...mergedSeedRows, ...extraRows];
 }
 
+function formatKpiAggregate(value) {
+  const rounded = Math.round(value * 100) / 100;
+  return String(rounded);
+}
+
+function applyPeriodToData(data, period) {
+  if (!data || !period?.kpis) return data;
+  const mtdSums = period.kpis.mtd ?? {};
+  const ytdSums = period.kpis.ytd ?? {};
+  const mergeRows = (rows) => {
+    if (!Array.isArray(rows)) return rows;
+    return rows.map((row) => {
+      if (!row?.id) return row;
+      const manualMtd = String(row.mtd ?? '').trim();
+      const manualYtd = String(row.ytd ?? '').trim();
+      if (manualMtd !== '' && manualYtd !== '') return row;
+      const next = { ...row };
+      if (manualMtd === '' && mtdSums[row.id] !== undefined) next.mtd = formatKpiAggregate(mtdSums[row.id]);
+      if (manualYtd === '' && ytdSums[row.id] !== undefined) next.ytd = formatKpiAggregate(ytdSums[row.id]);
+      return next;
+    });
+  };
+  return {
+    ...data,
+    hotels: mergeRows(data.hotels),
+    rabbits: mergeRows(data.rabbits),
+    mickys: mergeRows(data.mickys),
+    purosoul: mergeRows(data.purosoul),
+    purosoulSku: mergeRows(data.purosoulSku),
+    fnb: {
+      ...(data.fnb ?? {}),
+      Pablo: mergeRows(data.fnb?.Pablo),
+      Dali: mergeRows(data.fnb?.Dali)
+    }
+  };
+}
+
 function mergeWithSeed(seed, saved, previous = null) {
   if (!saved) return seed;
   const merged = { ...seed, ...saved };
@@ -166,6 +203,7 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('dailyflashToken') || '');
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+  const [period, setPeriod] = useState(null);
   const [sourceReportPreview, setSourceReportPreview] = useState(null);
   const [sourceReportPreviewLoading, setSourceReportPreviewLoading] = useState(false);
   const [sourceReportPreviewError, setSourceReportPreviewError] = useState('');
@@ -230,6 +268,16 @@ export default function App() {
   }, [date, authToken]);
 
   useEffect(() => {
+    if (!authToken || !date) return undefined;
+    let cancelled = false;
+    setPeriod(null);
+    getPnlPeriod(date, authToken)
+      .then((payload) => { if (!cancelled) setPeriod(payload); })
+      .catch(() => { if (!cancelled) setPeriod(null); });
+    return () => { cancelled = true; };
+  }, [date, authToken]);
+
+  useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible' && authToken) {
         loadData(date, authToken, true);
@@ -279,21 +327,23 @@ export default function App() {
     if (authToken) loadData(date, authToken);
   }, [authToken, date, loadData]);
 
+  const enrichedData = useMemo(() => applyPeriodToData(data, period), [data, period]);
+
   const page = useMemo(() => {
-    if (!data) return null;
-    const common = { data, setData, date, authToken };
+    if (!enrichedData) return null;
+    const common = { data: enrichedData, setData, date, authToken };
     if (active === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
     if (active === 'bank') return <BankPage {...common} />;
-    if (active === 'pnl') return <PnlPage {...common} />;
-    if (active === 'flags') return <FlagsPage data={data} />;
+    if (active === 'pnl') return <PnlPage {...common} period={period} />;
+    if (active === 'flags') return <FlagsPage data={enrichedData} />;
     if (active === 'hotels') return <HotelsPage {...common} />;
     if (active === 'fnb') return <FnbPage {...common} />;
-    if (active === 'rabbits') return <RabbitsPage data={data} date={date} />;
-    if (active === 'mickys') return <MickysPage data={data} date={date} />;
+    if (active === 'rabbits') return <RabbitsPage data={enrichedData} date={date} />;
+    if (active === 'mickys') return <MickysPage data={enrichedData} date={date} />;
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
-    return <AiPage data={data} authToken={authToken} />;
-  }, [active, data, date, authToken, openSourceReportPreview, handleRefresh]);
+    return <AiPage data={enrichedData} authToken={authToken} />;
+  }, [active, enrichedData, date, authToken, period, openSourceReportPreview, handleRefresh]);
 
   const lockApp = React.useCallback(() => {
     localStorage.removeItem('dailyflashToken');

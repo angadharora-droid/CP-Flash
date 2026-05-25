@@ -370,12 +370,24 @@ async function listDailyDates(prefix) {
   }
 }
 
-async function aggregatePnlForDates(dates) {
+function collectKpiRows(data) {
+  return [
+    ...(data.hotels ?? []),
+    ...(data.fnb?.Pablo ?? []),
+    ...(data.fnb?.Dali ?? []),
+    ...(data.rabbits ?? []),
+    ...(data.mickys ?? []),
+    ...(data.purosoul ?? []),
+    ...(data.purosoulSku ?? [])
+  ];
+}
+
+async function aggregatePeriodForDates(dates) {
   const seedTemplate = buildSeedData();
   const fixedCostByUnit = Object.fromEntries(
     (seedTemplate.pnl ?? []).map((row) => [row.unit, numberValue(row.fixedCost)])
   );
-  const totalsByUnit = Object.fromEntries(
+  const pnlByUnit = Object.fromEntries(
     UNITS.map((unit) => [unit, {
       revenue: 0,
       purchases: 0,
@@ -385,14 +397,15 @@ async function aggregatePnlForDates(dates) {
       fixedCost: fixedCostByUnit[unit] ?? 0
     }])
   );
+  const kpiSums = Object.create(null);
 
   for (const date of dates) {
     const raw = await readDailyData(date);
     if (!raw) continue;
     const merged = mergeDailyData(seedTemplate, raw);
-    const rows = derivePnlRows(merged);
-    for (const row of rows) {
-      const entry = totalsByUnit[row.unit];
+
+    for (const row of derivePnlRows(merged)) {
+      const entry = pnlByUnit[row.unit];
       if (!entry) continue;
       const revenue = numberValue(row.revenueToday);
       const purchases = numberValue(row.purchasesToday);
@@ -403,9 +416,16 @@ async function aggregatePnlForDates(dates) {
       entry.netProfit += revenue - purchases - fixed;
       entry.days += 1;
     }
+
+    for (const kpi of collectKpiRows(merged)) {
+      if (!kpi?.id) continue;
+      const actual = String(kpi.actual ?? '').trim();
+      if (actual === '') continue;
+      kpiSums[kpi.id] = (kpiSums[kpi.id] ?? 0) + numberValue(actual);
+    }
   }
 
-  return totalsByUnit;
+  return { pnl: pnlByUnit, kpis: kpiSums };
 }
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -507,9 +527,9 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     listDailyDates(yearPrefix)
   ]);
 
-  const [mtd, ytd] = await Promise.all([
-    aggregatePnlForDates(monthDates),
-    aggregatePnlForDates(yearDates)
+  const [mtdAgg, ytdAgg] = await Promise.all([
+    aggregatePeriodForDates(monthDates),
+    aggregatePeriodForDates(yearDates)
   ]);
 
   res.json({
@@ -518,8 +538,9 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     yearPrefix,
     mtdDates: monthDates,
     ytdDates: yearDates,
-    mtd,
-    ytd
+    mtd: mtdAgg.pnl,
+    ytd: ytdAgg.pnl,
+    kpis: { mtd: mtdAgg.kpis, ytd: ytdAgg.kpis }
   });
 }));
 
