@@ -14,7 +14,7 @@ import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
 import { buildSourceStatus } from './sources.js';
-import { normalizeRabbitsCategoryBreakdown } from './schema.js';
+import { normalizeRabbitsCategoryBreakdown, UNITS } from './schema.js';
 import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
 import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
 
@@ -349,6 +349,65 @@ async function writeDailyData(date, payload) {
   await writeDailyJson(date, payload);
 }
 
+async function listDailyDates(prefix) {
+  const db = await getDb();
+  if (db) {
+    const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const docs = await db.collection('reports')
+      .find({ date: { $regex: `^${escaped}` } }, { projection: { date: 1 } })
+      .toArray();
+    return docs.map((doc) => doc.date).filter(Boolean).sort();
+  }
+  try {
+    const entries = await fs.readdir(dataDir);
+    return entries
+      .filter((name) => name.endsWith('.json') && name.startsWith(prefix))
+      .map((name) => name.slice(0, -5))
+      .sort();
+  } catch (err) {
+    if (err.code === 'ENOENT') return [];
+    throw err;
+  }
+}
+
+async function aggregatePnlForDates(dates) {
+  const seedTemplate = buildSeedData();
+  const fixedCostByUnit = Object.fromEntries(
+    (seedTemplate.pnl ?? []).map((row) => [row.unit, numberValue(row.fixedCost)])
+  );
+  const totalsByUnit = Object.fromEntries(
+    UNITS.map((unit) => [unit, {
+      revenue: 0,
+      purchases: 0,
+      gp: 0,
+      netProfit: 0,
+      days: 0,
+      fixedCost: fixedCostByUnit[unit] ?? 0
+    }])
+  );
+
+  for (const date of dates) {
+    const raw = await readDailyData(date);
+    if (!raw) continue;
+    const merged = mergeDailyData(seedTemplate, raw);
+    const rows = derivePnlRows(merged);
+    for (const row of rows) {
+      const entry = totalsByUnit[row.unit];
+      if (!entry) continue;
+      const revenue = numberValue(row.revenueToday);
+      const purchases = numberValue(row.purchasesToday);
+      const fixed = numberValue(row.fixedCost) || entry.fixedCost;
+      entry.revenue += revenue;
+      entry.purchases += purchases;
+      entry.gp += revenue - purchases;
+      entry.netProfit += revenue - purchases - fixed;
+      entry.days += 1;
+    }
+  }
+
+  return totalsByUnit;
+}
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.post('/api/login', loginIpRateLimit, wrap(async (req, res) => {
@@ -436,6 +495,32 @@ app.get('/api/source-status', wrap(async (req, res) => {
   const seed = buildSeedData();
   const saved = await readDailyData(req.query.date || dateKey());
   res.json(buildSourceStatus(mergeDailyData(seed, saved)));
+}));
+
+app.get('/api/pnl-period', wrap(async (req, res) => {
+  const date = String(req.query.date || dateKey());
+  const monthPrefix = date.slice(0, 7);
+  const yearPrefix = date.slice(0, 4);
+
+  const [monthDates, yearDates] = await Promise.all([
+    listDailyDates(monthPrefix),
+    listDailyDates(yearPrefix)
+  ]);
+
+  const [mtd, ytd] = await Promise.all([
+    aggregatePnlForDates(monthDates),
+    aggregatePnlForDates(yearDates)
+  ]);
+
+  res.json({
+    date,
+    monthPrefix,
+    yearPrefix,
+    mtdDates: monthDates,
+    ytdDates: yearDates,
+    mtd,
+    ytd
+  });
 }));
 
 app.get('/api/email-import', (_req, res) => {

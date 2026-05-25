@@ -100,6 +100,12 @@ export async function getSourceStatus(date, token) {
   }, 'Unable to load source status');
 }
 
+export async function getPnlPeriod(date, token) {
+  return apiFetch(`/api/pnl-period?date=${encodeURIComponent(date)}`, {
+    headers: authHeaders(token)
+  }, 'Unable to load MTD/YTD totals');
+}
+
 export async function getEmailImportStatus(token) {
   return apiFetch('/api/email-import', {
     headers: authHeaders(token)
