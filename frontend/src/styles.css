@@ -9,7 +9,7 @@
 }
 
 html {
-  background: #f7f9fb;
+  background: #f4f6f8;
 }
 
 @media (max-width: 640px) {
@@ -21,18 +21,18 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  color: #191c1e;
+  color: #172026;
   font-family: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #f7f9fb;
-  background-attachment: scroll;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(244, 246, 248, 0.96) 34%, #eef2f5 100%);
   overflow-x: hidden;
 }
 
 ::selection {
-  background: #ffd9e5;
-  color: #3d0023;
+  background: #cfeee8;
+  color: #073b35;
 }
 
 input,
@@ -58,7 +58,7 @@ button,
 input,
 textarea,
 select {
-  outline-color: #b70072;
+  outline-color: #08786c;
   outline-offset: 2px;
 }
 
@@ -76,14 +76,14 @@ button:disabled {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(140, 0, 86, 0.18);
+  background: rgba(23, 32, 38, 0.18);
   border: 2px solid transparent;
   background-clip: padding-box;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(140, 0, 86, 0.36);
+  background: rgba(8, 120, 108, 0.36);
   background-clip: padding-box;
 }
 
@@ -113,31 +113,31 @@ input[type='date'] {
 }
 
 @layer components {
-  /* Frosted-glass card — the primary surface for the M3 redesign. */
+  /* Primary dashboard surface. */
   .glass-card {
-    background: rgba(255, 255, 255, 0.7);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
-    backdrop-filter: blur(16px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 0 8px 32px 0 rgba(140, 0, 86, 0.05);
-    border-radius: 1rem;
-    transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+    background: rgba(255, 255, 255, 0.92);
+    -webkit-backdrop-filter: blur(10px) saturate(135%);
+    backdrop-filter: blur(10px) saturate(135%);
+    border: 1px solid rgba(202, 211, 218, 0.8);
+    box-shadow: 0 1px 2px rgba(23, 32, 38, 0.05), 0 18px 44px -34px rgba(23, 32, 38, 0.45);
+    border-radius: 0.75rem;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   }
   .glass-card:hover {
-    border-color: rgba(183, 0, 114, 0.25);
+    border-color: rgba(8, 120, 108, 0.34);
   }
   .glass-card-solid {
     background: #ffffff;
-    border: 1px solid #dfbec9;
-    box-shadow: 0 8px 32px 0 rgba(140, 0, 86, 0.05);
-    border-radius: 1rem;
+    border: 1px solid #cad3da;
+    box-shadow: 0 1px 2px rgba(23, 32, 38, 0.05), 0 18px 44px -34px rgba(23, 32, 38, 0.45);
+    border-radius: 0.75rem;
   }
 
-  /* Active state used by the narrow sidebar — pink rail + tinted background. */
+  /* Active state used by the navigation rail. */
   .sidebar-item-active {
     position: relative;
-    background: rgba(183, 0, 114, 0.08);
-    color: #8c0056 !important;
+    background: rgba(8, 120, 108, 0.11);
+    color: #075e55 !important;
   }
   .sidebar-item-active::before {
     content: '';
@@ -146,7 +146,7 @@ input[type='date'] {
     top: 25%;
     height: 50%;
     width: 4px;
-    background: #b70072;
+    background: #08786c;
     border-radius: 0 4px 4px 0;
   }
 
@@ -156,11 +156,11 @@ input[type='date'] {
   }
 
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold;
+    @apply inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold;
   }
 
   .skeleton {
-    background: linear-gradient(90deg, #eef2f8 0%, #f6f9fd 50%, #eef2f8 100%);
+    background: linear-gradient(90deg, #e7edf1 0%, #f5f8fa 50%, #e7edf1 100%);
     background-size: 200% 100%;
     animation: shimmer 1.8s linear infinite;
   }

@@ -38,7 +38,7 @@ export default function SectionCard({
 
   return (
     <section className="glass-card mb-6 overflow-hidden">
-      <div className={`flex w-full flex-wrap items-center justify-between gap-3 ${hasIconHeader ? 'border-b border-outline-variant/15 bg-surface-container-lowest/60 px-5 py-4 md:px-6 md:py-5' : 'px-5 py-4'}`}>
+      <div className={`flex w-full flex-wrap items-center justify-between gap-3 ${hasIconHeader ? 'border-b border-outline-variant/60 bg-surface-container-lowest px-5 py-4 md:px-6' : 'px-5 py-4'}`}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -46,18 +46,18 @@ export default function SectionCard({
           className="group flex min-w-0 flex-1 items-center gap-3 text-left md:gap-4"
         >
           {hasIconHeader ? (
-            <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl shadow-md ${palette.tile}`}>
+            <span className={`flex size-10 shrink-0 items-center justify-center rounded-lg shadow-sm ${palette.tile}`}>
               <IconSlot icon={icon ?? 'dataset'} className="text-[22px]" />
             </span>
           ) : (
-            <span className={`flex size-5 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${
+            <span className={`flex size-5 shrink-0 items-center justify-center rounded transition-all duration-200 ${
               open ? palette.accent : 'bg-surface-container-high text-on-surface-variant/60'
             }`}>
               <span className={`material-symbols-outlined text-[16px] transition-transform duration-200 ${open ? '' : '-rotate-90'}`}>expand_more</span>
             </span>
           )}
           <span className="min-w-0 flex-1">
-            <span className={`block truncate font-bold tracking-tight text-on-surface ${hasIconHeader ? 'text-[16px] md:text-lg' : 'text-[14px]'}`}>
+            <span className={`block truncate font-bold tracking-normal text-on-surface ${hasIconHeader ? 'text-[16px] md:text-lg' : 'text-[14px]'}`}>
               {title}
               {meta && !hasIconHeader ? <span className="ml-3 text-sm font-medium text-on-surface-variant">{meta}</span> : null}
             </span>
@@ -85,7 +85,7 @@ export default function SectionCard({
         </div>
       ) : null}
       {open && footer ? (
-        <div className="border-t border-outline-variant/15 bg-surface-container-lowest/50 px-5 py-3 md:px-6">
+        <div className="border-t border-outline-variant/60 bg-surface-container-lowest/70 px-5 py-3 md:px-6">
           {footer}
         </div>
       ) : null}
