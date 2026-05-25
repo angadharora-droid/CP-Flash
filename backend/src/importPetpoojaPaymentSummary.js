@@ -1,7 +1,7 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
+import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 function num(value) {
   if (typeof value === 'number') return value;
@@ -115,14 +115,7 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
   const upi    = successTotals.upi;
   const online = successTotals.online; // Zomato/Swiggy delivery
 
-  const dataPath = path.resolve(process.cwd(), 'data', `${outDate}.json`);
-  let data;
-  try { data = JSON.parse(await fs.readFile(dataPath, 'utf8')); }
-  catch (err) {
-    if (err.code !== 'ENOENT') throw err;
-    // Settlement can be seeded even without a base file
-    data = { settlement: {}, importSource: {} };
-  }
+  const data = (await readDailyJson(outDate)) ?? { settlement: {}, importSource: {} };
 
   data.settlement = data.settlement ?? {};
   data.settlement['Cash'] = { ...(data.settlement['Cash'] ?? {}), [outlet]: String(cash) };
@@ -182,8 +175,7 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
     [`${key}PaymentImportedAt`]: new Date().toISOString()
   };
 
-  await fs.mkdir(path.dirname(dataPath), { recursive: true });
-  await fs.writeFile(dataPath, JSON.stringify({ ...data, date: outDate, savedAt: new Date().toISOString() }, null, 2));
+  await writeDailyJson(outDate, data);
 
   return {
     ok: true, date: outDate, outlet,

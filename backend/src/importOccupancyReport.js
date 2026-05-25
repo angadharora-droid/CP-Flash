@@ -1,8 +1,8 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
+import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 function num(value) {
   if (typeof value === 'number') return value;
@@ -41,10 +41,7 @@ export async function importOccupancyReport(file, outDate, unit = 'CP Nagpur') {
   const revpar      = num(dayTotalRow[10]);  // ARP = RevPAR
   const mtdRooms    = num(dayTotalRow[11]);  // MTD rooms sold
 
-  const dataPath = path.resolve(process.cwd(), 'data', `${outDate}.json`);
-  let data;
-  try { data = JSON.parse(await fs.readFile(dataPath, 'utf8')); }
-  catch (err) { if (err.code !== 'ENOENT') throw err; data = buildSeedData(); }
+  const data = (await readDailyJson(outDate)) ?? buildSeedData();
 
   function setKpi(name, actual, mtd) {
     const row = data.hotels.find((item) => item.unit === unit && item.name === name);
@@ -65,11 +62,10 @@ export async function importOccupancyReport(file, outDate, unit = 'CP Nagpur') {
     occupancyNotes: `Mapped Day Total row from sheet "${usedSheet}" into ${unit} occupancy KPIs.`
   };
 
-  await fs.mkdir(path.dirname(dataPath), { recursive: true });
-  await fs.writeFile(dataPath, JSON.stringify({ ...data, date: outDate, savedAt: new Date().toISOString() }, null, 2));
+  await writeDailyJson(outDate, data);
 
   return {
-    ok: true, date: outDate, unit, file: dataPath,
+    ok: true, date: outDate, unit, file: `${outDate}.json`,
     mapped: { occupancy: fmt(occupancy), roomsSold: fmt(roomsSold, 0), arr: fmt(arr), revpar: fmt(revpar), mtdRooms: fmt(mtdRooms, 0) }
   };
 }

@@ -14,6 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
+import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 const SKU_BLOCKS = [
   { col: 1,  sku: '250ml' },
@@ -39,9 +40,8 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-async function readData(dataPath) {
-  try { return JSON.parse(await fs.readFile(dataPath, 'utf8')); }
-  catch (err) { if (err.code !== 'ENOENT') throw err; return buildSeedData(); }
+async function readData(date) {
+  return (await readDailyJson(date)) ?? buildSeedData();
 }
 
 export async function importPurosoulFlashReport(csvPathOrBuffer) {
@@ -91,8 +91,7 @@ export async function importPurosoulFlashReport(csvPathOrBuffer) {
       skuData[block.sku] = { production, dispatched, clStock, mtd: mtd[block.sku] };
     }
 
-    const dataPath = path.resolve(process.cwd(), 'data', `${date}.json`);
-    const data = await readData(dataPath);
+    const data = await readData(date);
 
     // Normalize SKU list to the canonical set (migrate away from old seed SKUs)
     const EXPECTED_SKUS = ['250ml', '500ml', '1L'];
@@ -112,8 +111,7 @@ export async function importPurosoulFlashReport(csvPathOrBuffer) {
       purosoulFlashImportedAt: new Date().toISOString(),
     };
 
-    await fs.mkdir(path.dirname(dataPath), { recursive: true });
-    await fs.writeFile(dataPath, JSON.stringify({ ...data, date, savedAt: new Date().toISOString() }, null, 2));
+    await writeDailyJson(date, data);
     written.push(date);
   }
 

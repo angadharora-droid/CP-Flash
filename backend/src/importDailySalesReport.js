@@ -1,7 +1,7 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
+import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 function num(v) {
   if (v == null || v === '') return 0;
@@ -72,9 +72,8 @@ function parseVisibleDate(cell) {
   return null;
 }
 
-async function readData(dataPath) {
-  try { return JSON.parse(await fs.readFile(dataPath, 'utf8')); }
-  catch (err) { if (err.code !== 'ENOENT') throw err; return buildSeedData(); }
+async function readData(date) {
+  return (await readDailyJson(date)) ?? buildSeedData();
 }
 
 function setKpi(rows, name, actual, mtd) {
@@ -165,8 +164,7 @@ export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate)
   const salesDate = pickSalesDate(byDate, targetDate, 'Purosoul report');
   const revenueToday = byDate[salesDate];
   const fileDate = targetDate ?? salesDate;
-  const dataPath = path.resolve(process.cwd(), 'data', `${fileDate}.json`);
-  const data = await readData(dataPath);
+  const data = await readData(fileDate);
 
   setKpi(data.purosoul, 'Total Revenue Today', round(revenueToday), round(mtd));
   setKpi(data.purosoul, 'Revenue MTD',         round(mtd),          '');
@@ -182,8 +180,7 @@ export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate)
     purosoulSalesImportedAt: new Date().toISOString(),
   };
 
-  await fs.mkdir(path.dirname(dataPath), { recursive: true });
-  await fs.writeFile(dataPath, JSON.stringify({ ...data, date: fileDate, savedAt: new Date().toISOString() }, null, 2));
+  await writeDailyJson(fileDate, data);
 
   return { ok: true, date: fileDate, sheetName, salesDate, revenueToday, mtd };
 }
@@ -200,8 +197,7 @@ export async function importMickysSalesReport(xlsBuffer, fileName, targetDate) {
   const salesDate = pickSalesDate(byDate, targetDate, 'Micky\'s report');
   const revenueToday = byDate[salesDate];
   const fileDate = targetDate ?? salesDate;
-  const dataPath = path.resolve(process.cwd(), 'data', `${fileDate}.json`);
-  const data = await readData(dataPath);
+  const data = await readData(fileDate);
 
   setKpi(data.mickys, 'Order Revenue Today', round(revenueToday), round(mtd));
   setKpi(data.mickys, 'Revenue MTD',         round(mtd),          '');
@@ -217,8 +213,7 @@ export async function importMickysSalesReport(xlsBuffer, fileName, targetDate) {
     mickysSalesImportedAt: new Date().toISOString(),
   };
 
-  await fs.mkdir(path.dirname(dataPath), { recursive: true });
-  await fs.writeFile(dataPath, JSON.stringify({ ...data, date: fileDate, savedAt: new Date().toISOString() }, null, 2));
+  await writeDailyJson(fileDate, data);
 
   return { ok: true, date: fileDate, sheetName, salesDate, revenueToday, mtd };
 }
