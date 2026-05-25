@@ -348,7 +348,7 @@ export default function App() {
     );
   }
 
-  // ---- Sidebar (narrow icon-only). Hover/focus expands a flyout label for accessibility. ----
+  // ---- Desktop sidebar ----
   const renderSidebarButton = ({ key, label, icon }) => {
     const isActive = active === key;
     const hasBadge = key === 'flags' && riskCount > 0;
@@ -360,15 +360,16 @@ export default function App() {
         title={label}
         aria-label={label}
         aria-current={isActive ? 'page' : undefined}
-        className={`relative flex w-full items-center justify-center rounded-xl p-3 transition-all duration-200 active:scale-90 ${
+        className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
           isActive
             ? 'sidebar-item-active'
             : 'text-on-surface-variant/70 hover:bg-primary/10 hover:text-primary'
         }`}
       >
-        <MIcon name={icon} filled={isActive} className={isActive ? 'text-primary' : ''} />
+        <MIcon name={icon} filled={isActive} className={`shrink-0 text-[22px] ${isActive ? 'text-primary' : ''}`} />
+        <span className="min-w-0 flex-1 truncate">{label}</span>
         {hasBadge ? (
-          <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-error text-[9px] font-bold text-on-error ring-2 ring-surface-container-lowest">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-error text-[10px] font-bold text-on-error ring-2 ring-surface-container-lowest">
             {riskCount > 9 ? '9+' : riskCount}
           </span>
         ) : null}
@@ -378,44 +379,56 @@ export default function App() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-surface text-on-surface">
-      {/* ---- Narrow icon-only desktop sidebar (80px) ---- */}
-      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-20 flex-col border-r border-outline-variant/70 bg-surface-container-lowest shadow-[6px_0_24px_-28px_rgba(23,32,38,0.9)] transition-all duration-300 md:flex">
+      {/* ---- Expanded desktop sidebar ---- */}
+      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 flex-col border-r border-outline-variant/70 bg-surface-container-lowest shadow-[6px_0_24px_-28px_rgba(23,32,38,0.9)] transition-all duration-300 md:flex">
         {/* Brand logo */}
-        <div className="flex h-16 items-center justify-center border-b border-outline-variant/70">
+        <div className="flex h-16 items-center gap-3 border-b border-outline-variant/70 px-5">
           <button
             type="button"
             onClick={() => setActive('sources')}
-            className="flex size-10 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
+            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
             title="DailyFlash"
             aria-label="Home"
           >
             <img src={cpLogo} alt="" className="h-full w-full object-contain" />
           </button>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-extrabold tracking-normal text-on-surface">DailyFlash</div>
+            <div className="truncate text-[11px] font-medium text-on-surface-variant">Centre Point</div>
+          </div>
         </div>
         {/* Nav */}
-        <nav className="flex flex-grow flex-col gap-2 overflow-y-auto px-3 py-5">
-          {NAV_GROUPS.flatMap((group, gi) => [
-            gi > 0 ? <div key={`sep-${gi}`} className="mx-auto my-1 h-px w-6 bg-outline-variant/30" /> : null,
-            ...group.items.map(renderSidebarButton)
-          ])}
+        <nav className="flex flex-grow flex-col overflow-y-auto px-3 py-4">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="mb-5 last:mb-0">
+              <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/60">
+                {group.label}
+              </div>
+              <div className="space-y-1">
+                {group.items.map(renderSidebarButton)}
+              </div>
+            </div>
+          ))}
         </nav>
         {/* Footer */}
-        <div className="flex flex-col gap-2 border-t border-outline-variant/70 px-3 py-5">
+        <div className="space-y-2 border-t border-outline-variant/70 p-3">
           <button
             type="button"
             onClick={() => setActive('ai')}
             title="AI Notes"
-            className="flex items-center justify-center rounded-lg p-3 text-on-surface-variant/60 transition-colors hover:bg-surface-container-high hover:text-on-surface"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
           >
             <MIcon name="help_outline" className="text-[20px]" />
+            Help & AI Notes
           </button>
           <button
             type="button"
             onClick={lockApp}
             title="Lock"
-            className="flex items-center justify-center rounded-lg p-3 text-on-surface-variant/60 transition-colors hover:bg-error-container/30 hover:text-error"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-error-container/30 hover:text-error"
           >
             <MIcon name="logout" className="text-[20px]" />
+            Lock dashboard
           </button>
         </div>
       </aside>
@@ -496,7 +509,7 @@ export default function App() {
       </div>
 
       {/* ---- Top App Bar ---- */}
-      <header className="fixed top-0 z-40 flex h-16 w-full items-center justify-between border-b border-outline-variant/70 bg-surface-container-lowest/88 px-4 shadow-sm backdrop-blur-xl md:left-20 md:w-[calc(100%-5rem)] md:px-6">
+      <header className="fixed top-0 z-40 flex h-16 w-full items-center justify-between border-b border-outline-variant/70 bg-surface-container-lowest/88 px-4 shadow-sm backdrop-blur-xl md:left-72 md:w-[calc(100%-18rem)] md:px-6">
         <div className="flex min-w-0 items-center gap-3 md:gap-6">
           {/* Mobile menu button */}
           <button
@@ -568,7 +581,7 @@ export default function App() {
       </header>
 
       {/* ---- Main content ---- */}
-      <main className="min-h-screen px-4 pb-32 pt-24 transition-all duration-300 md:ml-20 md:px-8">
+      <main className="min-h-screen px-4 pb-32 pt-24 transition-all duration-300 md:ml-72 md:px-8">
         <div className="mx-auto max-w-7xl">
           {status && refreshing ? (
             <div className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-on-surface-variant">
