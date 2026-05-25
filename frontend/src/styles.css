@@ -12,15 +12,27 @@ html {
   background: #f4f6f8;
 }
 
+@media (min-width: 1280px) {
+  html {
+    font-size: 16px;
+  }
+}
+
 @media (min-width: 1536px) {
   html {
-    font-size: 16.75px;
+    font-size: 16.5px;
   }
 }
 
 @media (min-width: 1800px) {
   html {
-    font-size: 17.5px;
+    font-size: 17.25px;
+  }
+}
+
+@media (min-width: 2200px) {
+  html {
+    font-size: 18px;
   }
 }
 

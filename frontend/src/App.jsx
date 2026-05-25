@@ -334,7 +334,6 @@ export default function App() {
   const riskCount = data ? withFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length : 0;
   const activePage = pages.find(([key]) => key === active) ?? pages[0];
   const activeSubtitle = PAGE_SUBTITLES[active] ?? 'DailyFlash';
-  const liveStreamActive = !!data && Object.values(data?.importSource ?? {}).some((v) => v);
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
 
@@ -525,30 +524,24 @@ export default function App() {
       </div>
 
       {/* ---- Top App Bar ---- */}
-      <header className="fixed top-0 z-40 flex min-h-24 w-full flex-col justify-center gap-3 border-b border-outline-variant/70 bg-surface-container-lowest/88 px-3 py-3 shadow-sm backdrop-blur-xl sm:min-h-20 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 md:left-72 md:w-[calc(100%-18rem)] md:px-5 lg:px-6">
-        <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto md:gap-4">
+      <header className="fixed top-0 z-40 flex h-16 w-full items-center justify-between gap-2 border-b border-outline-variant/70 bg-surface-container-lowest/88 px-3 shadow-sm backdrop-blur-xl sm:gap-3 sm:px-4 md:left-72 md:h-20 md:w-[calc(100%-18rem)] md:px-5 lg:px-6 xl:px-8">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 md:gap-4">
           {/* Mobile menu button */}
           <button
             type="button"
             onClick={() => setNavDrawerOpen(true)}
-            className="flex size-10 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high md:hidden"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high sm:size-10 md:hidden"
             aria-label="Open menu"
           >
             <MIcon name="menu" />
           </button>
-          <div className="min-w-0 flex-1 sm:flex-none">
-            <h1 className="truncate text-lg font-extrabold tracking-normal text-on-surface sm:text-xl md:text-2xl">{activePage[2]}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-base font-extrabold tracking-normal text-on-surface sm:text-lg md:text-xl lg:text-2xl">{activePage[2]}</h1>
             <p className="mt-0.5 hidden max-w-[min(52vw,52rem)] truncate text-xs font-medium text-on-surface-variant md:block lg:mt-1 lg:text-sm">{activeSubtitle}</p>
           </div>
-          {liveStreamActive ? (
-            <div className="hidden items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 lg:flex">
-              <MIcon name="check_circle" filled className="text-[16px] text-primary" />
-              <span className="text-[11px] font-bold text-primary">Live Data Stream</span>
-            </div>
-          ) : null}
         </div>
 
-        <div className="flex w-full min-w-0 items-center justify-between gap-2 sm:w-auto sm:justify-end md:gap-3 lg:gap-4">
+        <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 md:gap-3 lg:gap-4">
           <DateControl value={date} onChange={setDate} latest={today} />
           <div className="hidden items-center gap-2 md:flex">
             {riskCount > 0 ? (
@@ -585,7 +578,7 @@ export default function App() {
             type="button"
             onClick={() => { setPdfReturnTo(active); setActive('pdf'); }}
             disabled={!data}
-            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary shadow-primary active:scale-95 disabled:opacity-50 lg:hidden"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary shadow-primary active:scale-95 disabled:opacity-50 sm:size-10 lg:hidden"
             aria-label="Preview PDF"
           >
             <MIcon name="picture_as_pdf" />
@@ -594,8 +587,8 @@ export default function App() {
       </header>
 
       {/* ---- Main content ---- */}
-      <main className="min-h-screen px-3 pb-32 pt-32 transition-all duration-300 sm:px-4 sm:pt-28 md:ml-72 md:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
+      <main className="min-h-screen px-3 pb-28 pt-20 transition-all duration-300 sm:px-4 md:ml-72 md:pb-12 md:pt-24 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
+        <div className="mx-auto max-w-[110rem] 2xl:max-w-[120rem]">
           {status && refreshing ? (
             <div className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-on-surface-variant">
               <MIcon name="sync" className="animate-spin text-[14px]" />
@@ -626,7 +619,7 @@ export default function App() {
       </main>
 
       {/* ---- Floating bottom nav (mobile only) with center FAB ---- */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-20 items-center justify-around border-t border-outline-variant/70 bg-surface-container-lowest/92 px-6 pb-safe shadow-2xl backdrop-blur-2xl md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-[68px] items-center justify-around border-t border-outline-variant/70 bg-surface-container-lowest/92 px-4 pb-safe shadow-2xl backdrop-blur-2xl sm:h-20 sm:px-6 md:hidden">
         {BOTTOM_TABS.slice(0, 2).map(({ key, label }) => {
           const isActive = active === key;
           const item = NAV_ITEM_BY_KEY[key];

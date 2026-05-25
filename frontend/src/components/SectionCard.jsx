@@ -38,7 +38,7 @@ export default function SectionCard({
 
   return (
     <section className="glass-card mb-6 overflow-hidden">
-      <div className={`flex w-full flex-wrap items-center justify-between gap-3 ${hasIconHeader ? 'border-b border-outline-variant/60 bg-surface-container-lowest px-5 py-4 md:px-6' : 'px-5 py-4'}`}>
+      <div className={`flex w-full flex-wrap items-center justify-between gap-3 ${hasIconHeader ? 'border-b border-outline-variant/60 bg-surface-container-lowest px-4 py-3.5 sm:px-5 sm:py-4 md:px-6' : 'px-4 py-3.5 sm:px-5 sm:py-4'}`}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -80,12 +80,12 @@ export default function SectionCard({
         </div>
       </div>
       {open ? (
-        <div className="px-5 py-5 animate-fade-in-up md:px-6">
+        <div className="px-3.5 py-4 animate-fade-in-up sm:px-5 sm:py-5 md:px-6">
           {children}
         </div>
       ) : null}
       {open && footer ? (
-        <div className="border-t border-outline-variant/60 bg-surface-container-lowest/70 px-5 py-3 md:px-6">
+        <div className="border-t border-outline-variant/60 bg-surface-container-lowest/70 px-4 py-3 sm:px-5 md:px-6">
           {footer}
         </div>
       ) : null}

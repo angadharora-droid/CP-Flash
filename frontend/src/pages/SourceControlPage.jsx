@@ -232,7 +232,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
               <button
                 type="button"
                 onClick={() => setOpenUnit(isOpen ? null : unit)}
-                className="grid w-full grid-cols-1 items-center gap-3 px-3.5 py-3.5 text-left transition-colors hover:bg-primary/5 sm:px-5 sm:py-4 lg:grid-cols-[minmax(200px,1.2fr)_minmax(260px,1.4fr)_minmax(120px,0.5fr)_36px]"
+                className="grid w-full grid-cols-1 items-center gap-3 px-3.5 py-3.5 text-left transition-colors hover:bg-primary/5 sm:px-5 sm:py-4 xl:grid-cols-[minmax(200px,1.2fr)_minmax(260px,1.4fr)_minmax(120px,0.5fr)_36px]"
                 aria-expanded={isOpen}
               >
                 <div className="flex min-w-0 items-center gap-3">
@@ -247,7 +247,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
                   </div>
                 </div>
 
-                <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+                <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
                   <SourceStat
                     label="Last Sync"
                     value={(
@@ -274,14 +274,14 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
                   </div>
                 </div>
 
-                <div className="hidden size-9 items-center justify-center rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-primary lg:flex">
+                <div className="hidden size-9 items-center justify-center rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-primary xl:flex">
                   <MIcon name={isOpen ? 'expand_less' : 'expand_more'} className="text-[20px]" />
                 </div>
               </button>
 
               {isOpen ? (
                 <div className="border-t border-outline-variant/60 bg-surface-container-low px-3.5 py-4 animate-fade-in-up sm:px-5">
-                  <div className="grid gap-2 lg:grid-cols-2">
+                  <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
                   {unitSources.map((source) => (
                     <div key={source.id} className="rounded-lg border border-outline-variant/55 bg-surface-container-lowest px-3 py-3">
                       <div className="flex items-start justify-between gap-2">
