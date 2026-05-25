@@ -32,6 +32,21 @@ const SEED_FALLBACK_KEYS = ['pnl', 'bankPosition', 'hotels', 'rabbits', 'mickys'
 
 const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit'];
 
+const PAGE_SUBTITLES = {
+  sources: 'Monitor and manage real-time data ingestion from hospitality ERPs and delivery partners.',
+  bank: 'Track daily bank position, fixed deposits, cheques, and net balance.',
+  pnl: 'Review unit-wise revenue, purchases, fixed costs, and profitability.',
+  flags: 'Scan watch items and action-needed risks across all operating units.',
+  hotels: 'Monitor hotel KPIs for CP Nagpur and CP Navi Mumbai.',
+  fnb: 'Track sales, purchases, AOP, and outlet performance for F&B units.',
+  rabbits: 'Review delivery revenue, costs, and operating metrics for Rabbits.',
+  mickys: "Monitor Micky's orders, leads, stock, and daily performance.",
+  purosoul: 'Track Purosoul revenue, cost, production, dispatch, and stock.',
+  settlement: 'Reconcile settlement modes, cash, bank, and revenue collections.',
+  ai: 'Read the generated morning management briefing.',
+  pdf: 'Preview, refresh, open, or download the daily flash PDF.'
+};
+
 function hasEnteredPnlValues(row) {
   return PNL_VALUE_KEYS.some((key) => String(row?.[key] ?? '').trim() !== '');
 }
@@ -318,6 +333,7 @@ export default function App() {
 
   const riskCount = data ? withFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length : 0;
   const activePage = pages.find(([key]) => key === active) ?? pages[0];
+  const activeSubtitle = PAGE_SUBTITLES[active] ?? 'DailyFlash';
   const liveStreamActive = !!data && Object.values(data?.importSource ?? {}).some((v) => v);
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
@@ -509,7 +525,7 @@ export default function App() {
       </div>
 
       {/* ---- Top App Bar ---- */}
-      <header className="fixed top-0 z-40 flex h-16 w-full items-center justify-between border-b border-outline-variant/70 bg-surface-container-lowest/88 px-4 shadow-sm backdrop-blur-xl md:left-72 md:w-[calc(100%-18rem)] md:px-6">
+      <header className="fixed top-0 z-40 flex h-20 w-full items-center justify-between border-b border-outline-variant/70 bg-surface-container-lowest/88 px-4 shadow-sm backdrop-blur-xl md:left-72 md:w-[calc(100%-18rem)] md:px-6">
         <div className="flex min-w-0 items-center gap-3 md:gap-4">
           {/* Mobile menu button */}
           <button
@@ -522,7 +538,7 @@ export default function App() {
           </button>
           <div className="min-w-0">
             <h1 className="truncate text-xl font-extrabold tracking-normal text-on-surface md:text-2xl">{activePage[2]}</h1>
-            <p className="hidden text-xs font-semibold text-on-surface-variant sm:block">DailyFlash</p>
+            <p className="mt-1 hidden max-w-3xl truncate text-sm font-medium text-on-surface-variant lg:block">{activeSubtitle}</p>
           </div>
           {liveStreamActive ? (
             <div className="hidden items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 lg:flex">
@@ -578,7 +594,7 @@ export default function App() {
       </header>
 
       {/* ---- Main content ---- */}
-      <main className="min-h-screen px-4 pb-32 pt-24 transition-all duration-300 md:ml-72 md:px-8">
+      <main className="min-h-screen px-4 pb-32 pt-28 transition-all duration-300 md:ml-72 md:px-8">
         <div className="mx-auto max-w-7xl">
           {status && refreshing ? (
             <div className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-on-surface-variant">
