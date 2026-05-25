@@ -13,6 +13,21 @@ export const statusTone = {
   Pending: 'border-amber-200/80 bg-amber-50/80 text-amber-700 ring-1 ring-amber-100'
 };
 
+// Shared SVG path snippets used as `icon` for SectionCard / metric tiles.
+export const SECTION_ICONS = {
+  hotel:      <path strokeLinecap="round" strokeLinejoin="round" d="M3 21V8.25c0-.621.504-1.125 1.125-1.125H6.75V4.5c0-.621.504-1.125 1.125-1.125h8.25c.621 0 1.125.504 1.125 1.125v2.625h2.625c.621 0 1.125.504 1.125 1.125V21M3 21h18M9 21V12h6v9" />,
+  restaurant: <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v6.75a3 3 0 003 3v8.25m0-18v6.75a3 3 0 01-3 3m6-9.75v18M17.25 3v18" />,
+  factory:    <path strokeLinecap="round" strokeLinejoin="round" d="M3 21V11.25l6 3.75v-3.75l6 3.75V8.25l6 3.75V21H3z" />,
+  bank:       <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l9 4.5M3 7.5h18M5.25 10.5v7.5M9.75 10.5v7.5M14.25 10.5v7.5M18.75 10.5v7.5M3 21h18" />,
+  banquet:    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5h18M4.5 7.5v9A2.25 2.25 0 006.75 18.75h10.5A2.25 2.25 0 0019.5 16.5v-9M9 11.25h6" />,
+  topItems:   <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.32.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.32-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />,
+  config:     <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />,
+  kpi:        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />,
+  sku:        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 01-1.125-1.125v-3.75zM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-8.25zM3.75 16.125c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-2.25z" />,
+  spark:      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />,
+  hub:        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5a2.25 2.25 0 100 4.5 2.25 2.25 0 000-4.5zM12 15a2.25 2.25 0 100 4.5 2.25 2.25 0 000-4.5zM4.5 12a2.25 2.25 0 104.5 0 2.25 2.25 0 00-4.5 0zM15 12a2.25 2.25 0 104.5 0 2.25 2.25 0 00-4.5 0zM9 12h6m-3-3v-1.5m0 9V15" />
+};
+
 function fmtDate(isoDate) {
   return new Date(isoDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }

@@ -3,7 +3,7 @@ import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, PageTitle, ReportValue, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
+import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, PageTitle, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
 import { SHEET_URLS } from '../lib/navigation';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
@@ -33,12 +33,24 @@ export default function HotelsPage({ data, date }) {
         }))}
       />
       {sections.map((section) => (
-        <SectionCard key={section} title={`${hotelLabel}: ${section}`}>
+        <SectionCard
+          key={section}
+          title={`${hotelLabel}: ${section}`}
+          subtitle={`${rows.filter((row) => row.section === section).length} KPI${rows.filter((row) => row.section === section).length === 1 ? '' : 's'}`}
+          icon={SECTION_ICONS.hotel}
+          tone="indigo"
+        >
           <KpiTable rows={rows.filter((row) => row.section === section)} />
         </SectionCard>
       ))}
       {hotelUnit === 'CP Nagpur' && ['banquetToday', 'banquetTomorrow'].map((key) => (
-        <SectionCard key={key} title={`${hotelLabel}: ${key === 'banquetToday' ? 'Banquet Function List Today' : 'Banquet Function List Tomorrow'}`}>
+        <SectionCard
+          key={key}
+          title={`${hotelLabel}: ${key === 'banquetToday' ? 'Banquet Function List Today' : 'Banquet Function List Tomorrow'}`}
+          subtitle={`${(data[key] ?? []).length} function${(data[key] ?? []).length === 1 ? '' : 's'} scheduled`}
+          icon={SECTION_ICONS.banquet}
+          tone="amber"
+        >
           <DataTable
             columns={['Market Segment', 'Pax', 'Hall/Venue', 'Session', 'Revenue', 'Notes']}
             rows={(data[key] ?? []).map((row, index) => ({
