@@ -148,11 +148,11 @@ export function KpiTable({ rows }) {
   const headers = ['KPI Name', 'AOP Target', 'Today Actual', 'MTD', 'YTD', 'Status'];
   return (
     <div className="scroll-touch glass-card max-w-full overflow-auto">
-      <table className="min-w-[680px] text-sm md:min-w-full">
+      <table className="min-w-[640px] text-sm md:min-w-full">
         <thead>
           <tr className="bg-surface-container text-left">
             {headers.map((h, i) => (
-              <th key={h} className={`whitespace-nowrap border-b border-outline-variant/70 px-3 py-3 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-surface-variant sm:px-4 sm:py-3.5 ${i === 0 ? 'sticky left-0 z-[2] bg-surface-container' : ''} ${i === 2 ? 'bg-primary/10 text-primary' : ''}`}>
+              <th key={h} className={`whitespace-nowrap border-b border-outline-variant/70 px-2.5 py-2.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-surface-variant sm:px-4 sm:py-3.5 ${i === 0 ? 'sticky left-0 z-[2] bg-surface-container' : ''} ${i === 2 ? 'bg-primary/10 text-primary' : ''}`}>
                 {h}
               </th>
             ))}
@@ -280,17 +280,17 @@ export function DateControl({ value, onChange, latest }) {
         type="button"
         onClick={openPicker}
         title="Pick date"
-        className="group flex min-w-0 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest py-1.5 pl-2.5 pr-1.5 shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-low active:scale-95 sm:gap-3 md:pl-4"
+        className="group flex min-w-0 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest py-1 pl-2 pr-1 shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-low active:scale-95 sm:gap-3 sm:py-1.5 sm:pl-2.5 sm:pr-1.5 md:pl-4"
       >
         <div className="flex min-w-0 flex-col items-start leading-none">
           <span className="hidden text-[10px] font-bold uppercase tracking-[0.05em] text-on-surface-variant/60 md:inline">Business Date</span>
-          <span className="truncate text-[13px] font-bold text-on-surface md:text-sm">
+          <span className="truncate text-[12px] font-bold text-on-surface sm:text-[13px] md:text-sm">
             <span className="hidden md:inline">{display.full}</span>
-            <span className="md:hidden">{display.short} · {display.day}</span>
+            <span className="md:hidden">{display.short}</span>
           </span>
         </div>
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container/10 text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary">
-          <MIcon name="calendar_today" className="text-[18px]" />
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-container/10 text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary sm:size-8">
+          <MIcon name="calendar_today" className="text-[16px] sm:text-[18px]" />
         </div>
       </button>
       <button

@@ -14,17 +14,17 @@ export default function SettlementPage({ data, date }) {
   const diff = revenue - totals.groupTotal;
   return (
     <>
-      <div className={`relative overflow-hidden rounded-2xl border ${diff === 0 ? 'border-emerald-200 bg-emerald-50/70' : 'border-rose-200 bg-rose-50/70'} px-5 py-4 shadow-card backdrop-blur-xl`}>
+      <div className={`relative mb-5 overflow-hidden rounded-2xl border ${diff === 0 ? 'border-emerald-200 bg-emerald-50/70' : 'border-rose-200 bg-rose-50/70'} px-4 py-3.5 shadow-card backdrop-blur-xl sm:px-5 sm:py-4`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className={`flex size-10 items-center justify-center rounded-xl ring-1 ${diff === 0 ? 'bg-white text-emerald-600 ring-emerald-100' : 'bg-white text-rose-600 ring-rose-100'}`}>
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ${diff === 0 ? 'bg-white text-emerald-600 ring-emerald-100' : 'bg-white text-rose-600 ring-rose-100'}`}>
               <svg className="size-5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
                 {diff === 0
                   ? <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   : <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />}
               </svg>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className={`text-sm font-bold ${diff === 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {diff === 0 ? 'Revenue and settlements match' : 'Revenue and settlements mismatch'}
               </div>

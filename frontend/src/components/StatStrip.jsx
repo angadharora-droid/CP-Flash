@@ -29,7 +29,7 @@ function IconSlot({ icon, className }) {
 
 export default function StatStrip({ items }) {
   return (
-    <div className="mb-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:gap-3 2xl:grid-cols-4">
+    <div className="mb-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3 xl:gap-4">
       {items.map((item) => {
         const accent = ACCENT[item.tone] ?? DEFAULT_ACCENT;
         const progress = typeof item.progress === 'number'
@@ -38,7 +38,7 @@ export default function StatStrip({ items }) {
         return (
           <div
             key={item.label}
-            className="glass-card group flex min-h-[88px] items-start gap-3 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover sm:min-h-[96px] sm:p-4"
+            className="glass-card group flex min-h-[84px] items-start gap-3 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover sm:min-h-[96px] sm:p-4 xl:p-5"
           >
             <div className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${accent.iconBg} ${accent.iconText} transition-transform duration-200 group-hover:scale-105`}>
               <IconSlot icon={item.icon} className="text-[21px]" />

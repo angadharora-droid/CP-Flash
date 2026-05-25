@@ -30,7 +30,7 @@ export default function PnlPage({ data, date }) {
         tone="slate"
         defaultOpen={false}
       >
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {rows.map((row) => (
             <div key={row.unit} className="flex items-center justify-between gap-3 rounded-xl border border-app-border bg-white/80 px-3.5 py-2.5">
               <span className="text-xs font-bold uppercase tracking-wider text-app-muted">{row.unit}</span>
