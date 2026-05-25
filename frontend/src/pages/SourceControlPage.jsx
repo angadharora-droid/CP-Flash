@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { PageTitle, statusTone } from '../components/DashboardUi';
+import { statusTone } from '../components/DashboardUi';
 import { getEmailImportStatus, getSourceStatus, runEmailImport } from '../lib/api';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
@@ -192,21 +192,17 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
 
   return (
     <>
-      <PageTitle
-        title="Source Control"
-        subtitle="Monitor and manage real-time data ingestion from hospitality ERPs and delivery partners."
-        actions={(
-          <button
-            type="button"
-            onClick={handleRunEmailImport}
-            disabled={importRunning}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
-          >
-            <MIcon name="sync" className={`text-[18px] ${importRunning ? 'animate-spin' : ''}`} />
-            {importRunning ? 'Refreshing…' : 'Refresh Sources'}
-          </button>
-        )}
-      />
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={handleRunEmailImport}
+          disabled={importRunning}
+          className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-4 py-2 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
+        >
+          <MIcon name="sync" className={`text-[18px] ${importRunning ? 'animate-spin' : ''}`} />
+          {importRunning ? 'Refreshing...' : 'Refresh Sources'}
+        </button>
+      </div>
 
       {error ? (
         <div className="glass-card mb-6 flex items-start gap-3 border border-error/20 bg-error/10 px-5 py-4 text-sm text-error">
