@@ -3,23 +3,14 @@ import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, PageTitle, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
+import { ActionButton, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
 import { SHEET_URLS } from '../lib/navigation';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
 
 export default function PurosoulPage({ data, date }) {
-  const hasSkuData = (data.purosoulSku ?? []).some((r) => String(r.produced ?? '').trim() !== '');
-  const hasData = hasKpiData(data.purosoul) || hasSkuData;
-  const flashImportedAt = data.importSource?.purosoulFlashImportedAt;
-  const salesImportedAt = data.importSource?.purosoulSalesImportedAt;
-  const importedAt = flashImportedAt && salesImportedAt
-    ? (flashImportedAt > salesImportedAt ? flashImportedAt : salesImportedAt)
-    : (flashImportedAt ?? salesImportedAt);
-  const badge = getFreshness(importedAt, hasData, date);
   return (
     <>
-      <PageTitle title="Purosoul Data" subtitle="Revenue, RM cost, production, dispatch, and stock." badge={badge} activeKey="purosoul" />
       <SectionCard
         title="Revenue & Cost"
         subtitle="Daily revenue, raw material cost, and margin"
