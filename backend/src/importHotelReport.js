@@ -15,7 +15,7 @@ function findRow(rows, label) {
 }
 
 function net(row) {
-  return { actual: num(row[3]), mtd: num(row[7]), ytd: num(row[11]) };
+  return { actual: num(row[3]), mtd: num(row[7]) };
 }
 
 function setKpi(data, unit, name, values) {
