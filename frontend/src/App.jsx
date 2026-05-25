@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getSeed, getSourceReportPreview, saveData } from './lib/api';
 import { numberValue, withFlags } from './lib/calculations';
-import { ActionButton, DateControl, googleSheetPreviewUrl, PinGate } from './components/DashboardUi';
+import { ActionButton, BrandLoader, DateControl, googleSheetPreviewUrl, PinGate } from './components/DashboardUi';
 import { BOTTOM_TABS, NAV_GROUPS, NAV_ITEM_BY_KEY, pages } from './lib/navigation';
 import BankPage from './pages/BankPage';
 import PnlPage from './pages/PnlPage';
@@ -544,7 +544,7 @@ export default function App() {
               title="Refresh"
               className="rounded-lg p-2.5 text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-90 disabled:opacity-40"
             >
-              <MIcon name="sync" className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? <BrandLoader size={20} /> : <MIcon name="sync" />}
             </button>
             <div className="mx-1 h-6 w-px bg-outline-variant/30" />
           </div>
@@ -574,7 +574,7 @@ export default function App() {
         <div className="mx-auto max-w-[110rem] 2xl:max-w-[120rem]">
           {status && refreshing ? (
             <div className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-on-surface-variant">
-              <MIcon name="sync" className="animate-spin text-[14px]" />
+              <BrandLoader size={18} />
               {status}
             </div>
           ) : null}
@@ -590,11 +590,7 @@ export default function App() {
           <div key={active} className="space-y-5 animate-fade-in-up">
             {page ?? (
               <div className="glass-card flex flex-col items-center justify-center gap-4 py-24 text-center">
-                <div className="relative">
-                  <div className="size-10 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
-                  <div className="absolute inset-0 size-10 animate-ping rounded-full border border-primary/40" />
-                </div>
-                <p className="text-sm font-medium text-on-surface-variant">Loading dashboard data...</p>
+                <BrandLoader size={72} label="Loading dashboard data..." />
               </div>
             )}
           </div>

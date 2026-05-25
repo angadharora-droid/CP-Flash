@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { statusTone } from '../components/DashboardUi';
+import { BrandLoader, statusTone } from '../components/DashboardUi';
 import { getEmailImportStatus, getSourceStatus, runEmailImport } from '../lib/api';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
@@ -199,7 +199,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
           disabled={importRunning}
           className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-4 py-2 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
         >
-          <MIcon name="sync" className={`text-[18px] ${importRunning ? 'animate-spin' : ''}`} />
+          {importRunning ? <BrandLoader size={18} /> : <MIcon name="sync" className="text-[18px]" />}
           {importRunning ? 'Refreshing...' : 'Refresh Sources'}
         </button>
       </div>
