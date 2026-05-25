@@ -1,13 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getSeed, getSourceReportPreview, saveData } from './lib/api';
+import { getSeed, saveData } from './lib/api';
 import { numberValue, withFlags } from './lib/calculations';
-import { ActionButton, BrandLoader, DateControl, googleSheetPreviewUrl, PinGate } from './components/DashboardUi';
+import { ActionButton, BrandLoader, DateControl, PinGate } from './components/DashboardUi';
 import { BOTTOM_TABS, NAV_GROUPS, NAV_ITEM_BY_KEY, pages } from './lib/navigation';
 import BankPage from './pages/BankPage';
 import PnlPage from './pages/PnlPage';
 import FlagsPage from './pages/FlagsPage';
-import SourceReportPreviewScreen from './pages/SourceReportPreviewScreen';
-import SourceControlPage from './pages/SourceControlPage';
 import HotelsPage from './pages/HotelsPage';
 import FnbPage from './pages/FnbPage';
 import RabbitsPage from './pages/RabbitsPage';
@@ -159,17 +157,14 @@ const MIcon = ({ name, className = '', filled = false, rotating = false }) => (
 );
 
 export default function App() {
-  const [active, setActive] = useState('sources');
+  const [active, setActive] = useState('bank');
   const [date, setDate] = useState(today);
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('Loading...');
   const [refreshing, setRefreshing] = useState(false);
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('dailyflashToken') || '');
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
-  const [sourceReportPreview, setSourceReportPreview] = useState(null);
-  const [sourceReportPreviewLoading, setSourceReportPreviewLoading] = useState(false);
-  const [sourceReportPreviewError, setSourceReportPreviewError] = useState('');
-  const [pdfReturnTo, setPdfReturnTo] = useState('sources');
+  const [pdfReturnTo, setPdfReturnTo] = useState('bank');
   const loadRequestRef = React.useRef(0);
   const loadedDateRef = React.useRef('');
 
@@ -249,32 +244,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, [date, authToken, loadData]);
 
-  const openSourceReportPreview = React.useCallback(async (source, file, options = {}) => {
-    if (options.type === 'google-sheet') {
-      setSourceReportPreview({
-        type: 'google-sheet',
-        title: options.title ?? source.label,
-        file: source.label,
-        url: googleSheetPreviewUrl(file),
-        sheets: []
-      });
-      setSourceReportPreviewError('');
-      setSourceReportPreviewLoading(false);
-      return;
-    }
-
-    setSourceReportPreview({ file, sheets: [] });
-    setSourceReportPreviewError('');
-    setSourceReportPreviewLoading(true);
-    try {
-      setSourceReportPreview(await getSourceReportPreview(date, source.id, file, authToken));
-    } catch (err) {
-      setSourceReportPreviewError(err.message);
-    } finally {
-      setSourceReportPreviewLoading(false);
-    }
-  }, [date, authToken]);
-
   const handleRefresh = React.useCallback(() => {
     if (authToken) loadData(date, authToken);
   }, [authToken, date, loadData]);
@@ -282,7 +251,6 @@ export default function App() {
   const page = useMemo(() => {
     if (!data) return null;
     const common = { data, setData, date, authToken };
-    if (active === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
     if (active === 'bank') return <BankPage {...common} />;
     if (active === 'pnl') return <PnlPage {...common} />;
     if (active === 'flags') return <FlagsPage data={data} />;
@@ -293,7 +261,7 @@ export default function App() {
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
     return <AiPage data={data} authToken={authToken} />;
-  }, [active, data, date, authToken, openSourceReportPreview, handleRefresh]);
+  }, [active, data, date, authToken]);
 
   const lockApp = React.useCallback(() => {
     localStorage.removeItem('dailyflashToken');
@@ -331,21 +299,6 @@ export default function App() {
   const activePage = pages.find(([key]) => key === active) ?? pages[0];
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
-
-  if (sourceReportPreview || sourceReportPreviewLoading || sourceReportPreviewError) {
-    return (
-      <SourceReportPreviewScreen
-        preview={sourceReportPreview}
-        loading={sourceReportPreviewLoading}
-        error={sourceReportPreviewError}
-        onClose={() => {
-          setSourceReportPreview(null);
-          setSourceReportPreviewError('');
-          setSourceReportPreviewLoading(false);
-        }}
-      />
-    );
-  }
 
   if (active === 'pdf') {
     return (
@@ -395,7 +348,7 @@ export default function App() {
         <div className="flex h-20 items-center gap-3 border-b border-outline-variant/70 px-4">
           <button
             type="button"
-            onClick={() => setActive('sources')}
+            onClick={() => setActive('bank')}
             className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
             title="DailyFlash"
             aria-label="Home"
@@ -623,14 +576,15 @@ export default function App() {
             </button>
           );
         })}
-        {/* Center FAB → Sources */}
+        {/* Center FAB → PDF Preview */}
         <button
           type="button"
-          onClick={() => setActive('sources')}
-          className="-mt-10 flex size-14 items-center justify-center rounded-2xl border-4 border-surface bg-primary text-on-primary shadow-primary transition-all active:scale-90"
-          aria-label="Sources"
+          onClick={() => { setPdfReturnTo(active); setActive('pdf'); }}
+          disabled={!data}
+          className="-mt-10 flex size-14 items-center justify-center rounded-2xl border-4 border-surface bg-primary text-on-primary shadow-primary transition-all active:scale-90 disabled:opacity-50"
+          aria-label="Preview PDF"
         >
-          <MIcon name="dataset" filled />
+          <MIcon name="picture_as_pdf" filled />
         </button>
         {BOTTOM_TABS.slice(2).map(({ key, label }) => {
           const isActive = active === key;
