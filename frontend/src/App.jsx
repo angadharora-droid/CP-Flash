@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getSeed, saveData } from './lib/api';
+import { getSeed, getSourceReportPreview, saveData } from './lib/api';
 import { numberValue, withFlags } from './lib/calculations';
-import { ActionButton, BrandLoader, DateControl, PinGate } from './components/DashboardUi';
+import { ActionButton, BrandLoader, DateControl, googleSheetPreviewUrl, PinGate } from './components/DashboardUi';
 import { BOTTOM_TABS, NAV_GROUPS, NAV_ITEM_BY_KEY, pages } from './lib/navigation';
 import BankPage from './pages/BankPage';
 import PnlPage from './pages/PnlPage';
 import FlagsPage from './pages/FlagsPage';
+import SourceReportPreviewScreen from './pages/SourceReportPreviewScreen';
+import SourceControlPage from './pages/SourceControlPage';
 import HotelsPage from './pages/HotelsPage';
 import FnbPage from './pages/FnbPage';
 import RabbitsPage from './pages/RabbitsPage';
@@ -164,6 +166,9 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('dailyflashToken') || '');
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+  const [sourceReportPreview, setSourceReportPreview] = useState(null);
+  const [sourceReportPreviewLoading, setSourceReportPreviewLoading] = useState(false);
+  const [sourceReportPreviewError, setSourceReportPreviewError] = useState('');
   const [pdfReturnTo, setPdfReturnTo] = useState('bank');
   const loadRequestRef = React.useRef(0);
   const loadedDateRef = React.useRef('');
@@ -244,6 +249,32 @@ export default function App() {
     return () => clearInterval(timer);
   }, [date, authToken, loadData]);
 
+  const openSourceReportPreview = React.useCallback(async (source, file, options = {}) => {
+    if (options.type === 'google-sheet') {
+      setSourceReportPreview({
+        type: 'google-sheet',
+        title: options.title ?? source.label,
+        file: source.label,
+        url: googleSheetPreviewUrl(file),
+        sheets: []
+      });
+      setSourceReportPreviewError('');
+      setSourceReportPreviewLoading(false);
+      return;
+    }
+
+    setSourceReportPreview({ file, sheets: [] });
+    setSourceReportPreviewError('');
+    setSourceReportPreviewLoading(true);
+    try {
+      setSourceReportPreview(await getSourceReportPreview(date, source.id, file, authToken));
+    } catch (err) {
+      setSourceReportPreviewError(err.message);
+    } finally {
+      setSourceReportPreviewLoading(false);
+    }
+  }, [date, authToken]);
+
   const handleRefresh = React.useCallback(() => {
     if (authToken) loadData(date, authToken);
   }, [authToken, date, loadData]);
@@ -251,6 +282,7 @@ export default function App() {
   const page = useMemo(() => {
     if (!data) return null;
     const common = { data, setData, date, authToken };
+    if (active === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
     if (active === 'bank') return <BankPage {...common} />;
     if (active === 'pnl') return <PnlPage {...common} />;
     if (active === 'flags') return <FlagsPage data={data} />;
@@ -261,7 +293,7 @@ export default function App() {
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
     return <AiPage data={data} authToken={authToken} />;
-  }, [active, data, date, authToken]);
+  }, [active, data, date, authToken, openSourceReportPreview, handleRefresh]);
 
   const lockApp = React.useCallback(() => {
     localStorage.removeItem('dailyflashToken');
@@ -299,6 +331,21 @@ export default function App() {
   const activePage = pages.find(([key]) => key === active) ?? pages[0];
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
+
+  if (sourceReportPreview || sourceReportPreviewLoading || sourceReportPreviewError) {
+    return (
+      <SourceReportPreviewScreen
+        preview={sourceReportPreview}
+        loading={sourceReportPreviewLoading}
+        error={sourceReportPreviewError}
+        onClose={() => {
+          setSourceReportPreview(null);
+          setSourceReportPreviewError('');
+          setSourceReportPreviewLoading(false);
+        }}
+      />
+    );
+  }
 
   if (active === 'pdf') {
     return (

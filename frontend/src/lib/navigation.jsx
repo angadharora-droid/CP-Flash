@@ -8,6 +8,7 @@ export const SHEET_URLS = {
 };
 
 export const pages = [
+  ['sources', '00', 'Source Control'],
   ['bank', '01', 'Bank Position'],
   ['pnl', '02', 'Unit-wise P&L'],
   ['flags', '03', 'Flag Summary'],
@@ -26,6 +27,7 @@ export const NAV_GROUPS = [
   {
     label: 'Overview',
     items: [
+      { key: 'sources', label: 'Source Control', icon: 'dataset' },
       { key: 'bank',    label: 'Bank Position',  icon: 'account_balance_wallet' },
       { key: 'pnl',     label: 'P&L Summary',    icon: 'monitoring' },
       { key: 'flags',   label: 'Flag Summary',   icon: 'flag' }
