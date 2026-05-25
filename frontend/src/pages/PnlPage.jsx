@@ -128,27 +128,20 @@ export default function PnlPage({ data, period }) {
         subtitle={period ? `Summed from ${period.mtdDates?.length ?? 0} day${(period.mtdDates?.length ?? 0) === 1 ? '' : 's'} of saved data this month` : 'Loading aggregate from daily reports…'}
         period={mtdByUnit}
         totals={mtdTotals}
-        error={periodError}
       />
       <PeriodTotalsCard
         title={`Year-to-Date Totals${period?.yearPrefix ? ` · ${period.yearPrefix}` : ''}`}
         subtitle={period ? `Summed from ${period.ytdDates?.length ?? 0} day${(period.ytdDates?.length ?? 0) === 1 ? '' : 's'} of saved data this year` : 'Loading aggregate from daily reports…'}
         period={ytdByUnit}
         totals={ytdTotals}
-        error={periodError}
       />
     </>
   );
 }
 
-function PeriodTotalsCard({ title, subtitle, period, totals, error }) {
+function PeriodTotalsCard({ title, subtitle, period, totals }) {
   return (
     <SectionCard title={title} subtitle={subtitle} icon={SECTION_ICONS.config} tone="slate" defaultOpen>
-      {error ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
-        </div>
-      ) : null}
       <DataTable
         columns={['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'Net Profit', 'Days']}
         numericFrom={1}
