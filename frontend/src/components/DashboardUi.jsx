@@ -6,6 +6,13 @@ import cpLogo from '../cp-logo.png';
 
 const NOW = new Date().toISOString().slice(0, 10);
 
+// Status tone classes used by SourceControlPage and friends. Pill-shaped pills with M3 hues.
+export const statusTone = {
+  Imported: 'border-secondary/20 bg-secondary/10 text-secondary',
+  Entered:  'border-secondary/20 bg-secondary-container/30 text-on-secondary-container',
+  Pending:  'border-tertiary/30 bg-tertiary-container/60 text-on-tertiary-container'
+};
+
 // Material Symbol names by section, used by SectionCard usage sites and the source page.
 export const SECTION_ICONS = {
   hotel: 'hotel',
