@@ -136,14 +136,20 @@ export async function generateAiNotes(prompt, token) {
   return json.text;
 }
 
-export function reportPdfUrl(date, token) {
+function applyPdfSectionParams(params, sections) {
+  if (Array.isArray(sections) && sections.length) params.set('sections', sections.join(','));
+}
+
+export function reportPdfUrl(date, token, sections) {
   const params = new URLSearchParams({ date });
   if (token) params.set('token', token);
+  applyPdfSectionParams(params, sections);
   return `${API_BASE}/api/report.pdf?${params.toString()}`;
 }
 
-export function reportPdfPreviewUrl(date, token) {
+export function reportPdfPreviewUrl(date, token, sections) {
   const params = new URLSearchParams({ date, inline: '1' });
   if (token) params.set('token', token);
+  applyPdfSectionParams(params, sections);
   return `${API_BASE}/api/report.pdf?${params.toString()}`;
 }

@@ -117,11 +117,12 @@ function normalizeRabbitsCategoryBreakdown(seedRows = [], savedRows = []) {
 function mergeSeedKpiRows(seedRows = [], savedRows = []) {
   if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
   const savedById = new Map(savedRows.map((row) => [row.id, row]));
+  const savedByUnitAndName = new Map(savedRows.map((row) => [`${row.unit ?? ''}::${row.name ?? ''}`, row]));
   const seen = new Set();
   const mergedSeedRows = seedRows.map((seedRow) => {
-    const savedRow = savedById.get(seedRow.id);
-    seen.add(seedRow.id);
-    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
+    const savedRow = savedById.get(seedRow.id) ?? savedByUnitAndName.get(`${seedRow.unit ?? ''}::${seedRow.name ?? ''}`);
+    if (savedRow?.id) seen.add(savedRow.id);
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id, section: seedRow.section } : seedRow;
   });
   const extraRows = savedRows.filter((row) => !seen.has(row.id));
   return [...mergedSeedRows, ...extraRows];
@@ -182,6 +183,7 @@ function mergeWithSeed(seed, saved, previous = null) {
     Pablo: mergeSeedKpiRows(seed.fnb?.Pablo, merged.fnb?.Pablo),
     Dali: mergeSeedKpiRows(seed.fnb?.Dali, merged.fnb?.Dali)
   };
+  merged.hotels = mergeSeedKpiRows(seed.hotels, merged.hotels);
   merged.rabbits = normalizeRabbitsCategoryBreakdown(seed.rabbits, merged.rabbits);
   merged.pnl = mergePnlRows(seed.pnl, saved.pnl, previous?.pnl);
   merged.pnl = derivePnlRows(merged);
@@ -641,7 +643,7 @@ export default function App() {
           ) : null}
           <div key={active} className="space-y-5 animate-fade-in-up">
             {page ?? (
-              <div className="glass-card flex flex-col items-center justify-center gap-4 py-24 text-center">
+              <div className="flex min-h-[38vh] flex-col items-center justify-center gap-4 py-16 text-center sm:py-20">
                 <BrandLoader size={72} label="Loading dashboard data..." />
               </div>
             )}

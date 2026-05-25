@@ -29,13 +29,18 @@ export const pageSchemas = {
       title: 'Room Revenue & Occupancy',
       rows: [
         ['Occupancy %', 78],
-        ['Tomorrow Occupancy Forecast %', 80],
-        ['Arrivals', 42],
-        ['Departures', 38],
         ['Rooms Sold', 96],
         ['Room Revenue', 650000],
         ['ARR', 6800],
         ['RevPAR', 5300]
+      ]
+    },
+    {
+      title: 'Forecast',
+      rows: [
+        ['Tomorrow Occupancy Forecast %', 80],
+        ['Arrivals', 42],
+        ['Departures', 38]
       ]
     },
     {

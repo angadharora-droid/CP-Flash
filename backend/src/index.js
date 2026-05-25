@@ -299,11 +299,12 @@ function mergePnlRows(seedRows = [], savedRows = []) {
 function mergeSeedKpiRows(seedRows = [], savedRows = []) {
   if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
   const savedById = new Map(savedRows.map((row) => [row.id, row]));
+  const savedByUnitAndName = new Map(savedRows.map((row) => [`${row.unit ?? ''}::${row.name ?? ''}`, row]));
   const seen = new Set();
   const mergedSeedRows = seedRows.map((seedRow) => {
-    const savedRow = savedById.get(seedRow.id);
-    seen.add(seedRow.id);
-    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
+    const savedRow = savedById.get(seedRow.id) ?? savedByUnitAndName.get(`${seedRow.unit ?? ''}::${seedRow.name ?? ''}`);
+    if (savedRow?.id) seen.add(savedRow.id);
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id, section: seedRow.section } : seedRow;
   });
   const extraRows = savedRows.filter((row) => !seen.has(row.id));
   return [...mergedSeedRows, ...extraRows];
@@ -314,6 +315,7 @@ function mergeDailyData(seed, saved) {
   const merged = {
     ...seed,
     ...saved,
+    hotels: mergeSeedKpiRows(seed.hotels, saved.hotels),
     fnb: {
       ...(saved.fnb ?? {}),
       Pablo: mergeSeedKpiRows(seed.fnb?.Pablo, saved.fnb?.Pablo),
@@ -726,6 +728,10 @@ app.get('/api/source-report-preview', wrap(async (req, res) => {
 
 app.get('/api/report.pdf', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
+  const sections = String(req.query.sections ?? '')
+    .split(',')
+    .map((section) => section.trim())
+    .filter(Boolean);
   const seed = buildSeedData();
   const saved = await readDailyData(date);
   const data = mergeDailyData(seed, saved);
@@ -734,7 +740,7 @@ app.get('/api/report.pdf', wrap(async (req, res) => {
   const disposition = req.query.inline ? 'inline' : 'attachment';
   res.setHeader('content-type', 'application/pdf');
   res.setHeader('content-disposition', `${disposition}; filename="${filename}"`);
-  const doc = createDailyFlashPdf(data, date);
+  const doc = createDailyFlashPdf(data, date, { sections });
   doc.pipe(res);
   doc.end();
 }));

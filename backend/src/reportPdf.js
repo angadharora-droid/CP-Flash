@@ -9,6 +9,8 @@ const SHEET_URLS = {
   mickysLeads: 'https://docs.google.com/spreadsheets/d/1jvnmwP4AaNQW54E3QVlzR9ZMj589HXZugJfhBOye_gs/'
 };
 
+const PDF_SECTIONS = new Set(['summary', 'bank', 'pnl', 'flags', 'hotels', 'fnb', 'rabbits', 'mickys', 'purosoul', 'settlement']);
+
 const colors = {
   header: '#111827',
   headerSoft: '#4b5563',
@@ -102,9 +104,13 @@ function safeText(value) {
   return String(value ?? '').replace(/[₹]/g, 'Rs.');
 }
 
-export function createDailyFlashPdf(data, date) {
+export function createDailyFlashPdf(data, date, options = {}) {
   const doc = new PDFDocument({ size: 'A4', margins: { top: 36, right: 36, bottom: 24, left: 36 }, bufferPages: true });
   let pageNo = 0;
+  const requestedSections = Array.isArray(options.sections)
+    ? options.sections.filter((section) => PDF_SECTIONS.has(section))
+    : [];
+  const enabledSections = requestedSections.length ? new Set(requestedSections) : PDF_SECTIONS;
 
   const FIRST_PAGE_TOP = 96;
   const SUBSEQUENT_PAGE_TOP = 40;
@@ -156,6 +162,13 @@ export function createDailyFlashPdf(data, date) {
     }
     doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 20).lineTo(559, y + 20).stroke();
     doc.y = y + 28;
+  }
+
+  function unitDivider() {
+    ensureSpace(14);
+    const y = doc.y;
+    doc.strokeColor(colors.lineDark).lineWidth(0.75).moveTo(36, y).lineTo(559, y).stroke();
+    doc.y = y + 14;
   }
 
   function summaryCards(items) {
@@ -248,6 +261,10 @@ export function createDailyFlashPdf(data, date) {
     // Intentionally a no-op: source-sheet reference removed for a denser layout.
   }
 
+  function hasSection(section) {
+    return enabledSections.has(section);
+  }
+
   decoratePage();
 
   const bankRowsRaw = data.bankPosition ?? [];
@@ -288,109 +305,130 @@ export function createDailyFlashPdf(data, date) {
   const settlement = settlementTotals(data);
   const settlementDiff = groupRevenue(data) - settlement.groupTotal;
 
-  summaryCards([
-    { label: 'Group Revenue', value: money(pnlTotals.revenue), tone: colors.header, caption: 'Today' },
-    { label: 'Est. Net Profit', value: money(pnlTotals.net), tone: pnlTotals.net >= 0 ? colors.green : colors.red, caption: 'After fixed cost' },
-    { label: 'Bank Net Available', value: money(bankTotals.net), tone: colors.headerSoft, caption: `${bankRowsRaw.length} accounts` },
-    { label: 'Open Risks', value: String(flagCount), tone: flagCount ? colors.amber : colors.green, caption: 'Watch / action flags' }
-  ]);
+  if (hasSection('summary')) {
+    summaryCards([
+      { label: 'Group Revenue', value: money(pnlTotals.revenue), tone: colors.header, caption: 'Today' },
+      { label: 'Est. Net Profit', value: money(pnlTotals.net), tone: pnlTotals.net >= 0 ? colors.green : colors.red, caption: 'After fixed cost' },
+      { label: 'Bank Net Available', value: money(bankTotals.net), tone: colors.headerSoft, caption: `${bankRowsRaw.length} accounts` },
+      { label: 'Open Risks', value: String(flagCount), tone: flagCount ? colors.amber : colors.green, caption: 'Watch / action flags' }
+    ]);
+  }
 
-  sectionTitle('1. Bank Position - Daily Cash Summary');
-  sheetRef(SHEET_URLS.bankPosition);
-  table(
-    ['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'],
-    [
-      ...bankRows.map((row) => [row.unit, money(row.actual), money(row.fd), money(row.issued), money(row.hand), { text: money(row.net), color: colors.green, bold: true }]),
-      [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true }, { text: money(bankTotals.fd), bold: true }, { text: money(bankTotals.issued), bold: true }, { text: money(bankTotals.hand), bold: true }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
-    ],
-    { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 }
-  );
-
-  sectionTitle('2. Unit-wise Estimated P&L');
-  table(
-    ['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'],
-    [
-      ...pnl.map((row) => [row.unit, money(row.revenueToday), money(row.purchasesToday), money(row.grossProfit), percent(row.gpPercent), { text: money(row.netProfit), color: row.netProfit >= 0 ? colors.green : colors.red, bold: true }]),
-      [{ text: 'GROUP TOTAL', bold: true }, { text: money(pnlTotals.revenue), bold: true }, { text: money(pnlTotals.purchases), bold: true }, { text: money(pnlTotals.gp), bold: true }, '', { text: money(pnlTotals.net), bold: true, color: pnlTotals.net >= 0 ? colors.green : colors.red }]
-    ],
-    { widths: [112, 88, 88, 88, 62, 85] }
-  );
-
-  sectionTitle('3. Watch Out Flag Summary');
-  const flags = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').slice(0, 16);
-  table(
-    ['Unit', 'KPI', 'Target', 'Today', 'Flag', 'Action Required'],
-    flags.map((row) => [row.unit, row.kpiName, formatValue(row.aopTarget, row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), actionFor(row)]),
-    { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 }
-  );
-
-  const hotelRevenue = pnl.filter((row) => row.unit === 'CP Nagpur' || row.unit === 'CP NM').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
-  hero('Hotels', 'IDS (CP Nagpur) | Hotelogix (CP Navi Mumbai)', money(hotelRevenue), '');
-  const cpNmExclude = ['F&B Outlets', 'Banquets'];
-  for (const unit of ['CP Nagpur', 'CP NM']) {
-    const label = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
-    const rows = (data.hotels ?? []).filter((row) => row.unit === unit);
-    const sections = [...new Set(rows.map((row) => row.section))].filter(
-      (s) => unit !== 'CP NM' || !cpNmExclude.includes(s)
+  if (hasSection('bank')) {
+    sectionTitle('1. Bank Position - Daily Cash Summary');
+    sheetRef(SHEET_URLS.bankPosition);
+    table(
+      ['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'],
+      [
+        ...bankRows.map((row) => [row.unit, money(row.actual), money(row.fd), money(row.issued), money(row.hand), { text: money(row.net), color: colors.green, bold: true }]),
+        [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true }, { text: money(bankTotals.fd), bold: true }, { text: money(bankTotals.issued), bold: true }, { text: money(bankTotals.hand), bold: true }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
+      ],
+      { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 }
     );
-    for (const section of sections) {
-      kpiTable(`${label} - ${section}`, rows.filter((row) => row.section === section), false);
+  }
+
+  if (hasSection('pnl')) {
+    sectionTitle('2. Unit-wise Estimated P&L');
+    table(
+      ['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'],
+      [
+        ...pnl.map((row) => [row.unit, money(row.revenueToday), money(row.purchasesToday), money(row.grossProfit), percent(row.gpPercent), { text: money(row.netProfit), color: row.netProfit >= 0 ? colors.green : colors.red, bold: true }]),
+        [{ text: 'GROUP TOTAL', bold: true }, { text: money(pnlTotals.revenue), bold: true }, { text: money(pnlTotals.purchases), bold: true }, { text: money(pnlTotals.gp), bold: true }, '', { text: money(pnlTotals.net), bold: true, color: pnlTotals.net >= 0 ? colors.green : colors.red }]
+      ],
+      { widths: [112, 88, 88, 88, 62, 85] }
+    );
+  }
+
+  if (hasSection('flags')) {
+    sectionTitle('3. Watch Out Flag Summary');
+    const flags = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').slice(0, 16);
+    table(
+      ['Unit', 'KPI', 'Target', 'Today', 'Flag', 'Action Required'],
+      flags.map((row) => [row.unit, row.kpiName, formatValue(row.aopTarget, row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), actionFor(row)]),
+      { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 }
+    );
+  }
+
+  if (hasSection('hotels')) {
+    const hotelRevenue = pnl.filter((row) => row.unit === 'CP Nagpur' || row.unit === 'CP NM').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
+    hero('Hotels', 'IDS (CP Nagpur) | Hotelogix (CP Navi Mumbai)', money(hotelRevenue), '');
+    const cpNmExclude = ['F&B Outlets', 'Banquets'];
+    for (const unit of ['CP Nagpur', 'CP NM']) {
+      const label = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
+      const rows = (data.hotels ?? []).filter((row) => row.unit === unit);
+      const sections = [...new Set(rows.map((row) => row.section))].filter(
+        (s) => unit !== 'CP NM' || !cpNmExclude.includes(s)
+      );
+      for (const section of sections) {
+        kpiTable(`${label} - ${section}`, rows.filter((row) => row.section === section), false);
+      }
+      unitDivider();
     }
   }
 
-  const fnbRevenue = pnl.filter((row) => row.unit === 'Pablo' || row.unit === 'Dali').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
-  hero('Standalone F&B', 'Pet Pooja API | Pablo & Dali', money(fnbRevenue), '');
-  for (const brand of ['Pablo', 'Dali']) {
-    const rows = data.fnb?.[brand] ?? [];
-    sheetRef(brand === 'Pablo' ? SHEET_URLS.pabloCost : SHEET_URLS.daliCost);
-    for (const section of [...new Set(rows.map((row) => row.section))]) {
-      kpiTable(`${brand} - ${section}`, rows.filter((row) => row.section === section), false);
+  if (hasSection('fnb')) {
+    const fnbRevenue = pnl.filter((row) => row.unit === 'Pablo' || row.unit === 'Dali').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
+    hero('Standalone F&B', 'Pet Pooja API | Pablo & Dali', money(fnbRevenue), '');
+    for (const brand of ['Pablo', 'Dali']) {
+      const rows = data.fnb?.[brand] ?? [];
+      sheetRef(brand === 'Pablo' ? SHEET_URLS.pabloCost : SHEET_URLS.daliCost);
+      for (const section of [...new Set(rows.map((row) => row.section))]) {
+        kpiTable(`${brand} - ${section}`, rows.filter((row) => row.section === section), false);
+      }
     }
   }
 
-  const rabbitsRows = data.rabbits ?? [];
-  hero('Rabbits', 'POS EOD Email | Delivery Platforms', money(revenueFor(rabbitsRows)), '');
-  for (const section of [...new Set(rabbitsRows.map((row) => row.section))]) {
-    kpiTable(`Rabbits - ${section}`, rabbitsRows.filter((row) => row.section === section), true);
+  if (hasSection('rabbits')) {
+    const rabbitsRows = data.rabbits ?? [];
+    hero('Rabbits', 'POS EOD Email | Delivery Platforms', money(revenueFor(rabbitsRows)), '');
+    for (const section of [...new Set(rabbitsRows.map((row) => row.section))]) {
+      kpiTable(`Rabbits - ${section}`, rabbitsRows.filter((row) => row.section === section), true);
+    }
   }
 
-  const mickysRows = data.mickys ?? [];
-  hero("Micky's by CP Foods", 'Google Sheet (Leads) | Tally Cloud (Day End)', money(revenueFor(mickysRows)), '');
-  sheetRef(SHEET_URLS.mickysLeads);
-  for (const section of [...new Set(mickysRows.map((row) => row.section))]) {
-    kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section), true);
+  if (hasSection('mickys')) {
+    const mickysRows = data.mickys ?? [];
+    hero("Micky's by CP Foods", 'Google Sheet (Leads) | Tally Cloud (Day End)', money(revenueFor(mickysRows)), '');
+    sheetRef(SHEET_URLS.mickysLeads);
+    for (const section of [...new Set(mickysRows.map((row) => row.section))]) {
+      kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section), true);
+    }
   }
 
-  const purosoulRows = data.purosoul ?? [];
-  hero('Purosoul', 'Google Drive (Daily Flash) | Tally Cloud (Day End)', money(revenueFor(purosoulRows)), '');
-  for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
-    kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section), true);
+  if (hasSection('purosoul')) {
+    const purosoulRows = data.purosoul ?? [];
+    hero('Purosoul', 'Google Drive (Daily Flash) | Tally Cloud (Day End)', money(revenueFor(purosoulRows)), '');
+    for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
+      kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section), true);
+    }
+    sectionTitle('Purosoul - SKU Production & Dispatch');
+    table(
+      ['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD', 'YTD'],
+      (data.purosoulSku ?? []).map((row) => [row.sku, row.produced || '-', row.dispatched || '-', numberValue(row.produced) - numberValue(row.dispatched), row.mtd || '-', row.ytd || '-']),
+      { widths: [100, 80, 90, 90, 80, 83] }
+    );
   }
-  sectionTitle('Purosoul - SKU Production & Dispatch');
-  table(
-    ['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD', 'YTD'],
-    (data.purosoulSku ?? []).map((row) => [row.sku, row.produced || '-', row.dispatched || '-', numberValue(row.produced) - numberValue(row.dispatched), row.mtd || '-', row.ytd || '-']),
-    { widths: [100, 80, 90, 90, 80, 83] }
-  );
 
-  sectionTitle('Settlement');
-  table(
-    ['Mode', ...UNITS, 'Group Total'],
-    settlementModes.map((mode) => [mode, ...UNITS.map((unit) => money(data.settlement?.[mode]?.[unit])), { text: money(settlement.rowTotals[mode]), bold: true }]),
-    { widths: [95, 50, 50, 50, 50, 50, 50, 50, 78], fontSize: 6.3, leftColumns: [0] }
-  );
-  sectionTitle('Reconciliation');
-  summaryCards([
-    { label: 'Total Revenue', value: money(groupRevenue(data)), tone: colors.header },
-    { label: 'Total Settled', value: money(settlement.groupTotal), tone: colors.green },
-    { label: 'Difference', value: money(settlementDiff), tone: settlementDiff === 0 ? colors.green : colors.red },
-    { label: 'Status', value: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', tone: settlementDiff === 0 ? colors.green : colors.red }
-  ]);
-  table(
-    ['Total Revenue Today', 'Total Settled', 'Difference', 'Status'],
-    [[money(groupRevenue(data)), money(settlement.groupTotal), { text: money(settlementDiff), color: settlementDiff === 0 ? colors.green : colors.red, bold: true }, { text: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', color: settlementDiff === 0 ? colors.green : colors.red, bold: true }]],
-    { widths: [132, 132, 132, 127] }
-  );
+  if (hasSection('settlement')) {
+    sectionTitle('Settlement');
+    table(
+      ['Mode', ...UNITS, 'Group Total'],
+      settlementModes.map((mode) => [mode, ...UNITS.map((unit) => money(data.settlement?.[mode]?.[unit])), { text: money(settlement.rowTotals[mode]), bold: true }]),
+      { widths: [95, 50, 50, 50, 50, 50, 50, 50, 78], fontSize: 6.3, leftColumns: [0] }
+    );
+    sectionTitle('Reconciliation');
+    summaryCards([
+      { label: 'Total Revenue', value: money(groupRevenue(data)), tone: colors.header },
+      { label: 'Total Settled', value: money(settlement.groupTotal), tone: colors.green },
+      { label: 'Difference', value: money(settlementDiff), tone: settlementDiff === 0 ? colors.green : colors.red },
+      { label: 'Status', value: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', tone: settlementDiff === 0 ? colors.green : colors.red }
+    ]);
+    table(
+      ['Total Revenue Today', 'Total Settled', 'Difference', 'Status'],
+      [[money(groupRevenue(data)), money(settlement.groupTotal), { text: money(settlementDiff), color: settlementDiff === 0 ? colors.green : colors.red, bold: true }, { text: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', color: settlementDiff === 0 ? colors.green : colors.red, bold: true }]],
+      { widths: [132, 132, 132, 127] }
+    );
+  }
 
   return doc;
 }
@@ -407,4 +445,3 @@ function actionFor(row) {
   if (/sales|revenue|orders|covers|apc/i.test(row.kpiName)) return 'Focus upsell, covers, and channel push.';
   return 'Track closely in daily meeting.';
 }
-
