@@ -12,17 +12,58 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState('');
+  const [objectUrl, setObjectUrl] = useState('');
+  const [previewError, setPreviewError] = useState('');
 
   const previewUrl = reportPdfPreviewUrl(date, authToken);
-  const appPreviewUrl = `${previewUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`;
+  const appPreviewUrl = objectUrl ? `${objectUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH` : '';
   const downloadUrl = reportPdfUrl(date, authToken);
   const previewStatus = frameState === 'ready' ? 'Ready' : frameState === 'error' ? 'Preview issue' : 'Loading';
 
   useEffect(() => {
+    let cancelled = false;
+    let nextObjectUrl = '';
+    const controller = new AbortController();
+
     setFrameState('loading');
-    const timer = setTimeout(() => setFrameState((state) => state === 'loading' ? 'error' : state), 20000);
-    return () => clearTimeout(timer);
-  }, [pdfKey, date]);
+    setPreviewError('');
+    setObjectUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return '';
+    });
+
+    const timer = setTimeout(() => {
+      controller.abort();
+      setFrameState((state) => state === 'loading' ? 'error' : state);
+      setPreviewError('The PDF request timed out.');
+    }, 20000);
+
+    fetch(previewUrl, { cache: 'no-store', signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`PDF request failed (${response.status})`);
+        const contentType = response.headers.get('content-type') ?? '';
+        if (!contentType.includes('application/pdf')) throw new Error('The server did not return a PDF.');
+        return response.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        nextObjectUrl = URL.createObjectURL(blob);
+        setObjectUrl(nextObjectUrl);
+      })
+      .catch((err) => {
+        if (cancelled || err.name === 'AbortError') return;
+        setPreviewError(err.message);
+        setFrameState('error');
+      })
+      .finally(() => clearTimeout(timer));
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearTimeout(timer);
+      if (nextObjectUrl) URL.revokeObjectURL(nextObjectUrl);
+    };
+  }, [pdfKey, previewUrl]);
 
   const handleSaveAndRefresh = async () => {
     setSaving(true);
@@ -116,7 +157,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
                 </div>
                 <h2 className="mt-4 text-lg font-extrabold text-on-surface">In-app preview did not load</h2>
                 <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                  Some browsers block embedded PDF previews. The report can still be opened or downloaded.
+                  {previewError || 'The report can still be opened or downloaded.'}
                 </p>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   <ActionButton onClick={() => { setFrameState('loading'); setPdfKey((key) => key + 1); }} variant="primary">
@@ -136,6 +177,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
             className="h-full w-full bg-surface-container-lowest"
             onLoad={() => setFrameState('ready')}
             onError={() => setFrameState('error')}
+            hidden={!appPreviewUrl}
           />
         </div>
       </main>
