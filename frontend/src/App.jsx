@@ -32,21 +32,6 @@ const SEED_FALLBACK_KEYS = ['pnl', 'bankPosition', 'hotels', 'rabbits', 'mickys'
 
 const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit'];
 
-const PAGE_SUBTITLES = {
-  sources: 'Monitor and manage real-time data ingestion from hospitality ERPs and delivery partners.',
-  bank: 'Track daily bank position, fixed deposits, cheques, and net balance.',
-  pnl: 'Review unit-wise revenue, purchases, fixed costs, and profitability.',
-  flags: 'Scan watch items and action-needed risks across all operating units.',
-  hotels: 'Monitor hotel KPIs for CP Nagpur and CP Navi Mumbai.',
-  fnb: 'Track sales, purchases, AOP, and outlet performance for F&B units.',
-  rabbits: 'Review delivery revenue, costs, and operating metrics for Rabbits.',
-  mickys: "Monitor Micky's orders, leads, stock, and daily performance.",
-  purosoul: 'Track Purosoul revenue, cost, production, dispatch, and stock.',
-  settlement: 'Reconcile settlement modes, cash, bank, and revenue collections.',
-  ai: 'Read the generated morning management briefing.',
-  pdf: 'Preview, refresh, open, or download the daily flash PDF.'
-};
-
 function hasEnteredPnlValues(row) {
   return PNL_VALUE_KEYS.some((key) => String(row?.[key] ?? '').trim() !== '');
 }
@@ -333,7 +318,6 @@ export default function App() {
 
   const riskCount = data ? withFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length : 0;
   const activePage = pages.find(([key]) => key === active) ?? pages[0];
-  const activeSubtitle = PAGE_SUBTITLES[active] ?? 'DailyFlash';
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
 
@@ -397,7 +381,7 @@ export default function App() {
       {/* ---- Expanded desktop sidebar ---- */}
       <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 flex-col border-r border-outline-variant/70 bg-surface-container-lowest shadow-[6px_0_24px_-28px_rgba(23,32,38,0.9)] transition-all duration-300 md:flex">
         {/* Brand logo */}
-        <div className="flex h-16 items-center gap-3 border-b border-outline-variant/70 px-4">
+        <div className="flex h-20 items-center gap-3 border-b border-outline-variant/70 px-4">
           <button
             type="button"
             onClick={() => setActive('sources')}
@@ -537,7 +521,6 @@ export default function App() {
           </button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-extrabold tracking-normal text-on-surface sm:text-lg md:text-xl lg:text-2xl">{activePage[2]}</h1>
-            <p className="mt-0.5 hidden max-w-[min(52vw,52rem)] truncate text-xs font-medium text-on-surface-variant md:block lg:mt-1 lg:text-sm">{activeSubtitle}</p>
           </div>
         </div>
 
