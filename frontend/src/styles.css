@@ -191,64 +191,39 @@ input[type='date'] {
 
   .brand-loader-mark {
     position: relative;
-    display: grid;
     height: var(--brand-loader-size, 64px);
     width: var(--brand-loader-size, 64px);
-    place-items: center;
-    filter: drop-shadow(0 10px 18px rgba(23, 32, 38, 0.08));
+    isolation: isolate;
   }
 
-  .brand-loader-ring {
+  .brand-loader-petals-frame {
     position: absolute;
-    border-radius: 999px;
+    inset: 0;
+    overflow: hidden;
+    -webkit-mask-image: radial-gradient(circle closest-side at center, transparent 0 47%, #000 53% 100%);
+    mask-image: radial-gradient(circle closest-side at center, transparent 0 47%, #000 53% 100%);
+  }
+
+  .brand-loader-layer {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+  }
+
+  .brand-loader-petals {
+    animation: brand-petal-spin 4s linear infinite;
     backface-visibility: hidden;
+    filter: drop-shadow(0 6px 14px rgba(167, 0, 98, 0.16));
     transform-origin: 50% 50%;
     will-change: transform;
   }
 
-  .brand-loader-ring-outer {
-    inset: -11%;
-    background:
-      conic-gradient(from 0deg, transparent 0 10%, rgba(167, 0, 98, 0.64) 12% 24%, transparent 26% 40%, rgba(8, 120, 108, 0.58) 43% 55%, transparent 58% 72%, rgba(167, 0, 98, 0.38) 75% 86%, transparent 88% 100%);
-    -webkit-mask-image: radial-gradient(circle, transparent 0 56%, #000 58% 68%, transparent 70% 100%);
-    mask-image: radial-gradient(circle, transparent 0 56%, #000 58% 68%, transparent 70% 100%);
-    animation: brand-loader-spin 1.35s cubic-bezier(0.66, 0, 0.34, 1) infinite;
-  }
-
-  .brand-loader-ring-outer::after {
-    content: '';
-    position: absolute;
-    inset: 11%;
-    border-radius: inherit;
-    border: max(1px, calc(var(--brand-loader-size, 64px) * 0.018)) solid rgba(8, 120, 108, 0.16);
-  }
-
-  .brand-loader-ring-inner {
-    inset: 6%;
-    border: max(1px, calc(var(--brand-loader-size, 64px) * 0.022)) solid rgba(167, 0, 98, 0.12);
-    border-top-color: rgba(167, 0, 98, 0.46);
-    border-right-color: rgba(8, 120, 108, 0.4);
-    animation: brand-loader-counter-spin 2.2s linear infinite;
-  }
-
-  .brand-loader-sheen {
-    position: absolute;
-    inset: 17%;
-    border-radius: 999px;
-    background: linear-gradient(120deg, transparent 12%, rgba(255, 255, 255, 0.42) 45%, transparent 70%);
-    opacity: 0;
-    transform: translateX(-32%) rotate(-18deg);
-    animation: brand-loader-sheen 2.4s ease-in-out infinite;
-    pointer-events: none;
-  }
-
-  .brand-loader-logo {
-    position: relative;
-    height: 68%;
-    width: 68%;
-    object-fit: contain;
-    animation: brand-loader-breathe 1.8s ease-in-out infinite;
-    filter: drop-shadow(0 4px 8px rgba(23, 32, 38, 0.12));
+  .brand-loader-center {
+    filter: drop-shadow(0 5px 10px rgba(23, 32, 38, 0.08));
+    -webkit-mask-image: radial-gradient(circle closest-side at center, #000 0 47%, transparent 53% 100%);
+    mask-image: radial-gradient(circle closest-side at center, #000 0 47%, transparent 53% 100%);
   }
 
   /* Safe-area helper for the floating mobile bottom nav. */
@@ -268,56 +243,18 @@ input[type='date'] {
   }
 }
 
-@keyframes brand-loader-spin {
+@keyframes brand-petal-spin {
   from {
-    transform: translateZ(0) rotate(0deg) scale(1);
-  }
-  50% {
-    transform: translateZ(0) rotate(190deg) scale(1.035);
+    transform: translateZ(0) scale(1.03) rotate(0deg);
   }
   to {
-    transform: translateZ(0) rotate(360deg) scale(1);
-  }
-}
-
-@keyframes brand-loader-counter-spin {
-  from {
-    transform: translateZ(0) rotate(360deg);
-  }
-  to {
-    transform: translateZ(0) rotate(0deg);
-  }
-}
-
-@keyframes brand-loader-breathe {
-  0%, 100% {
-    transform: translateZ(0) scale(0.94);
-    opacity: 0.92;
-  }
-  50% {
-    transform: translateZ(0) scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes brand-loader-sheen {
-  0%, 42%, 100% {
-    opacity: 0;
-    transform: translateX(-36%) rotate(-18deg);
-  }
-  58% {
-    opacity: 1;
-  }
-  76% {
-    opacity: 0;
-    transform: translateX(36%) rotate(-18deg);
+    transform: translateZ(0) scale(1.03) rotate(360deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .brand-loader-ring,
-  .brand-loader-logo,
-  .brand-loader-sheen {
-    animation: none;
+  .brand-loader-petals {
+    animation-duration: 12s;
+    animation-timing-function: linear;
   }
 }
