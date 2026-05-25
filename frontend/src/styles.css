@@ -12,7 +12,13 @@ html {
   background: #f4f6f8;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1536px) {
+  html {
+    font-size: 16.75px;
+  }
+}
+
+@media (min-width: 1800px) {
   html {
     font-size: 17.5px;
   }
