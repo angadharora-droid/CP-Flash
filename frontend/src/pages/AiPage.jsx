@@ -3,7 +3,7 @@ import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
+import { ActionButton, BrandLoader, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
 import { SHEET_URLS } from '../lib/navigation';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
@@ -69,9 +69,8 @@ Please summarize performance, call out concerns, highlight wins, and give 3 acti
         ) : null}
         <div className="min-h-96 whitespace-pre-wrap rounded-xl border border-app-border bg-app-panel p-4 leading-7 text-sm text-app-text sm:p-6">
           {loading ? (
-            <div className="flex items-center gap-3 text-app-muted">
-              <div className="size-4 animate-spin rounded-full border-2 border-teal-600 border-t-transparent" />
-              Claude is preparing the briefing...
+            <div className="flex min-h-64 items-center justify-center text-app-muted">
+              <BrandLoader size={64} label="Claude is preparing the briefing..." />
             </div>
           ) : text || <span className="text-app-muted">No report generated yet. Click Generate Report above.</span>}
         </div>

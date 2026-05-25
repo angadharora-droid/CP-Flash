@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActionButton } from '../components/DashboardUi';
+import { ActionButton, BrandLoader } from '../components/DashboardUi';
 
 const MIcon = ({ name, className = '', filled = false }) => (
   <span className={`material-symbols-outlined ${filled ? 'fill-1' : ''} ${className}`} aria-hidden>{name}</span>
@@ -76,10 +76,7 @@ export default function SourceReportPreviewScreen({ preview, loading, error, onC
         <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-outline-variant/70 bg-surface-container-lowest shadow-card">
           {loading ? (
             <div className="grid h-full min-h-64 place-items-center">
-              <div className="flex flex-col items-center gap-4">
-                <div className="size-10 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
-                <p className="text-sm font-semibold text-on-surface-variant">Preparing report preview...</p>
-              </div>
+              <BrandLoader size={72} label="Preparing report preview..." />
             </div>
           ) : error ? (
             <div className="grid h-full min-h-64 place-items-center p-6 text-center">

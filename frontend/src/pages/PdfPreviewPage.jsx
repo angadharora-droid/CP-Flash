@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActionButton } from '../components/DashboardUi';
+import { ActionButton, BrandLoader } from '../components/DashboardUi';
 import { reportPdfPreviewUrl, reportPdfUrl } from '../lib/api';
 
 const MIcon = ({ name, className = '', filled = false }) => (
@@ -111,7 +111,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
         <div className="flex flex-wrap items-center gap-2">
           {saveError ? <span className="max-w-72 truncate text-xs font-semibold text-error">{saveError}</span> : null}
           <ActionButton onClick={handleSaveAndRefresh} disabled={saving} variant="primary">
-            <MIcon name="sync" className={`text-[17px] ${saving ? 'animate-spin' : ''}`} />
+            {saving ? <BrandLoader size={18} /> : <MIcon name="sync" className="text-[17px]" />}
             {saving ? 'Saving...' : 'Save & Refresh'}
           </ActionButton>
           <ActionButton onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}>
@@ -142,10 +142,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
         <div className="relative h-full min-h-0 overflow-hidden rounded-xl border border-outline-variant/70 bg-surface-container-lowest shadow-card">
           {frameState === 'loading' ? (
             <div className="absolute inset-0 z-10 grid place-items-center bg-surface-container-lowest">
-              <div className="flex flex-col items-center gap-4">
-                <div className="size-10 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
-                <p className="text-sm font-semibold text-on-surface-variant">Preparing PDF preview...</p>
-              </div>
+              <BrandLoader size={72} label="Preparing PDF preview..." />
             </div>
           ) : null}
 

@@ -65,6 +65,18 @@ export function FreshnessBadge({ label, cls }) {
   );
 }
 
+export function BrandLoader({ className = '', label = '', size = 64 }) {
+  return (
+    <div className={`inline-flex flex-col items-center justify-center gap-3 ${className}`}>
+      <div className="brand-loader-mark shrink-0" style={{ width: size, height: size }}>
+        <img src={cpLogo} alt="" className="brand-loader-layer brand-loader-petals" />
+        <img src={cpLogo} alt="" className="brand-loader-layer brand-loader-center" />
+      </div>
+      {label ? <p className="text-sm font-semibold text-on-surface-variant">{label}</p> : null}
+    </div>
+  );
+}
+
 export function ReportValue({ value, className = '', numeric = false }) {
   const empty = value === '' || value == null;
   return (
@@ -452,7 +464,7 @@ export function PinGate({ onUnlock }) {
             >
               {loading ? (
                 <>
-                  <MIcon name="sync" className="animate-spin text-[18px]" />
+                  <BrandLoader size={22} />
                   Verifying...
                 </>
               ) : isLocked ? `Blocked ${lockoutRemaining || ''}` : 'Unlock Dashboard'}

@@ -189,6 +189,31 @@ input[type='date'] {
     animation: shimmer 1.8s linear infinite;
   }
 
+  .brand-loader-mark {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .brand-loader-layer {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+  }
+
+  .brand-loader-petals {
+    animation: brand-petal-spin 5.8s linear infinite;
+    transform-origin: center;
+    -webkit-mask-image: radial-gradient(circle at center, transparent 0 46%, #000 47% 100%);
+    mask-image: radial-gradient(circle at center, transparent 0 46%, #000 47% 100%);
+  }
+
+  .brand-loader-center {
+    -webkit-mask-image: radial-gradient(circle at center, #000 0 50%, transparent 51% 100%);
+    mask-image: radial-gradient(circle at center, #000 0 50%, transparent 51% 100%);
+  }
+
   /* Safe-area helper for the floating mobile bottom nav. */
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
@@ -203,5 +228,17 @@ input[type='date'] {
   .scroll-touch {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+  }
+}
+
+@keyframes brand-petal-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-petals {
+    animation-duration: 12s;
   }
 }
