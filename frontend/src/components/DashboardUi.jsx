@@ -147,8 +147,8 @@ export function PageTitle({ title, subtitle, badge, actions }) {
 export function KpiTable({ rows }) {
   const headers = ['KPI Name', 'AOP Target', 'Today Actual', 'MTD', 'YTD', 'Status'];
   return (
-    <div className="scroll-touch glass-card overflow-auto">
-      <table className="min-w-full text-sm">
+    <div className="scroll-touch glass-card max-w-full overflow-auto">
+      <table className="min-w-[680px] text-sm md:min-w-full">
         <thead>
           <tr className="bg-surface-container text-left">
             {headers.map((h, i) => (
@@ -280,16 +280,16 @@ export function DateControl({ value, onChange, latest }) {
         type="button"
         onClick={openPicker}
         title="Pick date"
-        className="group flex items-center gap-3 rounded-lg border border-outline-variant/70 bg-surface-container-lowest py-1.5 pl-3 pr-1.5 shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-low active:scale-95 md:pl-4"
+        className="group flex min-w-0 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest py-1.5 pl-2.5 pr-1.5 shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-low active:scale-95 sm:gap-3 md:pl-4"
       >
-        <div className="flex flex-col items-start leading-none">
+        <div className="flex min-w-0 flex-col items-start leading-none">
           <span className="hidden text-[10px] font-bold uppercase tracking-[0.05em] text-on-surface-variant/60 md:inline">Business Date</span>
-          <span className="text-[13px] font-bold text-on-surface md:text-sm">
+          <span className="truncate text-[13px] font-bold text-on-surface md:text-sm">
             <span className="hidden md:inline">{display.full}</span>
             <span className="md:hidden">{display.short} · {display.day}</span>
           </span>
         </div>
-        <div className="flex size-8 items-center justify-center rounded-full bg-primary-container/10 text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container/10 text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary">
           <MIcon name="calendar_today" className="text-[18px]" />
         </div>
       </button>

@@ -232,7 +232,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
               <button
                 type="button"
                 onClick={() => setOpenUnit(isOpen ? null : unit)}
-                className="grid w-full grid-cols-1 items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-primary/5 lg:grid-cols-[minmax(220px,1.25fr)_minmax(280px,1.4fr)_minmax(120px,0.5fr)_36px]"
+                className="grid w-full grid-cols-1 items-center gap-3 px-3.5 py-3.5 text-left transition-colors hover:bg-primary/5 sm:px-5 sm:py-4 lg:grid-cols-[minmax(200px,1.2fr)_minmax(260px,1.4fr)_minmax(120px,0.5fr)_36px]"
                 aria-expanded={isOpen}
               >
                 <div className="flex min-w-0 items-center gap-3">
@@ -247,7 +247,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
                   </div>
                 </div>
 
-                <div className="grid min-w-0 grid-cols-3 gap-3">
+                <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
                   <SourceStat
                     label="Last Sync"
                     value={(
@@ -280,7 +280,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
               </button>
 
               {isOpen ? (
-                <div className="border-t border-outline-variant/60 bg-surface-container-low px-5 py-4 animate-fade-in-up">
+                <div className="border-t border-outline-variant/60 bg-surface-container-low px-3.5 py-4 animate-fade-in-up sm:px-5">
                   <div className="grid gap-2 lg:grid-cols-2">
                   {unitSources.map((source) => (
                     <div key={source.id} className="rounded-lg border border-outline-variant/55 bg-surface-container-lowest px-3 py-3">
@@ -338,7 +338,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
 
       {/* ---- Recent Activity Log ---- */}
       <div className="glass-card overflow-hidden">
-        <div className="flex items-center justify-between border-b border-outline-variant/60 bg-surface-container-lowest px-6 py-4">
+        <div className="flex flex-col gap-3 border-b border-outline-variant/60 bg-surface-container-lowest px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-3">
             <MIcon name="history" className="text-[20px] text-primary" />
             <h4 className="font-bold tracking-tight text-on-surface">Recent Activity Log</h4>
@@ -352,8 +352,8 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
           {activity.length ? activity.map((item, idx) => {
             const dot = item.tone === 'error' ? 'bg-error' : item.tone === 'tertiary' ? 'bg-tertiary' : 'bg-secondary';
             return (
-              <div key={idx} className="group flex items-center gap-6 px-6 py-4 transition-colors hover:bg-surface-container/30">
-                <span className="num w-20 shrink-0 text-[11px] font-medium text-on-surface-variant/50">
+              <div key={idx} className="group flex items-start gap-3 px-4 py-4 transition-colors hover:bg-surface-container/30 sm:items-center sm:gap-6 sm:px-6">
+                <span className="num w-16 shrink-0 text-[11px] font-medium text-on-surface-variant/50 sm:w-20">
                   {new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </span>
                 <div className={`size-2 rounded-full ${dot} transition-transform group-hover:scale-125`} />

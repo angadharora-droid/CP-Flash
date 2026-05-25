@@ -525,8 +525,8 @@ export default function App() {
       </div>
 
       {/* ---- Top App Bar ---- */}
-      <header className="fixed top-0 z-40 flex h-20 w-full items-center justify-between border-b border-outline-variant/70 bg-surface-container-lowest/88 px-4 shadow-sm backdrop-blur-xl md:left-72 md:w-[calc(100%-18rem)] md:px-6">
-        <div className="flex min-w-0 items-center gap-3 md:gap-4">
+      <header className="fixed top-0 z-40 flex min-h-24 w-full flex-col justify-center gap-3 border-b border-outline-variant/70 bg-surface-container-lowest/88 px-3 py-3 shadow-sm backdrop-blur-xl sm:min-h-20 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 md:left-72 md:w-[calc(100%-18rem)] md:px-5 lg:px-6">
+        <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto md:gap-4">
           {/* Mobile menu button */}
           <button
             type="button"
@@ -536,9 +536,9 @@ export default function App() {
           >
             <MIcon name="menu" />
           </button>
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-extrabold tracking-normal text-on-surface md:text-2xl">{activePage[2]}</h1>
-            <p className="mt-1 hidden max-w-3xl truncate text-sm font-medium text-on-surface-variant lg:block">{activeSubtitle}</p>
+          <div className="min-w-0 flex-1 sm:flex-none">
+            <h1 className="truncate text-lg font-extrabold tracking-normal text-on-surface sm:text-xl md:text-2xl">{activePage[2]}</h1>
+            <p className="mt-0.5 hidden max-w-[min(52vw,52rem)] truncate text-xs font-medium text-on-surface-variant md:block lg:mt-1 lg:text-sm">{activeSubtitle}</p>
           </div>
           {liveStreamActive ? (
             <div className="hidden items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 lg:flex">
@@ -548,7 +548,7 @@ export default function App() {
           ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 md:gap-4">
+        <div className="flex w-full min-w-0 items-center justify-between gap-2 sm:w-auto sm:justify-end md:gap-3 lg:gap-4">
           <DateControl value={date} onChange={setDate} latest={today} />
           <div className="hidden items-center gap-2 md:flex">
             {riskCount > 0 ? (
@@ -576,7 +576,7 @@ export default function App() {
             type="button"
             onClick={() => { setPdfReturnTo(active); setActive('pdf'); }}
             disabled={!data}
-            className="hidden items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.05em] text-on-primary shadow-primary transition-all hover:bg-primary-container hover:shadow-lg active:scale-95 disabled:opacity-50 md:flex"
+            className="hidden items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[12px] font-bold uppercase tracking-[0.05em] text-on-primary shadow-primary transition-all hover:bg-primary-container hover:shadow-lg active:scale-95 disabled:opacity-50 lg:flex"
           >
             <MIcon name="picture_as_pdf" className="text-[18px]" />
             Preview PDF
@@ -585,7 +585,7 @@ export default function App() {
             type="button"
             onClick={() => { setPdfReturnTo(active); setActive('pdf'); }}
             disabled={!data}
-            className="flex size-10 items-center justify-center rounded-lg bg-primary text-on-primary shadow-primary active:scale-95 disabled:opacity-50 md:hidden"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary shadow-primary active:scale-95 disabled:opacity-50 lg:hidden"
             aria-label="Preview PDF"
           >
             <MIcon name="picture_as_pdf" />
@@ -594,7 +594,7 @@ export default function App() {
       </header>
 
       {/* ---- Main content ---- */}
-      <main className="min-h-screen px-4 pb-32 pt-28 transition-all duration-300 md:ml-72 md:px-8">
+      <main className="min-h-screen px-3 pb-32 pt-32 transition-all duration-300 sm:px-4 sm:pt-28 md:ml-72 md:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           {status && refreshing ? (
             <div className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-on-surface-variant">
