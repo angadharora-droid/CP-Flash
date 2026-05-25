@@ -29,7 +29,7 @@ function IconSlot({ icon, className }) {
 
 export default function StatStrip({ items }) {
   return (
-    <div className="mb-7 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => {
         const accent = ACCENT[item.tone] ?? DEFAULT_ACCENT;
         const progress = typeof item.progress === 'number'
@@ -38,44 +38,46 @@ export default function StatStrip({ items }) {
         return (
           <div
             key={item.label}
-            className="glass-card group flex flex-col p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover"
+            className="glass-card group flex min-h-[104px] items-start gap-3 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover"
           >
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${accent.iconBg} ${accent.iconText} transition-transform duration-200 group-hover:scale-105`}>
-                <IconSlot icon={item.icon} className="text-[23px]" />
+            <div className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${accent.iconBg} ${accent.iconText} transition-transform duration-200 group-hover:scale-105`}>
+              <IconSlot icon={item.icon} className="text-[21px]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                <h3 className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">
+                  {item.label}
+                </h3>
+                {item.badge ? (
+                  <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide ${accent.badgeBg}`}>
+                    {item.badge}
+                  </span>
+                ) : item.pulse ? (
+                  <span className={`mt-1 size-2 shrink-0 animate-pulse rounded-full ${accent.dot}`} />
+                ) : item.meta ? (
+                  <span className="shrink-0 text-[10.5px] font-medium text-on-surface-variant">{item.meta}</span>
+                ) : null}
               </div>
-              {item.badge ? (
-                <span className={`rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${accent.badgeBg}`}>
-                  {item.badge}
-                </span>
-              ) : item.pulse ? (
-                <span className={`size-2.5 animate-pulse rounded-full ${accent.dot}`} />
-              ) : item.meta ? (
-                <span className="text-[11px] font-medium text-on-surface-variant">{item.meta}</span>
+              <div className={`num mt-2 flex min-w-0 items-baseline gap-2 text-[23px] font-bold leading-none tracking-normal tabular-nums sm:text-[25px] ${accent.value}`}>
+                <span className="truncate">{item.value}</span>
+                {item.delta ? (
+                  <span className={`shrink-0 text-xs font-bold ${item.delta.tone ?? 'text-on-surface-variant'}`}>{item.delta.label}</span>
+                ) : null}
+              </div>
+              {progress != null ? (
+                <div className={`mt-3 h-1.5 w-full overflow-hidden rounded-full ${accent.progressBg}`}>
+                  <div
+                    className={`h-full rounded-full ${accent.progressFill} transition-all duration-500`}
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              ) : item.caption ? (
+                <div className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-on-surface-variant">
+                  <span className={`size-1.5 shrink-0 rounded-full ${accent.dot}`} />
+                  <span className="truncate">{item.caption}</span>
+                </div>
               ) : null}
             </div>
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">
-              {item.label}
-            </h3>
-            <div className={`num mt-1.5 flex items-baseline gap-2 text-[28px] font-bold leading-none tracking-normal tabular-nums sm:text-[30px] ${accent.value}`}>
-              <span>{item.value}</span>
-              {item.delta ? (
-                <span className={`text-xs font-bold ${item.delta.tone ?? 'text-on-surface-variant'}`}>{item.delta.label}</span>
-              ) : null}
-            </div>
-            {progress != null ? (
-              <div className={`mt-4 h-1.5 w-full overflow-hidden rounded-full ${accent.progressBg}`}>
-                <div
-                  className={`h-full rounded-full ${accent.progressFill} transition-all duration-500`}
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            ) : item.caption ? (
-              <div className="mt-3 flex items-center gap-1.5 text-[11.5px] font-medium text-on-surface-variant">
-                <span className={`size-1.5 rounded-full ${accent.dot}`} />
-                {item.caption}
-              </div>
-            ) : null}
           </div>
         );
       })}
