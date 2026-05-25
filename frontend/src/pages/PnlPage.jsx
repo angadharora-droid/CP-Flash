@@ -3,15 +3,13 @@ import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, PageTitle, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
+import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
 import { SHEET_URLS } from '../lib/navigation';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, numberValue, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
 
 export default function PnlPage({ data, date }) {
   const rows = pnlRows(data);
-  const hasPnl = (data.pnl ?? []).some((r) => String(r.revenueToday ?? '').trim() !== '' || String(r.purchasesToday ?? '').trim() !== '');
-  const badge = getFreshness(null, hasPnl, date);
   const totals = rows.reduce((acc, row) => {
     acc.revenue += numberValue(row.revenueToday);
     acc.purchases += numberValue(row.purchasesToday);
@@ -25,7 +23,6 @@ export default function PnlPage({ data, date }) {
 
   return (
     <>
-      <PageTitle title="Unit-wise Estimated P&L" subtitle="Revenue, purchases, fixed cost, and estimated profitability." badge={badge} activeKey="pnl" />
       <SectionCard
         title="Config: Daily Fixed Cost per Unit"
         subtitle="Override the daily fixed cost driving net-profit math"

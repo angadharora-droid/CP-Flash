@@ -3,7 +3,7 @@ import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, PageTitle, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
+import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
 import { SHEET_URLS } from '../lib/navigation';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
@@ -50,7 +50,6 @@ Please summarize performance, call out concerns, highlight wins, and give 3 acti
 
   return (
     <>
-      <PageTitle title="Notes by AI" subtitle="Claude-generated morning management briefing." activeKey="ai" />
       <SectionCard
         title="Daily Management Briefing"
         subtitle="Claude-generated narrative summary for today"

@@ -3,7 +3,7 @@ import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, PageTitle, ReportValue, SegmentedControl, TopItemsList } from '../components/DashboardUi';
+import { ActionButton, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SegmentedControl, TopItemsList } from '../components/DashboardUi';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, numberValue, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
 
@@ -11,11 +11,6 @@ export default function BankPage({ data, date }) {
   const rows = data.bankPosition ?? [];
   const [expandedUnits, setExpandedUnits] = useState({});
   const units = Array.from(new Set(rows.map((r) => r.unit || 'Unspecified')));
-  const badge = getFreshness(
-    data.importSource?.bankPositionImportedAt,
-    rows.some((r) => String(r.actualBalance ?? '').trim() !== ''),
-    date
-  );
   const totals = rows.reduce((acc, row) => {
     acc.actual += numberValue(row.actualBalance);
     acc.issued += numberValue(row.chequesIssued);
@@ -32,12 +27,6 @@ export default function BankPage({ data, date }) {
 
   return (
     <>
-      <PageTitle
-        title="Bank Position"
-        subtitle="Daily unit-wise cash visibility."
-        badge={badge}
-        activeKey="bank"
-      />
       <StatStrip items={[
         {
           label: 'Actual Balance',

@@ -3,20 +3,17 @@ import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, PageTitle, ReportValue, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
+import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
 import { SHEET_URLS } from '../lib/navigation';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
 
 export default function SettlementPage({ data, date }) {
-  const hasData = Object.values(data.settlement ?? {}).some((m) => Object.values(m ?? {}).some((v) => String(v ?? '').trim() !== ''));
-  const badge = getFreshness(null, hasData, date);
   const totals = settlementTotals(data);
   const revenue = groupRevenue(data);
   const diff = revenue - totals.groupTotal;
   return (
     <>
-      <PageTitle title="Settlement" subtitle="Mode-wise settlement matrix and revenue reconciliation." badge={badge} activeKey="settlement" />
       <div className={`relative overflow-hidden rounded-2xl border ${diff === 0 ? 'border-emerald-200 bg-emerald-50/70' : 'border-rose-200 bg-rose-50/70'} px-5 py-4 shadow-card backdrop-blur-xl`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
