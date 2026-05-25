@@ -12,6 +12,12 @@ html {
   background: #f4f6f8;
 }
 
+@media (min-width: 1024px) {
+  html {
+    font-size: 17.5px;
+  }
+}
+
 @media (max-width: 640px) {
   html {
     font-size: 15px;
