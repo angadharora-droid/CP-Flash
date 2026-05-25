@@ -69,7 +69,9 @@ export function BrandLoader({ className = '', label = '', size = 64 }) {
   return (
     <div className={`inline-flex flex-col items-center justify-center gap-3 ${className}`}>
       <div className="brand-loader-mark shrink-0" style={{ width: size, height: size }}>
-        <img src={cpLogo} alt="" className="brand-loader-layer brand-loader-petals" />
+        <div className="brand-loader-petals-frame">
+          <img src={cpLogo} alt="" className="brand-loader-layer brand-loader-petals" />
+        </div>
         <img src={cpLogo} alt="" className="brand-loader-layer brand-loader-center" />
       </div>
       {label ? <p className="text-sm font-semibold text-on-surface-variant">{label}</p> : null}
