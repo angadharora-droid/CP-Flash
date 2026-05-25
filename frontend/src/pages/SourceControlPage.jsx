@@ -336,6 +336,8 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
         ) : null}
       </div>
 
+      {false ? (
+        <>
       {/* ---- Recent Activity Log ---- */}
       <div className="glass-card overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-outline-variant/60 bg-surface-container-lowest px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -372,6 +374,8 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
           </button>
         </div>
       </div>
+        </>
+      ) : null}
     </>
   );
 }
