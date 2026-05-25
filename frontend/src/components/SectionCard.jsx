@@ -1,19 +1,31 @@
 import React, { useState } from 'react';
 
 const TONE = {
-  teal:    { tile: 'bg-gradient-to-b from-app-accentSoft to-app-accent text-white shadow-pop', accent: 'bg-app-accentTint text-app-accentDark' },
-  indigo:  { tile: 'bg-gradient-to-b from-indigo-400 to-indigo-600 text-white shadow-[0_14px_34px_-18px_rgba(99,102,241,0.55)]', accent: 'bg-indigo-50 text-indigo-700' },
-  amber:   { tile: 'bg-gradient-to-b from-amber-400 to-amber-600 text-white shadow-[0_14px_34px_-18px_rgba(245,158,11,0.55)]', accent: 'bg-amber-50 text-amber-700' },
-  emerald: { tile: 'bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-[0_14px_34px_-18px_rgba(16,185,129,0.55)]', accent: 'bg-emerald-50 text-emerald-700' },
-  rose:    { tile: 'bg-gradient-to-b from-rose-400 to-rose-600 text-white shadow-[0_14px_34px_-18px_rgba(244,63,94,0.55)]', accent: 'bg-rose-50 text-rose-700' },
-  slate:   { tile: 'bg-slate-100 text-slate-700', accent: 'bg-slate-100 text-slate-600' }
+  teal:    { tile: 'bg-secondary text-on-secondary', accent: 'bg-secondary/10 text-secondary' },
+  indigo:  { tile: 'bg-primary text-on-primary',     accent: 'bg-primary/10 text-primary' },
+  amber:   { tile: 'bg-tertiary text-on-tertiary',   accent: 'bg-tertiary/10 text-tertiary' },
+  emerald: { tile: 'bg-secondary text-on-secondary', accent: 'bg-secondary/10 text-secondary' },
+  rose:    { tile: 'bg-error text-on-error',         accent: 'bg-error/10 text-error' },
+  slate:   { tile: 'bg-surface-container-high text-on-surface-variant', accent: 'bg-surface-container-high text-on-surface-variant' }
 };
+
+// `icon` accepts a Material-Symbol name (string) or inline SVG path elements.
+function IconSlot({ icon, className }) {
+  if (typeof icon === 'string') {
+    return <span className={`material-symbols-outlined ${className}`} aria-hidden>{icon}</span>;
+  }
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+      {icon}
+    </svg>
+  );
+}
 
 export default function SectionCard({
   title,
   subtitle,
   icon,
-  tone = 'teal',
+  tone = 'indigo',
   children,
   defaultOpen = true,
   meta = null,
@@ -21,48 +33,36 @@ export default function SectionCard({
   footer = null
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const palette = TONE[tone] ?? TONE.teal;
+  const palette = TONE[tone] ?? TONE.indigo;
   const hasIconHeader = !!icon || !!subtitle;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-app-border bg-white/90 backdrop-blur-xl shadow-card transition-all duration-200 hover:border-app-borderStrong">
-      <div className={`flex w-full flex-wrap items-center justify-between gap-3 transition-colors duration-150 hover:bg-app-panel/60 ${hasIconHeader ? 'border-b border-app-divider bg-app-panel/40 px-4 py-4 sm:px-6 sm:py-5' : 'px-4 py-3.5 sm:px-5 sm:py-4'}`}>
+    <section className="glass-card mb-6 overflow-hidden">
+      <div className={`flex w-full flex-wrap items-center justify-between gap-3 ${hasIconHeader ? 'border-b border-outline-variant/15 bg-surface-container-lowest/60 px-5 py-4 md:px-6 md:py-5' : 'px-5 py-4'}`}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="group flex min-w-0 flex-1 items-center gap-3 text-left sm:gap-3.5"
+          className="group flex min-w-0 flex-1 items-center gap-3 text-left md:gap-4"
         >
           {hasIconHeader ? (
-            <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${palette.tile}`}>
-              {icon ? (
-                <svg className="size-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
-                  {icon}
-                </svg>
-              ) : (
-                <svg className="size-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75A2.25 2.25 0 016 4.5h12a2.25 2.25 0 012.25 2.25v10.5A2.25 2.25 0 0118 19.5H6a2.25 2.25 0 01-2.25-2.25V6.75z" />
-                </svg>
-              )}
+            <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl shadow-md ${palette.tile}`}>
+              <IconSlot icon={icon ?? 'dataset'} className="text-[22px]" />
             </span>
           ) : (
-            <span
-              className={`relative flex size-5 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${
-                open ? palette.accent : 'bg-slate-100 text-slate-400'
-              }`}
-            >
-              <svg className={`size-3 transition-transform duration-200 ${open ? '' : '-rotate-90'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+            <span className={`flex size-5 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${
+              open ? palette.accent : 'bg-surface-container-high text-on-surface-variant/60'
+            }`}>
+              <span className={`material-symbols-outlined text-[16px] transition-transform duration-200 ${open ? '' : '-rotate-90'}`}>expand_more</span>
             </span>
           )}
           <span className="min-w-0 flex-1">
-            <span className={`block truncate font-bold tracking-tight text-app-text ${hasIconHeader ? 'text-[15px] sm:text-base' : 'text-[13px]'}`}>
+            <span className={`block truncate font-bold tracking-tight text-on-surface ${hasIconHeader ? 'text-[16px] md:text-lg' : 'text-[14px]'}`}>
               {title}
-              {meta && !hasIconHeader ? <span className="ml-3 text-sm font-medium text-app-muted">{meta}</span> : null}
+              {meta && !hasIconHeader ? <span className="ml-3 text-sm font-medium text-on-surface-variant">{meta}</span> : null}
             </span>
             {hasIconHeader && (subtitle || meta) ? (
-              <span className="mt-0.5 block truncate text-[11.5px] font-medium text-app-muted">
+              <span className="mt-0.5 block truncate text-[11.5px] font-medium text-on-surface-variant">
                 {subtitle ?? meta}
               </span>
             ) : null}
@@ -73,19 +73,19 @@ export default function SectionCard({
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="text-[11px] font-semibold uppercase tracking-wider text-app-subtle transition-colors duration-200 hover:text-app-text"
+            className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/70 transition-colors duration-200 hover:text-on-surface"
           >
             {open ? 'Hide' : 'Show'}
           </button>
         </div>
       </div>
       {open ? (
-        <div className="border-t border-app-divider px-3 py-4 animate-fade-in-up sm:px-5 sm:py-5">
+        <div className="px-5 py-5 animate-fade-in-up md:px-6">
           {children}
         </div>
       ) : null}
       {open && footer ? (
-        <div className="border-t border-app-divider bg-app-panel/50 px-5 py-3 sm:px-7">
+        <div className="border-t border-outline-variant/15 bg-surface-container-lowest/50 px-5 py-3 md:px-6">
           {footer}
         </div>
       ) : null}

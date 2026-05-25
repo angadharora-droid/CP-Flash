@@ -6,13 +6,13 @@ function Cell({ value, highlight }) {
   const empty = value === '' || value == null;
   if (highlight) {
     return (
-      <span className={`num block min-w-20 rounded-lg px-2.5 py-1.5 text-sm font-semibold ring-1 transition-colors sm:min-w-24 ${empty ? 'bg-slate-50/60 text-slate-300 ring-slate-100' : 'bg-app-accentTint text-app-accentDark ring-teal-100'}`}>
+      <span className={`num block min-w-20 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors sm:min-w-24 ${empty ? 'bg-surface-container-low/40 text-on-surface-variant/30' : 'bg-primary/10 text-primary'}`}>
         {empty ? '—' : value}
       </span>
     );
   }
   return (
-    <span className={`num block min-w-20 rounded-lg px-2.5 py-1.5 text-sm sm:min-w-24 ${empty ? 'text-slate-300' : 'bg-app-panel/80 text-app-text'}`}>
+    <span className={`num block min-w-20 rounded-lg px-2.5 py-1.5 text-sm sm:min-w-24 ${empty ? 'text-on-surface-variant/30' : 'bg-surface-container-low text-on-surface'}`}>
       {empty ? '—' : value}
     </span>
   );
@@ -21,12 +21,12 @@ function Cell({ value, highlight }) {
 export default function KpiRow({ kpi }) {
   const flag = calcFlag(kpi.actual, kpi.target, kpi.direction);
   return (
-    <tr className="group border-b border-app-divider/60 last:border-0 transition-colors duration-100 odd:bg-white even:bg-app-panel hover:bg-app-accentTint">
-      <td className="sticky left-0 z-[1] min-w-40 bg-inherit px-3 py-2.5 text-sm font-semibold text-app-text shadow-[1px_0_0_0_rgba(230,235,243,1)] sm:min-w-56 sm:px-4">
+    <tr className="group border-b border-outline-variant/15 last:border-0 transition-colors duration-100 odd:bg-surface-container-lowest even:bg-surface-container-low/40 hover:bg-primary-container/5">
+      <td className="sticky left-0 z-[1] min-w-40 bg-inherit px-3 py-2.5 text-sm font-semibold text-on-surface shadow-[1px_0_0_0_rgba(223,190,201,0.6)] sm:min-w-56 sm:px-4">
         {kpi.name}
       </td>
       <td className="px-2 py-2.5 sm:px-3"><Cell value={kpi.target} /></td>
-      <td className="bg-app-accentTint/30 px-2 py-2.5 sm:px-3"><Cell value={kpi.actual} highlight /></td>
+      <td className="bg-primary/5 px-2 py-2.5 sm:px-3"><Cell value={kpi.actual} highlight /></td>
       <td className="px-2 py-2.5 sm:px-3"><Cell value={kpi.mtd} /></td>
       <td className="px-2 py-2.5 sm:px-3"><Cell value={kpi.ytd} /></td>
       <td className="px-2 py-2.5 sm:px-3"><FlagBadge label={flag.label} /></td>
