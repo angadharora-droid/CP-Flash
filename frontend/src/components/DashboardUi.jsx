@@ -66,13 +66,12 @@ export function FreshnessBadge({ label, cls, className = '' }) {
 }
 
 export function BrandLoader({ className = '', label = '', size = 64 }) {
+  const loaderSize = `clamp(${Math.max(18, Math.round(size * 0.78))}px, ${Math.round(size / 16)}rem, ${size}px)`;
   return (
     <div className={`inline-flex flex-col items-center justify-center gap-3 ${className}`}>
-      <div className="brand-loader-mark shrink-0" style={{ width: size, height: size }}>
-        <div className="brand-loader-petals-frame">
-          <img src={cpLogo} alt="" className="brand-loader-layer brand-loader-petals" />
-        </div>
-        <img src={cpLogo} alt="" className="brand-loader-layer brand-loader-center" />
+      <div className="brand-loader-mark shrink-0" style={{ '--brand-loader-size': loaderSize }}>
+        <span className="brand-loader-ring" aria-hidden="true" />
+        <img src={cpLogo} alt="" className="brand-loader-logo" />
       </div>
       {label ? <p className="text-sm font-semibold text-on-surface-variant">{label}</p> : null}
     </div>

@@ -6,6 +6,19 @@ const MIcon = ({ name, className = '', filled = false }) => (
   <span className={`material-symbols-outlined ${filled ? 'fill-1' : ''} ${className}`} aria-hidden>{name}</span>
 );
 
+const PDF_SECTIONS = [
+  { key: 'summary', label: 'Summary' },
+  { key: 'bank', label: 'Bank' },
+  { key: 'pnl', label: 'P&L' },
+  { key: 'flags', label: 'Flags' },
+  { key: 'hotels', label: 'Hotels' },
+  { key: 'fnb', label: 'Standalone F&B' },
+  { key: 'rabbits', label: 'Rabbits' },
+  { key: 'mickys', label: "Micky's" },
+  { key: 'purosoul', label: 'Purosoul' },
+  { key: 'settlement', label: 'Settlement' }
+];
+
 export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
   const [pdfKey, setPdfKey] = useState(0);
   const [frameState, setFrameState] = useState('loading');
@@ -14,11 +27,26 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
   const [lastRefreshed, setLastRefreshed] = useState('');
   const [objectUrl, setObjectUrl] = useState('');
   const [previewError, setPreviewError] = useState('');
+  const [selectedSections, setSelectedSections] = useState(() => PDF_SECTIONS.map((section) => section.key));
 
-  const previewUrl = reportPdfPreviewUrl(date, authToken);
+  const previewUrl = reportPdfPreviewUrl(date, authToken, selectedSections);
   const appPreviewUrl = objectUrl ? `${objectUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH` : '';
-  const downloadUrl = reportPdfUrl(date, authToken);
+  const downloadUrl = reportPdfUrl(date, authToken, selectedSections);
   const previewStatus = frameState === 'ready' ? 'Ready' : frameState === 'error' ? 'Preview issue' : 'Loading';
+  const allSelected = selectedSections.length === PDF_SECTIONS.length;
+
+  const toggleSection = (key) => {
+    setSelectedSections((current) => {
+      if (current.includes(key)) return current.length === 1 ? current : current.filter((item) => item !== key);
+      return [...current, key];
+    });
+    setPdfKey((keyValue) => keyValue + 1);
+  };
+
+  const setAllSections = () => {
+    setSelectedSections(PDF_SECTIONS.map((section) => section.key));
+    setPdfKey((keyValue) => keyValue + 1);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -136,6 +164,40 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
       <div className="flex shrink-0 items-center gap-2 border-b border-outline-variant/60 bg-surface-container-low px-4 py-2.5 text-xs font-medium text-on-surface-variant md:px-6">
         <MIcon name="info" className="text-[17px] text-primary" />
         <span>Preview uses the last saved dashboard data. Use Save & Refresh after edits.</span>
+      </div>
+
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-outline-variant/60 bg-surface-container-lowest px-4 py-2.5 md:px-6">
+        <span className="mr-1 text-xs font-extrabold uppercase tracking-[0.08em] text-on-surface-variant">PDF Sections</span>
+        <button
+          type="button"
+          onClick={setAllSections}
+          disabled={allSelected}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-outline-variant/70 bg-surface-container-lowest px-2.5 text-xs font-bold text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:cursor-default disabled:opacity-45"
+        >
+          <MIcon name="select_all" className="text-[16px]" />
+          All
+        </button>
+        {PDF_SECTIONS.map((section) => {
+          const checked = selectedSections.includes(section.key);
+          return (
+            <label
+              key={section.key}
+              className={`inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border px-2.5 text-xs font-bold transition-colors ${
+                checked
+                  ? 'border-primary/30 bg-primary-container/25 text-primary'
+                  : 'border-outline-variant/70 bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggleSection(section.key)}
+                className="size-3.5 accent-primary"
+              />
+              {section.label}
+            </label>
+          );
+        })}
       </div>
 
       <main className="min-h-0 flex-1 bg-surface-container p-3 md:p-5">

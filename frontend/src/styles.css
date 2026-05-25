@@ -191,37 +191,32 @@ input[type='date'] {
 
   .brand-loader-mark {
     position: relative;
-    isolation: isolate;
+    display: grid;
+    height: var(--brand-loader-size, 64px);
+    width: var(--brand-loader-size, 64px);
+    place-items: center;
   }
 
-  .brand-loader-petals-frame {
+  .brand-loader-ring {
     position: absolute;
-    inset: 0;
-    overflow: hidden;
-    -webkit-mask-image: radial-gradient(circle closest-side at center, transparent 0 47%, #000 53% 100%);
-    mask-image: radial-gradient(circle closest-side at center, transparent 0 47%, #000 53% 100%);
-  }
-
-  .brand-loader-layer {
-    position: absolute;
-    inset: 0;
-    height: 100%;
-    width: 100%;
-    object-fit: contain;
-  }
-
-  .brand-loader-petals {
-    animation: brand-petal-spin 4s linear infinite;
+    inset: -8%;
+    border-radius: 999px;
+    background: conic-gradient(from 0deg, rgba(167, 0, 98, 0), rgba(167, 0, 98, 0.46), rgba(8, 120, 108, 0.44), rgba(167, 0, 98, 0));
+    -webkit-mask-image: radial-gradient(circle, transparent 0 57%, #000 59% 69%, transparent 71% 100%);
+    mask-image: radial-gradient(circle, transparent 0 57%, #000 59% 69%, transparent 71% 100%);
+    animation: brand-loader-spin 1.45s linear infinite;
     backface-visibility: hidden;
-    filter: drop-shadow(0 6px 14px rgba(167, 0, 98, 0.16));
+    opacity: 0.82;
     transform-origin: 50% 50%;
     will-change: transform;
   }
 
-  .brand-loader-center {
-    filter: drop-shadow(0 5px 10px rgba(23, 32, 38, 0.08));
-    -webkit-mask-image: radial-gradient(circle closest-side at center, #000 0 47%, transparent 53% 100%);
-    mask-image: radial-gradient(circle closest-side at center, #000 0 47%, transparent 53% 100%);
+  .brand-loader-logo {
+    position: relative;
+    height: 72%;
+    width: 72%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 8px rgba(23, 32, 38, 0.1));
   }
 
   /* Safe-area helper for the floating mobile bottom nav. */
@@ -241,18 +236,17 @@ input[type='date'] {
   }
 }
 
-@keyframes brand-petal-spin {
+@keyframes brand-loader-spin {
   from {
-    transform: translateZ(0) scale(1.03) rotate(0deg);
+    transform: translateZ(0) rotate(0deg);
   }
   to {
-    transform: translateZ(0) scale(1.03) rotate(360deg);
+    transform: translateZ(0) rotate(360deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .brand-loader-petals {
-    animation-duration: 12s;
-    animation-timing-function: linear;
+  .brand-loader-ring {
+    animation: none;
   }
 }
