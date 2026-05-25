@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSeedData } from './excel.js';
 import { normalizeRabbitsCategoryBreakdown } from './schema.js';
+import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 function num(str) {
   const n = parseFloat(String(str ?? '').replace(/,/g, ''));
@@ -201,14 +202,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const categoryBreakdown = parseCategoryBreakdown(emailHtml);
   const comboCategorySales = parseComboCategorySales(emailHtml);
 
-  const dataPath = path.resolve(process.cwd(), 'data', `${outDate}.json`);
-  let data;
-  try {
-    data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
-  } catch (err) {
-    if (err.code !== 'ENOENT') throw err;
-    data = buildSeedData();
-  }
+  const data = (await readDailyJson(outDate)) ?? buildSeedData();
 
   if (outlet === 'Rabbits') {
     normalizeRabbitsCategoryBreakdown(data);
@@ -291,8 +285,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     [`${key}PetpoojaValues`]: Object.fromEntries(values)
   };
 
-  await fs.mkdir(path.dirname(dataPath), { recursive: true });
-  await fs.writeFile(dataPath, JSON.stringify({ ...data, date: outDate, savedAt: new Date().toISOString() }, null, 2));
+  await writeDailyJson(outDate, data);
 
   return {
     ok: true,

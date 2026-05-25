@@ -1,8 +1,7 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
+import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 const SHEET_ID = '1jvnmwP4AaNQW54E3QVlzR9ZMj589HXZugJfhBOye_gs';
 const GID = 871818724;
@@ -22,9 +21,8 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-async function readData(dataPath) {
-  try { return JSON.parse(await fs.readFile(dataPath, 'utf8')); }
-  catch (err) { if (err.code !== 'ENOENT') throw err; return buildSeedData(); }
+async function readData(date) {
+  return (await readDailyJson(date)) ?? buildSeedData();
 }
 
 function setMtd(mickys, name, value) {
@@ -84,8 +82,7 @@ export async function importMickysLeads(targetDate) {
   const nonLost  = dataRows.filter((r) => getStage(r) !== 'lost' && getStage(r) !== '');
   const convRate = nonLost.length > 0 ? Math.round((converted.length / nonLost.length) * 100) : 0;
 
-  const dataPath = path.resolve(process.cwd(), 'data', `${targetDate}.json`);
-  const data = await readData(dataPath);
+  const data = await readData(targetDate);
 
   setMtd(data.mickys, 'New Leads Today',   newThisMonth);
   setMtd(data.mickys, 'Leads Contacted',   contacted.length);
@@ -103,8 +100,7 @@ export async function importMickysLeads(targetDate) {
     mickysLeadsImportedAt: new Date().toISOString(),
   };
 
-  await fs.mkdir(path.dirname(dataPath), { recursive: true });
-  await fs.writeFile(dataPath, JSON.stringify({ ...data, date: targetDate, savedAt: new Date().toISOString() }, null, 2));
+  await writeDailyJson(targetDate, data);
 
   return {
     ok: true, targetDate,

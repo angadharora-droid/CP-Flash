@@ -1,8 +1,8 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
+import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 const SHEET_ID = '1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf';
 
@@ -81,14 +81,7 @@ export async function importBankPosition(outDate) {
     });
   }
 
-  const dataPath = path.resolve(process.cwd(), 'data', `${outDate}.json`);
-  let data;
-  try {
-    data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
-  } catch (err) {
-    if (err.code !== 'ENOENT') throw err;
-    data = buildSeedData();
-  }
+  const data = (await readDailyJson(outDate)) ?? buildSeedData();
 
   data.bankPosition = accountRows;
   data.importSource = {
@@ -96,8 +89,7 @@ export async function importBankPosition(outDate) {
     bankPositionImportedAt: new Date().toISOString(),
   };
 
-  await fs.mkdir(path.dirname(dataPath), { recursive: true });
-  await fs.writeFile(dataPath, JSON.stringify({ ...data, date: outDate, savedAt: new Date().toISOString() }, null, 2));
+  await writeDailyJson(outDate, data);
 
   return { ok: true, date: outDate, mapped: accountRows };
 }

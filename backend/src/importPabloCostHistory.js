@@ -1,8 +1,8 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
+import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 const SHEET_ID = '1SliCSYQIhRekgYy-6YN0nn5nFtlZQooH';
 // One entry per monthly sheet tab — add new gids here each month
@@ -48,9 +48,8 @@ function setKpi(data, name, actual, mtd, { preserveActual = false } = {}) {
   row.mtd = String(mtd);
 }
 
-async function readData(dataPath) {
-  try { return JSON.parse(await fs.readFile(dataPath, 'utf8')); }
-  catch (err) { if (err.code !== 'ENOENT') throw err; return buildSeedData(); }
+async function readData(date) {
+  return (await readDailyJson(date)) ?? buildSeedData();
 }
 
 export async function importPabloCostHistory() {
@@ -92,8 +91,7 @@ export async function importPabloCostHistory() {
     const cumTotalSales = cumFS + cumLS;
     const cumTotalPurchase = cumFP + cumLP;
 
-    const dataPath = path.resolve(process.cwd(), 'data', `${row.date}.json`);
-    const data = await readData(dataPath);
+    const data = await readData(row.date);
 
     setKpi(data, 'Gross Sales',           round(totalSales),              round(cumTotalSales), { preserveActual: true });
     setKpi(data, 'Food Cost %',           costPct(row.foodPurchase, row.foodSales), costPct(cumFP, cumFS));
@@ -114,8 +112,7 @@ export async function importPabloCostHistory() {
       pabloCostNotes: `Fetched from Google Sheet. MTD cumulative through ${row.date}.`,
     };
 
-    await fs.mkdir(path.dirname(dataPath), { recursive: true });
-    await fs.writeFile(dataPath, JSON.stringify({ ...data, date: row.date, savedAt: new Date().toISOString() }, null, 2));
+    await writeDailyJson(row.date, data);
     written.push(row.date);
   }
 

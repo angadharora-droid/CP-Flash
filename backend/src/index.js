@@ -15,6 +15,8 @@ import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
 import { buildSourceStatus } from './sources.js';
 import { normalizeRabbitsCategoryBreakdown } from './schema.js';
+import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
+import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -22,6 +24,19 @@ const dataDir = path.resolve(process.cwd(), 'data');
 const attachmentsDir = path.resolve(__dirname, '..', 'data', 'attachments');
 const accessPin = process.env.DAILYFLASH_PIN || process.env.ACCESS_PIN;
 const tokenSecret = process.env.JWT_SECRET || process.env.DAILYFLASH_PIN || 'change-me';
+const isProd = process.env.NODE_ENV === 'production';
+if (isProd) {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me' || process.env.JWT_SECRET.length < 32) {
+    throw new Error('JWT_SECRET must be set to a strong random value (>= 32 chars) in production.');
+  }
+  if (!process.env.ENCRYPTION_KEY) {
+    throw new Error('ENCRYPTION_KEY must be set in production. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"');
+  }
+}
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 const emailImportScript = path.join(__dirname, 'fetchEmailReport.js');
 const backendDir = path.resolve(__dirname, '..');
 const LOGIN_LOCKOUT_FILE = path.join(dataDir, 'auth-lockout.json');
@@ -57,8 +72,64 @@ async function getDb() {
 // Wrap async route handlers so Express 4 catches thrown errors.
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
-app.use(cors());
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  if (isProd) {
+    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  }
+  next();
+});
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (!isProd && !allowedOrigins.length) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  credentials: false
+}));
 app.use(express.json({ limit: '10mb' }));
+
+const loginAttemptsByIp = new Map();
+const LOGIN_IP_WINDOW_MS = 60_000;
+const LOGIN_IP_MAX = 10;
+function loginIpRateLimit(req, res, next) {
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const entry = loginAttemptsByIp.get(ip) ?? { count: 0, resetAt: now + LOGIN_IP_WINDOW_MS };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + LOGIN_IP_WINDOW_MS;
+  }
+  entry.count += 1;
+  loginAttemptsByIp.set(ip, entry);
+  if (entry.count > LOGIN_IP_MAX) {
+    res.status(429).json({ error: 'Too many requests from this IP. Try again in a minute.' });
+    return;
+  }
+  next();
+}
+
+function constantTimeEqual(a, b) {
+  const ba = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+function clientIp(req) {
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function auditLog(event, details) {
+  console.log(JSON.stringify({ ts: new Date().toISOString(), audit: event, ...details }));
+}
+
+app.set('trust proxy', 1);
 
 // Stateless signed tokens — survive server restarts.
 function createSession() {
@@ -116,20 +187,21 @@ async function readLoginLockoutState() {
   const db = await getDb();
   if (db) {
     const doc = await db.collection('authLockouts').findOne({ _id: 'pin' });
+    const decoded = doc?.payloadEnc ? decryptJson(doc.payloadEnc) : doc;
     loginLockoutState = {
-      failedAttempts: Number(doc?.failedAttempts ?? 0),
-      lockedUntil: doc?.lockedUntil ?? null
+      failedAttempts: Number(decoded?.failedAttempts ?? 0),
+      lockedUntil: decoded?.lockedUntil ?? null
     };
     return loginLockoutState;
   }
   await ensureDataDir();
-  try {
-    const saved = JSON.parse(await fs.readFile(LOGIN_LOCKOUT_FILE, 'utf8'));
+  const saved = await readGenericJson(LOGIN_LOCKOUT_FILE, null);
+  if (saved) {
     loginLockoutState = {
-      failedAttempts: Number(saved?.failedAttempts ?? 0),
-      lockedUntil: saved?.lockedUntil ?? null
+      failedAttempts: Number(saved.failedAttempts ?? 0),
+      lockedUntil: saved.lockedUntil ?? null
     };
-  } catch {
+  } else {
     loginLockoutState = fallback;
   }
   return loginLockoutState;
@@ -144,13 +216,13 @@ async function writeLoginLockoutState(state) {
   if (db) {
     await db.collection('authLockouts').updateOne(
       { _id: 'pin' },
-      { $set: loginLockoutState },
+      { $set: { payloadEnc: encryptJson(loginLockoutState) }, $unset: { failedAttempts: '', lockedUntil: '' } },
       { upsert: true }
     );
     return;
   }
   await ensureDataDir();
-  await fs.writeFile(LOGIN_LOCKOUT_FILE, JSON.stringify(loginLockoutState, null, 2));
+  await writeGenericJson(LOGIN_LOCKOUT_FILE, loginLockoutState);
 }
 
 function isLoginLocked(state) {
@@ -256,14 +328,11 @@ async function readDailyData(date = dateKey()) {
   const db = await getDb();
   if (db) {
     const doc = await db.collection('reports').findOne({ date });
-    return doc?.data ?? null;
+    if (!doc) return null;
+    if (doc.payloadEnc) return decryptJson(doc.payloadEnc);
+    return doc.data ?? null;
   }
-  await ensureDataDir();
-  try {
-    return JSON.parse(await fs.readFile(path.join(dataDir, `${date}.json`), 'utf8'));
-  } catch {
-    return null;
-  }
+  return readDailyJson(date);
 }
 
 async function writeDailyData(date, payload) {
@@ -272,18 +341,17 @@ async function writeDailyData(date, payload) {
   if (db) {
     await db.collection('reports').updateOne(
       { date },
-      { $set: { date, data: record } },
+      { $set: { date, payloadEnc: encryptJson(record) }, $unset: { data: '' } },
       { upsert: true }
     );
     return;
   }
-  await ensureDataDir();
-  await fs.writeFile(path.join(dataDir, `${date}.json`), JSON.stringify(record, null, 2));
+  await writeDailyJson(date, payload);
 }
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-app.post('/api/login', wrap(async (req, res) => {
+app.post('/api/login', loginIpRateLimit, wrap(async (req, res) => {
   if (!accessPin) {
     res.status(500).json({ error: 'DAILYFLASH_PIN is not configured on the backend.' });
     return;
@@ -291,6 +359,7 @@ app.post('/api/login', wrap(async (req, res) => {
 
   const lockout = await readLoginLockoutState();
   if (isLoginLocked(lockout)) {
+    auditLog('login.blocked.lockout', { ip: clientIp(req) });
     sendLoginLockout(res, lockout.lockedUntil);
     return;
   }
@@ -301,12 +370,13 @@ app.post('/api/login', wrap(async (req, res) => {
   }
 
   const pin = String(req.body.pin ?? '').trim();
-  if (!pin || pin !== accessPin) {
+  if (!pin || !constantTimeEqual(pin, accessPin)) {
     const failedAttempts = lockout.failedAttempts + 1;
     const lockedUntil = failedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS
       ? new Date(Date.now() + LOGIN_LOCKOUT_MS).toISOString()
       : null;
     await writeLoginLockoutState({ failedAttempts, lockedUntil });
+    auditLog('login.fail', { ip: clientIp(req), failedAttempts, lockedUntil });
 
     if (lockedUntil) {
       sendLoginLockout(res, lockedUntil);
@@ -319,6 +389,7 @@ app.post('/api/login', wrap(async (req, res) => {
     return;
   }
   await writeLoginLockoutState({ failedAttempts: 0, lockedUntil: null });
+  auditLog('login.ok', { ip: clientIp(req) });
   res.json({ ok: true, token: createSession() });
 }));
 

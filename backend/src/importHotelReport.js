@@ -1,8 +1,8 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
+import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 function num(value) {
   if (typeof value === 'number') return value;
@@ -41,10 +41,7 @@ export async function importHotelReport(file, outDate) {
   const unit = 'CP Nagpur';
   // Read existing daily file so we don't overwrite data written by other importers
   // (e.g. occupancy report may have already run before this one)
-  const outPath = path.resolve(process.cwd(), 'data', `${outDate}.json`);
-  let data;
-  try { data = JSON.parse(await fs.readFile(outPath, 'utf8')); }
-  catch (err) { if (err.code !== 'ENOENT') throw err; data = buildSeedData(); }
+  const data = (await readDailyJson(outDate)) ?? buildSeedData();
 
   const room = net(findRow(rows, 'Total ( A )'));
   const meetingPoint = net(findRow(rows, 'MEETING POINT'));
@@ -91,11 +88,10 @@ export async function importHotelReport(file, outDate) {
     notes: `Mapped from sheet "${usedSheet}": room, F&B, collections.`
   };
 
-  await fs.mkdir(path.dirname(outPath), { recursive: true });
-  await fs.writeFile(outPath, JSON.stringify({ ...data, date: outDate, savedAt: new Date().toISOString() }, null, 2));
+  await writeDailyJson(outDate, data);
 
   return {
-    ok: true, date: outDate, file: outPath,
+    ok: true, date: outDate, file: `${outDate}.json`,
     mapped: {
       roomRevenue: room.actual,
       fnbRevenue: meetingPoint.actual + freakk.actual + roomService.actual + bougainvillea.actual + highSteak.actual,

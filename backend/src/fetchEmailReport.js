@@ -18,6 +18,7 @@ import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
+import { readDailyJson } from './dailyStore.js';
 import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
 import { importPetpoojaReport } from './importPetpoojaReport.js';
@@ -317,14 +318,7 @@ async function run() {
   const date = yesterday();
 
   // Load existing data once — used to skip sources already imported this run
-  const dataPath = path.resolve(__dirname, '..', 'data', `${date}.json`);
-  let existingData = null;
-  try {
-    existingData = JSON.parse(await fs.readFile(dataPath, 'utf8'));
-  } catch {
-    existingData = null;
-  }
-  existingData ??= { importSource: {} };
+  let existingData = (await readDailyJson(date)) ?? { importSource: {} };
   if (process.env.FORCE_IMPORT === 'true') {
     existingData.importSource = {};
     log('FORCE_IMPORT enabled: rebuilding sources for this run.');
@@ -439,11 +433,8 @@ async function syncToCloud(date) {
     return;
   }
 
-  const dataPath = path.resolve(__dirname, '..', 'data', `${date}.json`);
-  let localData;
-  try {
-    localData = JSON.parse(await fs.readFile(dataPath, 'utf8'));
-  } catch {
+  const localData = await readDailyJson(date);
+  if (!localData) {
     log(`Cloud sync skipped — no local data file for ${date}.`);
     return;
   }
