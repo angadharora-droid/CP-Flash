@@ -50,7 +50,7 @@ function StatusPill({ status, animated }) {
 
 function SourceStat({ label, value, tone = 'text-on-surface' }) {
   return (
-    <div className="rounded-lg border border-outline-variant/55 bg-surface-container-lowest px-3 py-2.5">
+    <div className="min-w-0 rounded-lg border border-outline-variant/55 bg-surface-container-lowest px-3 py-2.5">
       <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface-variant/60">{label}</div>
       <div className={`num mt-1 truncate text-sm font-bold tabular-nums ${tone}`}>{value}</div>
     </div>
@@ -215,8 +215,8 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
         </div>
       ) : null}
 
-      {/* ---- Source cards grid ---- */}
-      <div className="mb-7 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+      {/* ---- Source horizontal tabs ---- */}
+      <div className="mb-7 space-y-3">
         {groupedEntries.map(([unit, unitSources]) => {
           const imp = unitSources.filter((s) => s.status === 'Imported').length;
           const reportsCount = unitSources.reduce((sum, s) => sum + sourceReports(s).length, 0);
@@ -232,32 +232,26 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
           const isOpen = openUnit === unit;
 
           return (
-            <div key={unit} className="glass-card flex min-h-[280px] flex-col overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover">
-              <div className="border-b border-outline-variant/60 bg-surface-container-lowest px-5 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className={`flex size-11 shrink-0 items-center justify-center rounded-lg border ${tint.bg} ${tint.text} ${tint.border}`}>
+            <div key={unit} className="glass-card overflow-hidden transition-all duration-200 hover:shadow-cardHover">
+              <button
+                type="button"
+                onClick={() => setOpenUnit(isOpen ? null : unit)}
+                className="grid w-full grid-cols-1 items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-primary/5 lg:grid-cols-[minmax(220px,1.25fr)_minmax(280px,1.4fr)_minmax(120px,0.5fr)_36px]"
+                aria-expanded={isOpen}
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className={`flex size-11 shrink-0 items-center justify-center rounded-lg border ${tint.bg} ${tint.text} ${tint.border}`}>
                     <MIcon name={icon} filled className="text-[24px]" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="truncate text-lg font-bold leading-tight text-on-surface">{unit}</h3>
-                      <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/65">
-                        {unitSources[0]?.type ?? 'Daily Feed'}
-                      </p>
-                    </div>
                   </div>
-                  <StatusPill status={aggStatus} animated={aggStatus === 'Partial' || (aggStatus === 'Imported' && importRunning)} />
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-bold leading-tight text-on-surface">{unit}</h3>
+                    <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/65">
+                      {unitSources[0]?.type ?? 'Daily Feed'}
+                    </p>
+                  </div>
                 </div>
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-container-high">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${aggStatus === 'Pending' ? 'bg-error' : aggStatus === 'Partial' ? 'bg-tertiary' : 'bg-primary'}`}
-                    style={{ width: `${importedPct}%` }}
-                  />
-                </div>
-              </div>
 
-              <div className="flex flex-1 flex-col p-5">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid min-w-0 grid-cols-3 gap-3">
                   <SourceStat
                     label="Last Sync"
                     value={(
@@ -271,17 +265,27 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
                   <SourceStat label="Reports" value={reportsCount || '-'} tone="text-secondary" />
                 </div>
 
-              <button
-                type="button"
-                onClick={() => setOpenUnit(isOpen ? null : unit)}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest py-3 text-[12px] font-bold uppercase tracking-[0.05em] text-primary transition-all hover:border-primary/40 hover:bg-primary hover:text-on-primary active:scale-[0.98]"
-              >
-                <MIcon name={isOpen ? 'expand_less' : 'receipt_long'} className="text-[18px]" />
-                {isOpen ? 'Hide feed details' : 'View feed details'}
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <StatusPill status={aggStatus} animated={aggStatus === 'Partial' || (aggStatus === 'Imported' && importRunning)} />
+                    <span className="num text-xs font-bold text-on-surface-variant">{importedPct}%</span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-container-high">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${aggStatus === 'Pending' ? 'bg-error' : aggStatus === 'Partial' ? 'bg-tertiary' : 'bg-primary'}`}
+                      style={{ width: `${importedPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="hidden size-9 items-center justify-center rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-primary lg:flex">
+                  <MIcon name={isOpen ? 'expand_less' : 'expand_more'} className="text-[20px]" />
+                </div>
               </button>
 
               {isOpen ? (
-                <div className="mt-4 space-y-2 border-t border-outline-variant/60 pt-4 animate-fade-in-up">
+                <div className="border-t border-outline-variant/60 bg-surface-container-low px-5 py-4 animate-fade-in-up">
+                  <div className="grid gap-2 lg:grid-cols-2">
                   {unitSources.map((source) => (
                     <div key={source.id} className="rounded-lg border border-outline-variant/55 bg-surface-container-lowest px-3 py-3">
                       <div className="flex items-start justify-between gap-2">
@@ -320,9 +324,9 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
                       </div>
                     </div>
                   ))}
+                  </div>
                 </div>
               ) : null}
-              </div>
             </div>
           );
         })}
