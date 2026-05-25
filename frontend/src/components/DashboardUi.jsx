@@ -57,9 +57,9 @@ export function hasKpiData(rows) {
   return (rows ?? []).some((r) => String(r.actual ?? '').trim() !== '');
 }
 
-export function FreshnessBadge({ label, cls }) {
+export function FreshnessBadge({ label, cls, className = '' }) {
   return (
-    <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${cls}`}>
+    <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${cls} ${className}`}>
       {label}
     </span>
   );
@@ -241,7 +241,12 @@ export function SegmentedControl({ items, value, onChange }) {
           }`}
         >
           <span>{label}</span>
-          {badge ? <FreshnessBadge {...badge} /> : null}
+          {badge ? (
+            <FreshnessBadge
+              {...badge}
+              className={value === key ? 'border-white/25 bg-white/10 text-white' : ''}
+            />
+          ) : null}
         </button>
       ))}
     </div>
