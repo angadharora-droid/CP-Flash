@@ -382,19 +382,19 @@ export default function App() {
       {/* ---- Expanded desktop sidebar ---- */}
       <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 flex-col border-r border-outline-variant/70 bg-surface-container-lowest shadow-[6px_0_24px_-28px_rgba(23,32,38,0.9)] transition-all duration-300 md:flex">
         {/* Brand logo */}
-        <div className="flex h-16 items-center gap-3 border-b border-outline-variant/70 px-5">
+        <div className="flex h-16 items-center gap-3 border-b border-outline-variant/70 px-4">
           <button
             type="button"
             onClick={() => setActive('sources')}
-            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
+            className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
             title="DailyFlash"
             aria-label="Home"
           >
             <img src={cpLogo} alt="" className="h-full w-full object-contain" />
           </button>
-          <div className="min-w-0">
+          <div className="min-w-0 leading-tight">
             <div className="truncate text-sm font-extrabold tracking-normal text-on-surface">DailyFlash</div>
-            <div className="truncate text-[11px] font-medium text-on-surface-variant">Centre Point</div>
+            <div className="truncate text-[11px] font-semibold text-on-surface-variant/75">Centre Point</div>
           </div>
         </div>
         {/* Nav */}
@@ -510,7 +510,7 @@ export default function App() {
 
       {/* ---- Top App Bar ---- */}
       <header className="fixed top-0 z-40 flex h-16 w-full items-center justify-between border-b border-outline-variant/70 bg-surface-container-lowest/88 px-4 shadow-sm backdrop-blur-xl md:left-72 md:w-[calc(100%-18rem)] md:px-6">
-        <div className="flex min-w-0 items-center gap-3 md:gap-6">
+        <div className="flex min-w-0 items-center gap-3 md:gap-4">
           {/* Mobile menu button */}
           <button
             type="button"
@@ -520,17 +520,14 @@ export default function App() {
           >
             <MIcon name="menu" />
           </button>
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="hidden text-on-surface-variant/40 sm:inline">Apps</span>
-            <MIcon name="chevron_right" className="hidden text-sm text-on-surface-variant/30 sm:inline" />
-            <h1 className="truncate text-xl font-extrabold tracking-normal text-primary md:text-2xl">DailyFlash</h1>
-            <MIcon name="chevron_right" className="hidden text-sm text-on-surface-variant/30 lg:inline" />
-            <span className="hidden truncate text-sm font-semibold text-on-surface lg:inline">{activePage[2]}</span>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-extrabold tracking-normal text-on-surface md:text-2xl">{activePage[2]}</h1>
+            <p className="hidden text-xs font-semibold text-on-surface-variant sm:block">DailyFlash</p>
           </div>
           {liveStreamActive ? (
-            <div className="hidden items-center gap-2 rounded-md border border-primary/15 bg-primary/10 px-3 py-1.5 lg:flex">
-              <MIcon name="check_circle" filled className="text-[16px] text-secondary" />
-              <span className="text-[11px] font-semibold text-primary">Live Data Stream</span>
+            <div className="hidden items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 lg:flex">
+              <MIcon name="check_circle" filled className="text-[16px] text-primary" />
+              <span className="text-[11px] font-bold text-primary">Live Data Stream</span>
             </div>
           ) : null}
         </div>
