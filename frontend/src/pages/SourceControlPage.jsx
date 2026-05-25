@@ -20,32 +20,40 @@ const UNIT_ICON = {
   Purosoul: 'factory'
 };
 
-// Tint background per unit, picked to feel like the Stitch Tally / IDS / Delivery cards.
 const UNIT_TINT = {
-  'Bank Statement': { bg: 'bg-primary/5',           text: 'text-primary',     border: 'border-primary/10' },
-  'CP Nagpur':      { bg: 'bg-primary/5',           text: 'text-primary',     border: 'border-primary/10' },
-  'CP NM':          { bg: 'bg-primary/5',           text: 'text-primary',     border: 'border-primary/10' },
-  Pablo:            { bg: 'bg-tertiary/10',         text: 'text-tertiary',    border: 'border-tertiary/15' },
-  Dali:             { bg: 'bg-tertiary/10',         text: 'text-tertiary',    border: 'border-tertiary/15' },
-  Rabbits:          { bg: 'bg-error/5',             text: 'text-error',       border: 'border-error/10' },
-  "Micky's":        { bg: 'bg-secondary/10',        text: 'text-secondary',   border: 'border-secondary/15' },
-  Purosoul:         { bg: 'bg-tertiary/10',         text: 'text-tertiary',    border: 'border-tertiary/15' }
+  'Bank Statement': { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20' },
+  'CP Nagpur':      { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20' },
+  'CP NM':          { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20' },
+  Pablo:            { bg: 'bg-tertiary-container/70', text: 'text-on-tertiary-container', border: 'border-tertiary/25' },
+  Dali:             { bg: 'bg-tertiary-container/70', text: 'text-on-tertiary-container', border: 'border-tertiary/25' },
+  Rabbits:          { bg: 'bg-error-container/45', text: 'text-error', border: 'border-error/20' },
+  "Micky's":        { bg: 'bg-secondary-container/45', text: 'text-on-secondary-container', border: 'border-secondary/25' },
+  Purosoul:         { bg: 'bg-tertiary-container/70', text: 'text-on-tertiary-container', border: 'border-tertiary/25' }
 };
-const DEFAULT_TINT = { bg: 'bg-primary/5', text: 'text-primary', border: 'border-primary/10' };
+const DEFAULT_TINT = { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20' };
 
 function StatusPill({ status, animated }) {
   const map = {
-    Imported: { bg: 'bg-secondary/10', text: 'text-secondary', border: 'border-secondary/20', dot: 'bg-secondary', label: 'Stable' },
-    Partial:  { bg: 'bg-tertiary/10',  text: 'text-tertiary',  border: 'border-tertiary/20',  dot: 'bg-tertiary',  label: 'Syncing...' },
-    Entered:  { bg: 'bg-secondary-container/30', text: 'text-on-secondary-container', border: 'border-secondary/15', dot: 'bg-secondary', label: 'Manual' },
-    Pending:  { bg: 'bg-error/10',     text: 'text-error',     border: 'border-error/20',     dot: 'bg-error',     label: 'Pending' }
+    Imported: { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20', dot: 'bg-primary', label: 'Stable' },
+    Partial:  { bg: 'bg-tertiary-container/70', text: 'text-on-tertiary-container', border: 'border-tertiary/25', dot: 'bg-tertiary', label: 'Syncing' },
+    Entered:  { bg: 'bg-secondary-container/45', text: 'text-on-secondary-container', border: 'border-secondary/25', dot: 'bg-secondary', label: 'Manual' },
+    Pending:  { bg: 'bg-error-container/45', text: 'text-error', border: 'border-error/20', dot: 'bg-error', label: 'Pending' }
   };
   const cfg = map[status] ?? map.Pending;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.05em] ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.05em] ${cfg.bg} ${cfg.text} ${cfg.border}`}>
       <span className={`size-1.5 rounded-full ${cfg.dot} ${animated ? 'animate-pulse' : ''}`} />
       {cfg.label}
     </span>
+  );
+}
+
+function SourceStat({ label, value, tone = 'text-on-surface' }) {
+  return (
+    <div className="rounded-lg border border-outline-variant/55 bg-surface-container-lowest px-3 py-2.5">
+      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface-variant/60">{label}</div>
+      <div className={`num mt-1 truncate text-sm font-bold tabular-nums ${tone}`}>{value}</div>
+    </div>
   );
 }
 
@@ -192,7 +200,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
             type="button"
             onClick={handleRunEmailImport}
             disabled={importRunning}
-            className="inline-flex items-center gap-2 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:bg-surface-container-high active:scale-95 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
           >
             <MIcon name="sync" className={`text-[18px] ${importRunning ? 'animate-spin' : ''}`} />
             {importRunning ? 'Refreshing…' : 'Refresh Sources'}
@@ -207,11 +215,12 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
         </div>
       ) : null}
 
-      {/* ---- Source cards grid (Tally/IDS/Delivery style) ---- */}
-      <div className="mb-7 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {/* ---- Source cards grid ---- */}
+      <div className="mb-7 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
         {groupedEntries.map(([unit, unitSources]) => {
           const imp = unitSources.filter((s) => s.status === 'Imported').length;
           const reportsCount = unitSources.reduce((sum, s) => sum + sourceReports(s).length, 0);
+          const importedPct = unitSources.length ? Math.round((imp / unitSources.length) * 100) : 0;
           const aggStatus = unitAggregateStatus(unitSources);
           const tint = UNIT_TINT[unit] ?? DEFAULT_TINT;
           const icon = UNIT_ICON[unit] ?? 'database';
@@ -223,69 +232,72 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
           const isOpen = openUnit === unit;
 
           return (
-            <div key={unit} className="glass-card flex flex-col p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover">
-              {/* Card header */}
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <div className="flex items-center gap-4">
-                  <div className={`flex size-11 items-center justify-center rounded-lg border ${tint.bg} ${tint.text} ${tint.border}`}>
+            <div key={unit} className="glass-card flex min-h-[280px] flex-col overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover">
+              <div className="border-b border-outline-variant/60 bg-surface-container-lowest px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className={`flex size-11 shrink-0 items-center justify-center rounded-lg border ${tint.bg} ${tint.text} ${tint.border}`}>
                     <MIcon name={icon} filled className="text-[24px]" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-lg font-bold leading-tight text-on-surface">{unit}</h3>
+                      <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/65">
+                        {unitSources[0]?.type ?? 'Daily Feed'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="truncate text-lg font-bold leading-tight text-on-surface">{unit}</h3>
-                    <p className="truncate text-[10px] font-medium uppercase tracking-widest text-on-surface-variant/70">
-                      {unitSources[0]?.type ?? 'Daily Feed'}
-                    </p>
-                  </div>
+                  <StatusPill status={aggStatus} animated={aggStatus === 'Partial' || (aggStatus === 'Imported' && importRunning)} />
                 </div>
-                <StatusPill status={aggStatus} animated={aggStatus === 'Partial' || (aggStatus === 'Imported' && importRunning)} />
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-container-high">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${aggStatus === 'Pending' ? 'bg-error' : aggStatus === 'Partial' ? 'bg-tertiary' : 'bg-primary'}`}
+                    style={{ width: `${importedPct}%` }}
+                  />
+                </div>
               </div>
 
-              {/* Card stats */}
-              <div className="mb-5 flex-grow space-y-3">
-                <div className="flex items-center justify-between border-b border-outline-variant/10 pb-3 text-sm text-on-surface-variant">
-                  <span className="opacity-70">Last Sync</span>
-                  <span className="font-semibold text-on-surface">
-                    {formatTime(lastImported)}
-                    {lastImported ? <span className="ml-1 text-[11px] opacity-50">({timeAgo(lastImported)})</span> : null}
-                  </span>
+              <div className="flex flex-1 flex-col p-5">
+                <div className="grid grid-cols-3 gap-3">
+                  <SourceStat
+                    label="Last Sync"
+                    value={(
+                      <>
+                        {formatTime(lastImported)}
+                        {lastImported ? <span className="ml-1 text-[11px] font-semibold text-on-surface-variant/60">({timeAgo(lastImported)})</span> : null}
+                      </>
+                    )}
+                  />
+                  <SourceStat label="Imported" value={`${imp} / ${unitSources.length}`} />
+                  <SourceStat label="Reports" value={reportsCount || '-'} tone="text-secondary" />
                 </div>
-                <div className="flex items-center justify-between border-b border-outline-variant/10 pb-3 text-sm text-on-surface-variant">
-                  <span className="opacity-70">Imported</span>
-                  <span className="num font-semibold text-on-surface">{imp} / {unitSources.length} feeds</span>
-                </div>
-                <div className="flex items-center justify-between pb-1 text-sm text-on-surface-variant">
-                  <span className="opacity-70">Reports</span>
-                  <span className="num font-semibold text-secondary">{reportsCount || '—'}</span>
-                </div>
-              </div>
 
               <button
                 type="button"
                 onClick={() => setOpenUnit(isOpen ? null : unit)}
-                className="w-full rounded-lg border border-primary/20 bg-surface-container-high/60 py-3 text-[12px] font-bold uppercase tracking-[0.05em] text-primary transition-all hover:bg-primary hover:text-on-primary active:scale-95"
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest py-3 text-[12px] font-bold uppercase tracking-[0.05em] text-primary transition-all hover:border-primary/40 hover:bg-primary hover:text-on-primary active:scale-[0.98]"
               >
-                {isOpen ? 'Hide Detailed Log' : 'View Detailed Log'}
+                <MIcon name={isOpen ? 'expand_less' : 'receipt_long'} className="text-[18px]" />
+                {isOpen ? 'Hide feed details' : 'View feed details'}
               </button>
 
-              {/* Expandable detail */}
               {isOpen ? (
-                <div className="mt-4 space-y-2 border-t border-outline-variant/15 pt-4 animate-fade-in-up">
+                <div className="mt-4 space-y-2 border-t border-outline-variant/60 pt-4 animate-fade-in-up">
                   {unitSources.map((source) => (
-                    <div key={source.id} className="rounded-lg bg-surface-container-low px-3 py-2.5 ring-1 ring-outline-variant/40">
+                    <div key={source.id} className="rounded-lg border border-outline-variant/55 bg-surface-container-lowest px-3 py-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-bold text-on-surface">{source.label}</div>
-                          <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">{source.type}</div>
+                          <div className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface-variant/65">{source.type}</div>
                         </div>
-                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusTone[source.status]}`}>{source.status}</span>
+                        <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-bold ${statusTone[source.status]}`}>{source.status}</span>
                       </div>
-                      {source.notes ? <div className="mt-2 text-xs text-on-surface-variant">{source.notes}</div> : null}
-                      <div className="mt-2 flex flex-wrap gap-1.5">
+                      {source.notes ? <div className="mt-2 text-xs leading-5 text-on-surface-variant">{source.notes}</div> : null}
+                      <div className="mt-3 flex flex-wrap gap-1.5">
                         {source.sheetUrl ? (
                           <button
                             type="button"
                             onClick={() => onOpenReportPreview(source, source.sheetUrl, { type: 'google-sheet', title: `${source.label}: Source Sheet` })}
-                            className="inline-flex items-center gap-1 rounded-full border border-outline-variant/30 bg-surface-container-lowest px-2.5 py-1 text-[11px] font-bold text-on-surface transition-colors hover:border-primary/30 hover:text-primary"
+                            className="inline-flex items-center gap-1 rounded-md border border-outline-variant/60 bg-surface-container-low px-2.5 py-1 text-[11px] font-bold text-on-surface transition-colors hover:border-primary/40 hover:text-primary"
                           >
                             <MIcon name="open_in_new" className="text-[14px]" />
                             Sheet
@@ -298,7 +310,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
                               key={`${source.id}-${file ?? report.url}-${index}`}
                               type="button"
                               onClick={() => onOpenReportPreview(source, file)}
-                              className="inline-flex items-center gap-1 rounded-full border border-outline-variant/30 bg-surface-container-lowest px-2.5 py-1 text-[11px] font-bold text-on-surface transition-colors hover:border-primary/30 hover:text-primary"
+                              className="inline-flex items-center gap-1 rounded-md border border-outline-variant/60 bg-surface-container-low px-2.5 py-1 text-[11px] font-bold text-on-surface transition-colors hover:border-primary/40 hover:text-primary"
                             >
                               <MIcon name="visibility" className="text-[14px]" />
                               {reportLabel(report, index)}
@@ -310,6 +322,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
                   ))}
                 </div>
               ) : null}
+              </div>
             </div>
           );
         })}
