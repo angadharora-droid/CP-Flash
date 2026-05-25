@@ -203,7 +203,7 @@ input[type='date'] {
   }
 
   .brand-loader-petals {
-    animation: brand-petal-spin 7.2s linear infinite;
+    animation: brand-petal-spin 12s linear infinite;
     backface-visibility: hidden;
     filter: drop-shadow(0 6px 14px rgba(167, 0, 98, 0.16));
     transform-origin: center;

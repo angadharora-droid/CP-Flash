@@ -19,6 +19,7 @@ import PdfPreviewPage from './pages/PdfPreviewPage';
 import cpLogo from './cp-logo.png';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
+const MIN_INITIAL_LOADER_MS = 5000;
 const d = new Date(); d.setDate(d.getDate() - 1);
 const today = d.toISOString().slice(0, 10);
 
@@ -26,6 +27,10 @@ function shiftIso(iso, delta) {
   const d = new Date(iso);
   d.setDate(d.getDate() + delta);
   return d.toISOString().slice(0, 10);
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 const SEED_FALLBACK_KEYS = ['pnl', 'bankPosition', 'hotels', 'rabbits', 'mickys', 'purosoul', 'purosoulSku', 'fixedCosts'];
@@ -183,6 +188,7 @@ export default function App() {
     if (!token) return;
     const requestId = loadRequestRef.current + 1;
     loadRequestRef.current = requestId;
+    const startedAt = Date.now();
     setRefreshing(true);
     let snapshot = null;
     if (!silent) {
@@ -192,6 +198,11 @@ export default function App() {
     try {
       const { seed, saved } = await getSeed(currentDate, token);
       if (requestId !== loadRequestRef.current) return;
+      if (!silent && snapshot == null) {
+        const remaining = MIN_INITIAL_LOADER_MS - (Date.now() - startedAt);
+        if (remaining > 0) await wait(remaining);
+        if (requestId !== loadRequestRef.current) return;
+      }
       const sameDateSnapshot = loadedDateRef.current === currentDate ? snapshot : null;
       setData(mergeWithSeed(seed, saved, sameDateSnapshot));
       loadedDateRef.current = currentDate;
