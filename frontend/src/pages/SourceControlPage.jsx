@@ -208,7 +208,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
       ) : null}
 
       {/* ---- Source cards grid (Tally/IDS/Delivery style) ---- */}
-      <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mb-7 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {groupedEntries.map(([unit, unitSources]) => {
           const imp = unitSources.filter((s) => s.status === 'Imported').length;
           const reportsCount = unitSources.reduce((sum, s) => sum + sourceReports(s).length, 0);
@@ -223,12 +223,12 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
           const isOpen = openUnit === unit;
 
           return (
-            <div key={unit} className="glass-card flex flex-col p-6 transition-all duration-300 hover:-translate-y-1.5">
+            <div key={unit} className="glass-card flex flex-col p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover">
               {/* Card header */}
-              <div className="mb-6 flex items-start justify-between">
+              <div className="mb-5 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-4">
-                  <div className={`flex size-14 items-center justify-center rounded-2xl border ${tint.bg} ${tint.text} ${tint.border}`}>
-                    <MIcon name={icon} filled className="text-[28px]" />
+                  <div className={`flex size-11 items-center justify-center rounded-lg border ${tint.bg} ${tint.text} ${tint.border}`}>
+                    <MIcon name={icon} filled className="text-[24px]" />
                   </div>
                   <div className="min-w-0">
                     <h3 className="truncate text-lg font-bold leading-tight text-on-surface">{unit}</h3>
@@ -241,7 +241,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
               </div>
 
               {/* Card stats */}
-              <div className="mb-6 flex-grow space-y-3">
+              <div className="mb-5 flex-grow space-y-3">
                 <div className="flex items-center justify-between border-b border-outline-variant/10 pb-3 text-sm text-on-surface-variant">
                   <span className="opacity-70">Last Sync</span>
                   <span className="font-semibold text-on-surface">
@@ -262,7 +262,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
               <button
                 type="button"
                 onClick={() => setOpenUnit(isOpen ? null : unit)}
-                className="w-full rounded-xl border border-primary/10 bg-surface-container-high/50 py-3.5 text-[12px] font-bold uppercase tracking-[0.05em] text-primary transition-all hover:bg-primary hover:text-on-primary active:scale-95"
+                className="w-full rounded-lg border border-primary/20 bg-surface-container-high/60 py-3 text-[12px] font-bold uppercase tracking-[0.05em] text-primary transition-all hover:bg-primary hover:text-on-primary active:scale-95"
               >
                 {isOpen ? 'Hide Detailed Log' : 'View Detailed Log'}
               </button>
@@ -271,7 +271,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
               {isOpen ? (
                 <div className="mt-4 space-y-2 border-t border-outline-variant/15 pt-4 animate-fade-in-up">
                   {unitSources.map((source) => (
-                    <div key={source.id} className="rounded-xl bg-surface-container-low/40 px-3 py-2.5">
+                    <div key={source.id} className="rounded-lg bg-surface-container-low px-3 py-2.5 ring-1 ring-outline-variant/40">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-bold text-on-surface">{source.label}</div>
@@ -325,7 +325,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
 
       {/* ---- Recent Activity Log ---- */}
       <div className="glass-card overflow-hidden">
-        <div className="flex items-center justify-between border-b border-outline-variant/10 bg-surface-container-lowest px-6 py-5">
+        <div className="flex items-center justify-between border-b border-outline-variant/60 bg-surface-container-lowest px-6 py-4">
           <div className="flex items-center gap-3">
             <MIcon name="history" className="text-[20px] text-primary" />
             <h4 className="font-bold tracking-tight text-on-surface">Recent Activity Log</h4>
@@ -335,7 +335,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
             <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Live Updates</span>
           </div>
         </div>
-        <div className="divide-y divide-outline-variant/10">
+        <div className="divide-y divide-outline-variant/50">
           {activity.length ? activity.map((item, idx) => {
             const dot = item.tone === 'error' ? 'bg-error' : item.tone === 'tertiary' ? 'bg-tertiary' : 'bg-secondary';
             return (

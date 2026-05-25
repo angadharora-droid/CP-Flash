@@ -10,7 +10,7 @@ const NOW = new Date().toISOString().slice(0, 10);
 export const statusTone = {
   Imported: 'border-secondary/20 bg-secondary/10 text-secondary',
   Entered:  'border-secondary/20 bg-secondary-container/30 text-on-secondary-container',
-  Pending:  'border-tertiary/20 bg-tertiary/10 text-tertiary'
+  Pending:  'border-tertiary/30 bg-tertiary-container/60 text-on-tertiary-container'
 };
 
 // Material Symbol names by section, used by SectionCard usage sites and the source page.
@@ -68,7 +68,7 @@ export function FreshnessBadge({ label, cls }) {
 export function ReportValue({ value, className = '', numeric = false }) {
   const empty = value === '' || value == null;
   return (
-    <span className={`num block min-w-24 rounded-lg px-2.5 py-1.5 text-sm ${numeric ? 'text-right tabular-nums' : ''} ${empty ? 'text-on-surface-variant/30' : 'bg-surface-container-low text-on-surface'} ${className}`}>
+    <span className={`num block min-w-24 rounded-md px-2.5 py-1.5 text-sm ${numeric ? 'text-right tabular-nums' : ''} ${empty ? 'text-on-surface-variant/35' : 'bg-surface-container-low text-on-surface ring-1 ring-outline-variant/35'} ${className}`}>
       {empty ? '—' : value}
     </span>
   );
@@ -89,7 +89,7 @@ export function TopItemsList({ items = [] }) {
   const parsed = items.map(parseTopItem).filter((item) => item.name);
   if (!parsed.length) {
     return (
-      <div className="rounded-2xl border border-dashed border-outline-variant/40 bg-surface-container-low/60 px-4 py-5 text-sm font-medium text-on-surface-variant">
+      <div className="rounded-lg border border-dashed border-outline-variant/70 bg-surface-container-low px-4 py-5 text-sm font-medium text-on-surface-variant">
         Top items pending
       </div>
     );
@@ -97,7 +97,7 @@ export function TopItemsList({ items = [] }) {
 
   return (
     <div className="glass-card overflow-hidden">
-      <div className="grid grid-cols-[40px_minmax(0,1fr)_82px_52px] gap-2 border-b border-outline-variant/15 bg-surface-container-low/80 px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant sm:grid-cols-[64px_minmax(0,1fr)_120px_88px] sm:gap-3 sm:px-4">
+      <div className="grid grid-cols-[40px_minmax(0,1fr)_82px_52px] gap-2 border-b border-outline-variant/60 bg-surface-container px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant sm:grid-cols-[64px_minmax(0,1fr)_120px_88px] sm:gap-3 sm:px-4">
         <span>Rank</span>
         <span>Item</span>
         <span className="text-right">Revenue</span>
@@ -108,7 +108,7 @@ export function TopItemsList({ items = [] }) {
           key={`${item.name}-${index}`}
           className="grid grid-cols-[40px_minmax(0,1fr)_82px_52px] items-center gap-2 border-b border-outline-variant/15 px-3 py-2.5 last:border-b-0 sm:grid-cols-[64px_minmax(0,1fr)_120px_88px] sm:gap-3 sm:px-4 sm:py-3"
         >
-          <span className={`flex size-7 items-center justify-center rounded-lg text-[13px] font-bold tabular-nums sm:size-8 sm:text-sm ${
+          <span className={`flex size-7 items-center justify-center rounded-md text-[13px] font-bold tabular-nums sm:size-8 sm:text-sm ${
             index === 0 ? 'bg-tertiary/15 text-tertiary' :
               index === 1 ? 'bg-surface-container-high text-on-surface-variant' :
                 'bg-secondary-container/30 text-on-secondary-container'
@@ -124,19 +124,19 @@ export function TopItemsList({ items = [] }) {
   );
 }
 
-// ---- PageTitle: display font, big title + subtitle, action slot on right ----
+// ---- PageTitle: compact page heading + action slot. ----
 export function PageTitle({ title, subtitle, badge, actions }) {
   return (
-    <div className="mb-8 flex flex-col gap-4 md:mb-10 md:flex-row md:items-center md:justify-between">
+    <div className="mb-6 flex flex-col gap-4 border-b border-outline-variant/70 pb-5 md:mb-7 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-display-mobile font-bold tracking-tight text-on-surface md:text-display">
+          <h2 className="text-[24px] font-extrabold leading-tight tracking-normal text-on-surface md:text-[30px]">
             {title}
           </h2>
           {badge ? <FreshnessBadge {...badge} /> : null}
         </div>
         {subtitle ? (
-          <p className="mt-2 max-w-2xl text-sm text-on-surface-variant md:text-base">{subtitle}</p>
+          <p className="mt-1.5 max-w-2xl text-sm text-on-surface-variant md:text-[15px]">{subtitle}</p>
         ) : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div> : null}
@@ -150,9 +150,9 @@ export function KpiTable({ rows }) {
     <div className="scroll-touch glass-card overflow-auto">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="bg-surface-container-low/70 text-left">
+          <tr className="bg-surface-container text-left">
             {headers.map((h, i) => (
-              <th key={h} className={`whitespace-nowrap border-b border-outline-variant/20 px-3 py-3 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-surface-variant sm:px-4 sm:py-3.5 ${i === 0 ? 'sticky left-0 z-[2] bg-surface-container-low/90' : ''} ${i === 2 ? 'bg-primary/5 text-primary' : ''}`}>
+              <th key={h} className={`whitespace-nowrap border-b border-outline-variant/70 px-3 py-3 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-surface-variant sm:px-4 sm:py-3.5 ${i === 0 ? 'sticky left-0 z-[2] bg-surface-container' : ''} ${i === 2 ? 'bg-primary/10 text-primary' : ''}`}>
                 {h}
               </th>
             ))}
@@ -198,12 +198,12 @@ export function googleSheetPreviewUrl(url) {
   }
 }
 
-// ---- ActionButton: pill (rounded-full). Primary = pink filled, secondary = outlined.
+// ---- ActionButton: primary filled, secondary outlined.
 export function ActionButton({ children, onClick, type = 'button', variant = 'secondary', disabled = false, className = '' }) {
-  const base = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.05em] transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 active:scale-95';
+  const base = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.05em] transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 active:scale-95';
   const cls = variant === 'primary'
-    ? 'bg-primary text-on-primary shadow-md shadow-primary/25 hover:bg-primary-container hover:shadow-lg'
-    : 'border border-outline-variant/40 bg-surface-container-lowest text-on-surface-variant shadow-sm hover:bg-surface-container-high';
+    ? 'bg-primary text-on-primary shadow-primary hover:bg-primary-container hover:shadow-lg'
+    : 'border border-outline-variant/70 bg-surface-container-lowest text-on-surface-variant shadow-sm hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface';
   return (
     <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${cls} ${className}`}>
       {children}
@@ -211,18 +211,18 @@ export function ActionButton({ children, onClick, type = 'button', variant = 'se
   );
 }
 
-// ---- SegmentedControl: pill rail with inset selected chip.
+// ---- SegmentedControl ----
 export function SegmentedControl({ items, value, onChange }) {
   return (
-    <div className="mb-6 inline-flex max-w-full gap-1 overflow-x-auto rounded-full border border-outline-variant/30 bg-surface-container-lowest p-1 shadow-sm">
+    <div className="mb-6 inline-flex max-w-full gap-1 overflow-x-auto rounded-lg border border-outline-variant/70 bg-surface-container-lowest p-1 shadow-sm">
       {items.map(({ key, label, badge }) => (
         <button
           key={key}
           type="button"
           onClick={() => onChange(key)}
-          className={`flex shrink-0 items-center gap-2.5 rounded-full px-5 py-2 text-sm font-semibold transition-all duration-200 ${
+          className={`flex shrink-0 items-center gap-2.5 rounded-md px-5 py-2 text-sm font-semibold transition-all duration-200 ${
             value === key
-              ? 'bg-primary text-on-primary shadow-md shadow-primary/25'
+              ? 'bg-primary text-on-primary shadow-primary'
               : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
           }`}
         >
@@ -250,7 +250,7 @@ function shiftIso(iso, delta) {
   return d.toISOString().slice(0, 10);
 }
 
-// ---- DateControl: pill with "Business Date" label + calendar circle on the right.
+// ---- DateControl ----
 export function DateControl({ value, onChange, latest }) {
   const inputRef = React.useRef(null);
   const display = formatDisplayDate(value);
@@ -272,7 +272,7 @@ export function DateControl({ value, onChange, latest }) {
         onClick={() => onChange(shiftIso(value, -1))}
         title="Previous day"
         aria-label="Previous day"
-        className="hidden size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high md:flex"
+        className="hidden size-9 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-surface-container-high md:flex"
       >
         <MIcon name="chevron_left" className="text-[20px]" />
       </button>
@@ -280,7 +280,7 @@ export function DateControl({ value, onChange, latest }) {
         type="button"
         onClick={openPicker}
         title="Pick date"
-        className="group flex items-center gap-3 rounded-full border border-outline-variant/30 bg-surface-container-lowest py-1.5 pl-3 pr-1.5 shadow-sm transition-all hover:bg-surface-container-low active:scale-95 md:pl-4"
+        className="group flex items-center gap-3 rounded-lg border border-outline-variant/70 bg-surface-container-lowest py-1.5 pl-3 pr-1.5 shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-low active:scale-95 md:pl-4"
       >
         <div className="flex flex-col items-start leading-none">
           <span className="hidden text-[10px] font-bold uppercase tracking-[0.05em] text-on-surface-variant/60 md:inline">Business Date</span>
@@ -299,7 +299,7 @@ export function DateControl({ value, onChange, latest }) {
         disabled={value >= latest}
         title="Next day"
         aria-label="Next day"
-        className="hidden size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:opacity-30 disabled:hover:bg-transparent md:flex"
+        className="hidden size-9 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:opacity-30 disabled:hover:bg-transparent md:flex"
       >
         <MIcon name="chevron_right" className="text-[20px]" />
       </button>
@@ -328,7 +328,7 @@ function formatLockoutRemaining(lockedUntil) {
   return `${Math.max(1, minutes)} min`;
 }
 
-// ---- PIN gate (kept full-bleed but recolored to brand pink) ----
+// ---- PIN gate ----
 export function PinGate({ onUnlock }) {
   const [pin, setPin] = useState('');
   const [status, setStatus] = useState('');
@@ -373,21 +373,15 @@ export function PinGate({ onUnlock }) {
 
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-surface px-4">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -right-40 -top-40 h-[28rem] w-[28rem] rounded-full bg-primary-container/20 blur-[100px]" />
-        <div className="absolute -bottom-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-secondary/15 blur-[100px]" />
-      </div>
-
       <form onSubmit={submit} className="relative z-10 w-full max-w-sm animate-fade-in-up">
         <div className="mb-8 flex flex-col items-center gap-3.5 text-center">
           <div className="relative">
             <div
-              className="flex items-center justify-center rounded-2xl bg-surface-container-lowest p-2 ring-1 ring-outline-variant/30"
-              style={{ width: '4.5rem', height: '4.5rem', boxShadow: '0 24px 60px -10px rgba(183, 0, 114, 0.38)' }}
+              className="flex items-center justify-center rounded-xl bg-surface-container-lowest p-2 ring-1 ring-outline-variant/70"
+              style={{ width: '4.5rem', height: '4.5rem', boxShadow: '0 20px 50px -24px rgba(8, 120, 108, 0.55)' }}
             >
               <img src={cpLogo} alt="Centre Point logo" className="h-full w-full object-contain" />
             </div>
-            <div className="absolute -inset-3 -z-10 rounded-[24px] bg-primary-container/20 blur-2xl" />
           </div>
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">DailyFlash</div>
@@ -401,11 +395,11 @@ export function PinGate({ onUnlock }) {
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-on-surface-variant">Secure Access</p>
           </div>
           <div className="px-7 py-8">
-            <label className={`relative mx-auto flex w-full max-w-[260px] cursor-text items-center justify-center gap-3.5 rounded-2xl border bg-surface-container-lowest py-4 transition-all duration-200 ${
+            <label className={`relative mx-auto flex w-full max-w-[260px] cursor-text items-center justify-center gap-3.5 rounded-lg border bg-surface-container-lowest py-4 transition-all duration-200 ${
               shake
                 ? 'border-error/60 shadow-[0_0_0_4px_rgba(186,26,26,0.18)] animate-shake'
                 : focused
-                  ? 'border-primary/60 shadow-[0_0_0_4px_rgba(183,0,114,0.15)]'
+                  ? 'border-primary/60 shadow-[0_0_0_4px_rgba(8,120,108,0.15)]'
                   : 'border-outline-variant/40'
             }`}>
               {Array.from({ length: 6 }, (_, i) => {
@@ -419,7 +413,7 @@ export function PinGate({ onUnlock }) {
                 const dotShadow = shake
                   ? { boxShadow: '0 0 0 4px rgba(186, 26, 26, 0.20)' }
                   : filled
-                    ? { boxShadow: '0 0 0 4px rgba(183, 0, 114, 0.18)' }
+                    ? { boxShadow: '0 0 0 4px rgba(8, 120, 108, 0.18)' }
                     : undefined;
                 return (
                   <span key={i} className={`relative flex h-3 w-3 items-center justify-center rounded-full transition-all duration-300 ${dotBase}`} style={dotShadow}>

@@ -29,7 +29,7 @@ function IconSlot({ icon, className }) {
 
 export default function StatStrip({ items }) {
   return (
-    <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+    <div className="mb-7 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => {
         const accent = ACCENT[item.tone] ?? DEFAULT_ACCENT;
         const progress = typeof item.progress === 'number'
@@ -38,14 +38,14 @@ export default function StatStrip({ items }) {
         return (
           <div
             key={item.label}
-            className="glass-card group flex flex-col p-6 transition-all duration-300 hover:-translate-y-1.5"
+            className="glass-card group flex flex-col p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover"
           >
-            <div className="mb-6 flex items-start justify-between gap-3">
-              <div className={`flex size-12 shrink-0 items-center justify-center rounded-2xl ${accent.iconBg} ${accent.iconText} transition-transform duration-300 group-hover:scale-110`}>
-                <IconSlot icon={item.icon} className="text-[26px]" />
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${accent.iconBg} ${accent.iconText} transition-transform duration-200 group-hover:scale-105`}>
+                <IconSlot icon={item.icon} className="text-[23px]" />
               </div>
               {item.badge ? (
-                <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${accent.badgeBg}`}>
+                <span className={`rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${accent.badgeBg}`}>
                   {item.badge}
                 </span>
               ) : item.pulse ? (
@@ -57,7 +57,7 @@ export default function StatStrip({ items }) {
             <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">
               {item.label}
             </h3>
-            <div className={`num mt-1.5 flex items-baseline gap-2 text-[28px] font-bold leading-none tracking-tight tabular-nums sm:text-[32px] ${accent.value}`}>
+            <div className={`num mt-1.5 flex items-baseline gap-2 text-[28px] font-bold leading-none tracking-normal tabular-nums sm:text-[30px] ${accent.value}`}>
               <span>{item.value}</span>
               {item.delta ? (
                 <span className={`text-xs font-bold ${item.delta.tone ?? 'text-on-surface-variant'}`}>{item.delta.label}</span>

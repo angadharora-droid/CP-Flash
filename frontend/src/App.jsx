@@ -16,6 +16,7 @@ import PurosoulPage from './pages/PurosoulPage';
 import SettlementPage from './pages/SettlementPage';
 import AiPage from './pages/AiPage';
 import PdfPreviewPage from './pages/PdfPreviewPage';
+import cpLogo from './cp-logo.png';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
 const d = new Date(); d.setDate(d.getDate() - 1);
@@ -159,7 +160,6 @@ export default function App() {
   const [status, setStatus] = useState('Loading...');
   const [refreshing, setRefreshing] = useState(false);
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('dailyflashToken') || '');
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const [sourceReportPreview, setSourceReportPreview] = useState(null);
   const [sourceReportPreviewLoading, setSourceReportPreviewLoading] = useState(false);
@@ -173,7 +173,6 @@ export default function App() {
   }, []);
 
   React.useEffect(() => {
-    setMobileNavOpen(false);
     setNavDrawerOpen(false);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -319,7 +318,6 @@ export default function App() {
 
   const riskCount = data ? withFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length : 0;
   const activePage = pages.find(([key]) => key === active) ?? pages[0];
-  const activeNavItem = NAV_ITEM_BY_KEY[active];
   const liveStreamActive = !!data && Object.values(data?.importSource ?? {}).some((v) => v);
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
@@ -365,7 +363,7 @@ export default function App() {
         className={`relative flex w-full items-center justify-center rounded-xl p-3 transition-all duration-200 active:scale-90 ${
           isActive
             ? 'sidebar-item-active'
-            : 'text-on-surface-variant/70 hover:bg-primary-container/10 hover:text-primary'
+            : 'text-on-surface-variant/70 hover:bg-primary/10 hover:text-primary'
         }`}
       >
         <MIcon name={icon} filled={isActive} className={isActive ? 'text-primary' : ''} />
@@ -381,33 +379,33 @@ export default function App() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-surface text-on-surface">
       {/* ---- Narrow icon-only desktop sidebar (80px) ---- */}
-      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-20 flex-col border-r border-outline-variant/20 bg-surface-container-lowest transition-all duration-300 md:flex">
+      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-20 flex-col border-r border-outline-variant/70 bg-surface-container-lowest shadow-[6px_0_24px_-28px_rgba(23,32,38,0.9)] transition-all duration-300 md:flex">
         {/* Brand logo */}
-        <div className="flex h-16 items-center justify-center border-b border-outline-variant/10">
+        <div className="flex h-16 items-center justify-center border-b border-outline-variant/70">
           <button
             type="button"
             onClick={() => setActive('sources')}
-            className="flex size-10 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary shadow-lg shadow-primary/20 transition-transform hover:rotate-3"
+            className="flex size-10 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
             title="DailyFlash"
             aria-label="Home"
           >
-            <span className="text-lg font-black tracking-tight">CP</span>
+            <img src={cpLogo} alt="" className="h-full w-full object-contain" />
           </button>
         </div>
         {/* Nav */}
-        <nav className="flex flex-grow flex-col gap-2 overflow-y-auto px-3 py-6">
+        <nav className="flex flex-grow flex-col gap-2 overflow-y-auto px-3 py-5">
           {NAV_GROUPS.flatMap((group, gi) => [
             gi > 0 ? <div key={`sep-${gi}`} className="mx-auto my-1 h-px w-6 bg-outline-variant/30" /> : null,
             ...group.items.map(renderSidebarButton)
           ])}
         </nav>
         {/* Footer */}
-        <div className="flex flex-col gap-2 border-t border-outline-variant/10 px-3 py-6">
+        <div className="flex flex-col gap-2 border-t border-outline-variant/70 px-3 py-5">
           <button
             type="button"
             onClick={() => setActive('ai')}
             title="AI Notes"
-            className="flex items-center justify-center rounded-xl p-3 text-on-surface-variant/50 transition-colors hover:bg-surface-container-high hover:text-on-surface"
+            className="flex items-center justify-center rounded-lg p-3 text-on-surface-variant/60 transition-colors hover:bg-surface-container-high hover:text-on-surface"
           >
             <MIcon name="help_outline" className="text-[20px]" />
           </button>
@@ -415,7 +413,7 @@ export default function App() {
             type="button"
             onClick={lockApp}
             title="Lock"
-            className="flex items-center justify-center rounded-xl p-3 text-on-surface-variant/50 transition-colors hover:bg-error-container/20 hover:text-error"
+            className="flex items-center justify-center rounded-lg p-3 text-on-surface-variant/60 transition-colors hover:bg-error-container/30 hover:text-error"
           >
             <MIcon name="logout" className="text-[20px]" />
           </button>
@@ -432,12 +430,12 @@ export default function App() {
           className={`absolute inset-0 bg-on-surface/30 backdrop-blur-sm transition-opacity duration-200 ${navDrawerOpen ? 'opacity-100' : 'opacity-0'}`}
         />
         <aside
-          className={`absolute inset-y-0 left-0 flex w-72 flex-col border-r border-outline-variant/20 bg-surface-container-lowest shadow-2xl transition-transform duration-300 ease-out ${navDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          className={`absolute inset-y-0 left-0 flex w-72 flex-col border-r border-outline-variant/70 bg-surface-container-lowest shadow-2xl transition-transform duration-300 ease-out ${navDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
         >
-          <div className="flex h-16 items-center justify-between border-b border-outline-variant/10 px-5">
+          <div className="flex h-16 items-center justify-between border-b border-outline-variant/70 px-5">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary shadow-lg shadow-primary/20">
-                <span className="text-sm font-black">CP</span>
+              <div className="flex size-9 items-center justify-center rounded-lg bg-white p-1.5 ring-1 ring-outline-variant/70">
+                <img src={cpLogo} alt="" className="h-full w-full object-contain" />
               </div>
               <div>
                 <div className="text-xs font-bold uppercase tracking-[0.18em] text-primary">DailyFlash</div>
@@ -447,7 +445,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setNavDrawerOpen(false)}
-              className="flex size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high"
+              className="flex size-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high"
               aria-label="Close menu"
             >
               <MIcon name="close" />
@@ -469,7 +467,7 @@ export default function App() {
                         className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all ${
                           isActive
                             ? 'sidebar-item-active'
-                            : 'text-on-surface-variant/80 hover:bg-primary-container/10 hover:text-primary'
+                            : 'text-on-surface-variant/80 hover:bg-primary/10 hover:text-primary'
                         }`}
                       >
                         <MIcon name={icon} filled={isActive} className={isActive ? 'text-primary' : ''} />
@@ -484,7 +482,7 @@ export default function App() {
               </div>
             ))}
           </nav>
-          <div className="border-t border-outline-variant/10 p-3">
+          <div className="border-t border-outline-variant/70 p-3">
             <button
               type="button"
               onClick={lockApp}
@@ -498,13 +496,13 @@ export default function App() {
       </div>
 
       {/* ---- Top App Bar ---- */}
-      <header className="fixed top-0 z-40 flex h-16 w-full items-center justify-between border-b border-outline-variant/20 bg-surface/70 px-4 shadow-sm backdrop-blur-xl md:left-20 md:w-[calc(100%-5rem)] md:px-6">
+      <header className="fixed top-0 z-40 flex h-16 w-full items-center justify-between border-b border-outline-variant/70 bg-surface-container-lowest/88 px-4 shadow-sm backdrop-blur-xl md:left-20 md:w-[calc(100%-5rem)] md:px-6">
         <div className="flex min-w-0 items-center gap-3 md:gap-6">
           {/* Mobile menu button */}
           <button
             type="button"
             onClick={() => setNavDrawerOpen(true)}
-            className="flex size-10 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high md:hidden"
+            className="flex size-10 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high md:hidden"
             aria-label="Open menu"
           >
             <MIcon name="menu" />
@@ -512,14 +510,14 @@ export default function App() {
           <div className="flex min-w-0 items-center gap-2">
             <span className="hidden text-on-surface-variant/40 sm:inline">Apps</span>
             <MIcon name="chevron_right" className="hidden text-sm text-on-surface-variant/30 sm:inline" />
-            <h1 className="truncate text-xl font-bold tracking-tight text-primary md:text-2xl">DailyFlash</h1>
+            <h1 className="truncate text-xl font-extrabold tracking-normal text-primary md:text-2xl">DailyFlash</h1>
             <MIcon name="chevron_right" className="hidden text-sm text-on-surface-variant/30 lg:inline" />
             <span className="hidden truncate text-sm font-semibold text-on-surface lg:inline">{activePage[2]}</span>
           </div>
           {liveStreamActive ? (
-            <div className="hidden items-center gap-2 rounded-full border border-secondary/10 bg-secondary-container/30 px-3 py-1.5 lg:flex">
+            <div className="hidden items-center gap-2 rounded-md border border-primary/15 bg-primary/10 px-3 py-1.5 lg:flex">
               <MIcon name="check_circle" filled className="text-[16px] text-secondary" />
-              <span className="text-[11px] font-semibold text-on-secondary-container">Live Data Stream</span>
+              <span className="text-[11px] font-semibold text-primary">Live Data Stream</span>
             </div>
           ) : null}
         </div>
@@ -532,7 +530,7 @@ export default function App() {
                 type="button"
                 onClick={() => setActive('flags')}
                 title={`${riskCount} risks`}
-                className="rounded-full p-2.5 text-on-surface-variant transition-all hover:bg-error-container/20 hover:text-error active:scale-90"
+                className="rounded-lg p-2.5 text-on-surface-variant transition-all hover:bg-error-container/30 hover:text-error active:scale-90"
               >
                 <MIcon name="warning" />
               </button>
@@ -542,7 +540,7 @@ export default function App() {
               onClick={handleRefresh}
               disabled={refreshing}
               title="Refresh"
-              className="rounded-full p-2.5 text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-90 disabled:opacity-40"
+              className="rounded-lg p-2.5 text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-90 disabled:opacity-40"
             >
               <MIcon name="sync" className={refreshing ? 'animate-spin' : ''} />
             </button>
@@ -552,7 +550,7 @@ export default function App() {
             type="button"
             onClick={() => { setPdfReturnTo(active); setActive('pdf'); }}
             disabled={!data}
-            className="hidden items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.05em] text-on-primary shadow-md shadow-primary/30 transition-all hover:bg-primary-container hover:shadow-lg active:scale-95 disabled:opacity-50 md:flex"
+            className="hidden items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.05em] text-on-primary shadow-primary transition-all hover:bg-primary-container hover:shadow-lg active:scale-95 disabled:opacity-50 md:flex"
           >
             <MIcon name="picture_as_pdf" className="text-[18px]" />
             Preview PDF
@@ -561,7 +559,7 @@ export default function App() {
             type="button"
             onClick={() => { setPdfReturnTo(active); setActive('pdf'); }}
             disabled={!data}
-            className="flex size-10 items-center justify-center rounded-full bg-primary text-on-primary shadow-md shadow-primary/30 active:scale-95 disabled:opacity-50 md:hidden"
+            className="flex size-10 items-center justify-center rounded-lg bg-primary text-on-primary shadow-primary active:scale-95 disabled:opacity-50 md:hidden"
             aria-label="Preview PDF"
           >
             <MIcon name="picture_as_pdf" />
@@ -579,7 +577,7 @@ export default function App() {
             </div>
           ) : null}
           {data && !Object.values(data.importSource ?? {}).some((v) => v) ? (
-            <div className="glass-card mb-6 flex items-start gap-3 border border-tertiary/20 bg-tertiary-container/10 px-5 py-4 text-sm text-tertiary animate-fade-in-up">
+            <div className="glass-card mb-6 flex items-start gap-3 border border-tertiary/30 bg-tertiary-container/60 px-5 py-4 text-sm text-on-tertiary-container animate-fade-in-up">
               <MIcon name="warning" filled className="shrink-0 text-tertiary" />
               <span className="leading-relaxed">
                 <strong className="font-bold">No data imported for {date}.</strong>{' '}
@@ -602,7 +600,7 @@ export default function App() {
       </main>
 
       {/* ---- Floating bottom nav (mobile only) with center FAB ---- */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-20 items-center justify-around rounded-t-3xl border-t border-outline-variant/30 bg-surface/80 px-6 pb-safe shadow-2xl backdrop-blur-2xl md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-20 items-center justify-around border-t border-outline-variant/70 bg-surface-container-lowest/92 px-6 pb-safe shadow-2xl backdrop-blur-2xl md:hidden">
         {BOTTOM_TABS.slice(0, 2).map(({ key, label }) => {
           const isActive = active === key;
           const item = NAV_ITEM_BY_KEY[key];
@@ -629,7 +627,7 @@ export default function App() {
         <button
           type="button"
           onClick={() => setActive('sources')}
-          className="-mt-10 flex size-14 items-center justify-center rounded-full border-4 border-surface bg-primary text-on-primary shadow-lg shadow-primary/30 transition-all active:scale-90"
+          className="-mt-10 flex size-14 items-center justify-center rounded-2xl border-4 border-surface bg-primary text-on-primary shadow-primary transition-all active:scale-90"
           aria-label="Sources"
         >
           <MIcon name="dataset" filled />

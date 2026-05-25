@@ -7,14 +7,14 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
     <div className={`scroll-touch glass-card mb-6 overflow-auto ${className}`}>
       <table className="min-w-full border-collapse text-sm">
         <thead>
-          <tr className="bg-surface-container-low/70 text-left">
+          <tr className="bg-surface-container text-left">
             {columns.map((col, i) => (
               <th
                 key={col}
-                className={`whitespace-nowrap border-b border-outline-variant/20 px-3 py-3 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-surface-variant sm:px-4 sm:py-3.5 ${
+                className={`whitespace-nowrap border-b border-outline-variant/70 px-3 py-3 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-surface-variant sm:px-4 sm:py-3.5 ${
                   isNumeric(i) ? 'text-right' : ''
                 } ${
-                  i === 0 ? 'sticky left-0 z-[2] bg-surface-container-low/90' : ''
+                  i === 0 ? 'sticky left-0 z-[2] bg-surface-container' : ''
                 }`}
               >
                 {col}
@@ -22,12 +22,12 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-outline-variant/15">
+        <tbody className="divide-y divide-outline-variant/50">
           {rows.length ? rows.map((row, index) => (
-            <tr key={row.key ?? index} className="group transition-colors duration-100 odd:bg-surface-container-lowest even:bg-surface-container-low/40 hover:bg-primary-container/5">
+            <tr key={row.key ?? index} className="group transition-colors duration-100 odd:bg-surface-container-lowest even:bg-surface-container-low/45 hover:bg-primary/5">
               {row.cells.map((cell, cellIndex) => {
                 const sticky = cellIndex === 0
-                  ? 'sticky left-0 z-[1] min-w-32 bg-inherit font-semibold shadow-[1px_0_0_0_rgba(223,190,201,0.6)] sm:min-w-44'
+                  ? 'sticky left-0 z-[1] min-w-32 bg-inherit font-semibold shadow-[1px_0_0_0_rgba(202,211,218,0.9)] sm:min-w-44'
                   : '';
                 const align = isNumeric(cellIndex) ? 'text-right' : '';
                 return (
@@ -41,7 +41,7 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
             <tr>
               <td colSpan={columns.length} className="px-4 py-16 text-center">
                 <div className="flex flex-col items-center gap-3">
-                  <div className="flex size-12 items-center justify-center rounded-2xl bg-surface-container-high/60 text-on-surface-variant/40">
+                  <div className="flex size-12 items-center justify-center rounded-lg bg-surface-container-high/60 text-on-surface-variant/40">
                     <span className="material-symbols-outlined text-[28px]">database</span>
                   </div>
                   <div>
@@ -54,7 +54,7 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
           )}
         </tbody>
         {footer ? (
-          <tfoot className="border-t-2 border-outline-variant/30 bg-surface-container-low/70 text-sm font-bold text-on-surface">
+          <tfoot className="border-t-2 border-outline-variant/70 bg-surface-container text-sm font-bold text-on-surface">
             {footer}
           </tfoot>
         ) : null}
