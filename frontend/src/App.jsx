@@ -385,15 +385,15 @@ export default function App() {
           <button
             type="button"
             onClick={() => setActive('sources')}
-            className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
+            className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
             title="DailyFlash"
             aria-label="Home"
           >
             <img src={cpLogo} alt="" className="h-full w-full object-contain" />
           </button>
           <div className="min-w-0 leading-tight">
-            <div className="truncate text-sm font-extrabold tracking-normal text-on-surface">DailyFlash</div>
-            <div className="truncate text-[11px] font-semibold text-on-surface-variant/75">Centre Point</div>
+            <div className="truncate text-lg font-extrabold tracking-normal text-on-surface">DailyFlash</div>
+            <div className="mt-0.5 truncate text-xs font-semibold text-on-surface-variant/75">Centre Point</div>
           </div>
         </div>
         {/* Nav */}
