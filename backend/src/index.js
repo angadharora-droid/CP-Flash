@@ -382,6 +382,26 @@ function collectKpiRows(data) {
   ];
 }
 
+function getKpiAggregationMode(name) {
+  const label = String(name ?? '').toLowerCase();
+  if (
+    label.includes('%')
+    || label.includes('avg')
+    || label.includes('occupancy')
+    || label.includes('arr')
+    || label.includes('revpar')
+    || label.includes('aov')
+    || label.includes('apc')
+    || label.includes('rate')
+    || label.includes('turnover')
+    || label.includes('margin')
+    || label.includes('covers/day')
+  ) {
+    return 'avg';
+  }
+  return 'sum';
+}
+
 async function aggregatePeriodForDates(dates) {
   const seedTemplate = buildSeedData();
   const fixedCostByUnit = Object.fromEntries(
@@ -397,7 +417,7 @@ async function aggregatePeriodForDates(dates) {
       fixedCost: fixedCostByUnit[unit] ?? 0
     }])
   );
-  const kpiSums = Object.create(null);
+  const kpiTotals = Object.create(null);
 
   for (const date of dates) {
     const raw = await readDailyData(date);
@@ -421,9 +441,24 @@ async function aggregatePeriodForDates(dates) {
       if (!kpi?.id) continue;
       const actual = String(kpi.actual ?? '').trim();
       if (actual === '') continue;
-      kpiSums[kpi.id] = (kpiSums[kpi.id] ?? 0) + numberValue(actual);
+      const aggregate = kpiTotals[kpi.id] ??= {
+        mode: getKpiAggregationMode(kpi.name),
+        sum: 0,
+        count: 0
+      };
+      aggregate.sum += numberValue(actual);
+      aggregate.count += 1;
     }
   }
+
+  const kpiSums = Object.fromEntries(
+    Object.entries(kpiTotals).map(([id, aggregate]) => [
+      id,
+      aggregate.mode === 'avg' && aggregate.count
+        ? aggregate.sum / aggregate.count
+        : aggregate.sum
+    ])
+  );
 
   return { pnl: pnlByUnit, kpis: kpiSums };
 }
