@@ -5,21 +5,52 @@ import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
 import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
 import { SHEET_URLS } from '../lib/navigation';
-import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
+import { generateAiNotes, getEmailImportStatus, getPnlPeriod, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, numberValue, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
 
-export default function PnlPage({ data, date }) {
+const EMPTY_PERIOD_ENTRY = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0 };
+
+function sumPeriod(period) {
+  return UNITS.reduce((acc, unit) => {
+    const entry = period?.[unit] ?? EMPTY_PERIOD_ENTRY;
+    acc.revenue += entry.revenue || 0;
+    acc.purchases += entry.purchases || 0;
+    acc.gp += entry.gp || 0;
+    acc.netProfit += entry.netProfit || 0;
+    return acc;
+  }, { revenue: 0, purchases: 0, gp: 0, netProfit: 0 });
+}
+
+export default function PnlPage({ data, date, authToken }) {
+  const [period, setPeriod] = useState(null);
+  const [periodError, setPeriodError] = useState('');
+
+  useEffect(() => {
+    if (!authToken || !date) return undefined;
+    let cancelled = false;
+    setPeriodError('');
+    getPnlPeriod(date, authToken)
+      .then((payload) => { if (!cancelled) setPeriod(payload); })
+      .catch((err) => { if (!cancelled) setPeriodError(err.message || 'Unable to load MTD/YTD totals'); });
+    return () => { cancelled = true; };
+  }, [date, authToken]);
+
   const rows = pnlRows(data);
+  const mtdByUnit = period?.mtd ?? {};
+  const ytdByUnit = period?.ytd ?? {};
+  const mtdTotals = sumPeriod(mtdByUnit);
+  const ytdTotals = sumPeriod(ytdByUnit);
+
   const totals = rows.reduce((acc, row) => {
     acc.revenue += numberValue(row.revenueToday);
     acc.purchases += numberValue(row.purchasesToday);
     acc.gp += row.grossProfit;
     acc.fixed += numberValue(row.fixedCost);
     acc.net += row.estNetProfit;
-    acc.mtd += numberValue(row.mtdNetProfit);
-    acc.ytd += numberValue(row.ytdNetProfit);
     return acc;
-  }, { revenue: 0, purchases: 0, gp: 0, fixed: 0, net: 0, mtd: 0, ytd: 0 });
+  }, { revenue: 0, purchases: 0, gp: 0, fixed: 0, net: 0 });
+  totals.mtd = mtdTotals.netProfit;
+  totals.ytd = ytdTotals.netProfit;
 
   return (
     <>
@@ -71,21 +102,25 @@ export default function PnlPage({ data, date }) {
       <DataTable
         columns={['Unit', 'Revenue Today', 'Purchases Today', 'Gross Profit', 'GP%', 'Fixed Cost (Daily)', 'Est. Net Profit', 'Net Margin%', 'MTD Net Profit', 'YTD Net Profit']}
         numericFrom={1}
-        rows={rows.map((row) => ({
-          key: row.unit,
-          cells: [
-            <span className="font-semibold text-app-text">{row.unit}</span>,
-            <ReportValue value={row.revenueToday} numeric />,
-            <ReportValue value={row.purchasesToday} numeric />,
-            <span className="num font-medium text-app-text">{money(row.grossProfit)}</span>,
-            <span className={`num font-semibold ${row.gpPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.gpPercent)}</span>,
-            <ReportValue value={row.fixedCost} numeric />,
-            <span className={`num font-semibold ${row.estNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(row.estNetProfit)}</span>,
-            <span className={`num font-semibold ${row.netMargin >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.netMargin)}</span>,
-            <ReportValue value={row.mtdNetProfit} numeric />,
-            <ReportValue value={row.ytdNetProfit} numeric />
-          ]
-        }))}
+        rows={rows.map((row) => {
+          const mtdNet = mtdByUnit[row.unit]?.netProfit;
+          const ytdNet = ytdByUnit[row.unit]?.netProfit;
+          return {
+            key: row.unit,
+            cells: [
+              <span className="font-semibold text-app-text">{row.unit}</span>,
+              <ReportValue value={row.revenueToday} numeric />,
+              <ReportValue value={row.purchasesToday} numeric />,
+              <span className="num font-medium text-app-text">{money(row.grossProfit)}</span>,
+              <span className={`num font-semibold ${row.gpPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.gpPercent)}</span>,
+              <ReportValue value={row.fixedCost} numeric />,
+              <span className={`num font-semibold ${row.estNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(row.estNetProfit)}</span>,
+              <span className={`num font-semibold ${row.netMargin >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.netMargin)}</span>,
+              <span className={`num font-semibold ${(mtdNet ?? 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{period ? money(mtdNet ?? 0) : '—'}</span>,
+              <span className={`num font-semibold ${(ytdNet ?? 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{period ? money(ytdNet ?? 0) : '—'}</span>
+            ]
+          };
+        })}
         footer={
           <tr>
             <td className="px-4 py-3">GROUP TOTAL</td>
@@ -96,11 +131,65 @@ export default function PnlPage({ data, date }) {
             <td className="num px-4 py-3 text-right">{money(totals.fixed)}</td>
             <td className={`num px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(totals.net)}</td>
             <td className={`num px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(totals.revenue ? (totals.net / totals.revenue) * 100 : 0)}</td>
-            <td className="num px-4 py-3 text-right">{money(totals.mtd)}</td>
-            <td className="num px-4 py-3 text-right">{money(totals.ytd)}</td>
+            <td className={`num px-4 py-3 text-right ${totals.mtd >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{period ? money(totals.mtd) : '—'}</td>
+            <td className={`num px-4 py-3 text-right ${totals.ytd >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{period ? money(totals.ytd) : '—'}</td>
           </tr>
         }
       />
+      <PeriodTotalsCard
+        title={`Month-to-Date Totals${period?.monthPrefix ? ` · ${period.monthPrefix}` : ''}`}
+        subtitle={period ? `Summed from ${period.mtdDates?.length ?? 0} day${(period.mtdDates?.length ?? 0) === 1 ? '' : 's'} of saved data this month` : 'Loading aggregate from daily reports…'}
+        period={mtdByUnit}
+        totals={mtdTotals}
+        error={periodError}
+      />
+      <PeriodTotalsCard
+        title={`Year-to-Date Totals${period?.yearPrefix ? ` · ${period.yearPrefix}` : ''}`}
+        subtitle={period ? `Summed from ${period.ytdDates?.length ?? 0} day${(period.ytdDates?.length ?? 0) === 1 ? '' : 's'} of saved data this year` : 'Loading aggregate from daily reports…'}
+        period={ytdByUnit}
+        totals={ytdTotals}
+        error={periodError}
+      />
     </>
+  );
+}
+
+function PeriodTotalsCard({ title, subtitle, period, totals, error }) {
+  return (
+    <SectionCard title={title} subtitle={subtitle} icon={SECTION_ICONS.config} tone="slate" defaultOpen>
+      {error ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      ) : null}
+      <DataTable
+        columns={['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'Net Profit', 'Days']}
+        numericFrom={1}
+        rows={UNITS.map((unit) => {
+          const entry = period?.[unit] ?? EMPTY_PERIOD_ENTRY;
+          return {
+            key: unit,
+            cells: [
+              <span className="font-semibold text-app-text">{unit}</span>,
+              <span className="num font-medium text-app-text">{money(entry.revenue)}</span>,
+              <span className="num font-medium text-app-text">{money(entry.purchases)}</span>,
+              <span className={`num font-semibold ${entry.gp >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(entry.gp)}</span>,
+              <span className={`num font-semibold ${entry.netProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(entry.netProfit)}</span>,
+              <span className="num text-app-text">{entry.days || 0}</span>
+            ]
+          };
+        })}
+        footer={
+          <tr>
+            <td className="px-4 py-3">GROUP TOTAL</td>
+            <td className="num px-4 py-3 text-right">{money(totals.revenue)}</td>
+            <td className="num px-4 py-3 text-right">{money(totals.purchases)}</td>
+            <td className={`num px-4 py-3 text-right ${totals.gp >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(totals.gp)}</td>
+            <td className={`num px-4 py-3 text-right ${totals.netProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(totals.netProfit)}</td>
+            <td className="num px-4 py-3 text-right">—</td>
+          </tr>
+        }
+      />
+    </SectionCard>
   );
 }
