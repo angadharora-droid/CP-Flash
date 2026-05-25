@@ -70,7 +70,9 @@ export function BrandLoader({ className = '', label = '', size = 64 }) {
   return (
     <div className={`inline-flex flex-col items-center justify-center gap-3 ${className}`}>
       <div className="brand-loader-mark shrink-0" style={{ '--brand-loader-size': loaderSize }}>
-        <span className="brand-loader-ring" aria-hidden="true" />
+        <span className="brand-loader-ring brand-loader-ring-outer" aria-hidden="true" />
+        <span className="brand-loader-ring brand-loader-ring-inner" aria-hidden="true" />
+        <span className="brand-loader-sheen" aria-hidden="true" />
         <img src={cpLogo} alt="" className="brand-loader-logo" />
       </div>
       {label ? <p className="text-sm font-semibold text-on-surface-variant">{label}</p> : null}
