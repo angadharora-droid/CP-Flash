@@ -142,10 +142,10 @@ function applyPeriodToData(data, period) {
       if (!row?.id) return row;
       const manualMtd = String(row.mtd ?? '').trim();
       const manualYtd = String(row.ytd ?? '').trim();
-      if (manualMtd !== '' && manualYtd !== '') return row;
+      if (manualMtd !== '' && manualYtd !== '' && ytdSums[row.id] === undefined) return row;
       const next = { ...row };
       if (manualMtd === '' && mtdSums[row.id] !== undefined) next.mtd = formatKpiAggregate(mtdSums[row.id]);
-      if (manualYtd === '' && ytdSums[row.id] !== undefined) next.ytd = formatKpiAggregate(ytdSums[row.id]);
+      if (ytdSums[row.id] !== undefined) next.ytd = formatKpiAggregate(ytdSums[row.id]);
       return next;
     });
   };

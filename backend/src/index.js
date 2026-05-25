@@ -418,6 +418,7 @@ async function aggregatePeriodForDates(dates) {
     }])
   );
   const kpiTotals = Object.create(null);
+  const kpiModes = Object.create(null);
 
   for (const date of dates) {
     const raw = await readDailyData(date);
@@ -446,6 +447,7 @@ async function aggregatePeriodForDates(dates) {
         sum: 0,
         count: 0
       };
+      kpiModes[kpi.id] = aggregate.mode;
       aggregate.sum += numberValue(actual);
       aggregate.count += 1;
     }
@@ -460,7 +462,64 @@ async function aggregatePeriodForDates(dates) {
     ])
   );
 
-  return { pnl: pnlByUnit, kpis: kpiSums };
+  return { pnl: pnlByUnit, kpis: kpiSums, kpiModes };
+}
+
+async function aggregateYtdFromMonthlyMtd(dates) {
+  const datesByMonth = new Map();
+  for (const date of dates) {
+    const month = date.slice(0, 7);
+    datesByMonth.set(month, [...(datesByMonth.get(month) ?? []), date]);
+  }
+  const monthlyAggregates = await Promise.all(
+    Array.from(datesByMonth.values(), (monthDates) => aggregatePeriodForDates(monthDates))
+  );
+
+  const seedTemplate = buildSeedData();
+  const fixedCostByUnit = Object.fromEntries(
+    (seedTemplate.pnl ?? []).map((row) => [row.unit, numberValue(row.fixedCost)])
+  );
+  const pnlByUnit = Object.fromEntries(
+    UNITS.map((unit) => [unit, {
+      revenue: 0,
+      purchases: 0,
+      gp: 0,
+      netProfit: 0,
+      days: 0,
+      fixedCost: fixedCostByUnit[unit] ?? 0
+    }])
+  );
+  const kpiTotals = Object.create(null);
+
+  for (const monthAggregate of monthlyAggregates) {
+    for (const [unit, monthPnl] of Object.entries(monthAggregate.pnl)) {
+      const entry = pnlByUnit[unit];
+      if (!entry) continue;
+      entry.revenue += monthPnl.revenue;
+      entry.purchases += monthPnl.purchases;
+      entry.gp += monthPnl.gp;
+      entry.netProfit += monthPnl.netProfit;
+      entry.days += monthPnl.days;
+    }
+
+    for (const [id, value] of Object.entries(monthAggregate.kpis)) {
+      const mode = monthAggregate.kpiModes[id] ?? 'sum';
+      const aggregate = kpiTotals[id] ??= { mode, sum: 0, count: 0 };
+      aggregate.sum += numberValue(value);
+      aggregate.count += 1;
+    }
+  }
+
+  const kpis = Object.fromEntries(
+    Object.entries(kpiTotals).map(([id, aggregate]) => [
+      id,
+      aggregate.mode === 'avg' && aggregate.count
+        ? aggregate.sum / aggregate.count
+        : aggregate.sum
+    ])
+  );
+
+  return { pnl: pnlByUnit, kpis };
 }
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -561,18 +620,20 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     listDailyDates(monthPrefix),
     listDailyDates(yearPrefix)
   ]);
+  const mtdDates = monthDates.filter((dailyDate) => dailyDate <= date);
+  const ytdDates = yearDates.filter((dailyDate) => dailyDate <= date);
 
   const [mtdAgg, ytdAgg] = await Promise.all([
-    aggregatePeriodForDates(monthDates),
-    aggregatePeriodForDates(yearDates)
+    aggregatePeriodForDates(mtdDates),
+    aggregateYtdFromMonthlyMtd(ytdDates)
   ]);
 
   res.json({
     date,
     monthPrefix,
     yearPrefix,
-    mtdDates: monthDates,
-    ytdDates: yearDates,
+    mtdDates,
+    ytdDates,
     mtd: mtdAgg.pnl,
     ytd: ytdAgg.pnl,
     kpis: { mtd: mtdAgg.kpis, ytd: ytdAgg.kpis }
