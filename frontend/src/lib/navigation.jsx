@@ -8,7 +8,6 @@ export const SHEET_URLS = {
 };
 
 export const pages = [
-  ['sources', '00', 'Source Control'],
   ['bank', '01', 'Bank Position'],
   ['pnl', '02', 'Unit-wise P&L'],
   ['flags', '03', 'Flag Summary'],
@@ -27,7 +26,6 @@ export const NAV_GROUPS = [
   {
     label: 'Overview',
     items: [
-      { key: 'sources', label: 'Source Control', icon: 'dataset' },
       { key: 'bank',    label: 'Bank Position',  icon: 'account_balance_wallet' },
       { key: 'pnl',     label: 'P&L Summary',    icon: 'monitoring' },
       { key: 'flags',   label: 'Flag Summary',   icon: 'flag' }
@@ -56,8 +54,8 @@ export const NAV_GROUPS = [
 export const NAV_ITEM_BY_KEY = Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items).map((i) => [i.key, i]));
 
 export const BOTTOM_TABS = [
-  { key: 'sources', label: 'Sources' },
   { key: 'bank', label: 'Bank' },
   { key: 'pnl', label: 'P&L' },
-  { key: 'flags', label: 'Flags' }
+  { key: 'flags', label: 'Flags' },
+  { key: 'settlement', label: 'Settlement' }
 ];

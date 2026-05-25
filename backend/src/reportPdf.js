@@ -1,7 +1,6 @@
 import PDFDocument from 'pdfkit';
 import { UNITS, settlementModes } from './schema.js';
 import { collectFlags } from './flags.js';
-import { buildSourceStatus } from './sources.js';
 
 const SHEET_URLS = {
   bankPosition: 'https://docs.google.com/spreadsheets/d/1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf/',
@@ -107,44 +106,47 @@ export function createDailyFlashPdf(data, date) {
   const doc = new PDFDocument({ size: 'A4', margins: { top: 36, right: 36, bottom: 24, left: 36 }, bufferPages: true });
   let pageNo = 0;
 
-  const contentTop = 96;
+  const FIRST_PAGE_TOP = 96;
+  const SUBSEQUENT_PAGE_TOP = 40;
   const contentBottom = 786;
   const width = doc.page.width - 72;
 
-  function header() {
+  function decoratePage() {
     pageNo += 1;
     doc.save();
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(colors.page);
-    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6.5).text('CENTRE POINT HOSPITALITY', 36, 28);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(16).text('Daily Flash Report', 36, 43);
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text('Internal management report', 36, 64);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(niceDate(date), 430, 35, { width: 129, align: 'right' });
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} | Page ${pageNo}`, 430, 51, { width: 129, align: 'right' });
-    doc.strokeColor(colors.lineDark).lineWidth(0.7).moveTo(36, 84).lineTo(559, 84).stroke();
+    if (pageNo === 1) {
+      doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6.5).text('CENTRE POINT HOSPITALITY', 36, 28);
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(16).text('Daily Flash Report', 36, 43);
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text('Internal management report', 36, 64);
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(niceDate(date), 430, 35, { width: 129, align: 'right' });
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`, 430, 51, { width: 129, align: 'right' });
+      doc.strokeColor(colors.lineDark).lineWidth(0.7).moveTo(36, 84).lineTo(559, 84).stroke();
+    }
     doc.strokeColor(colors.lineDark).lineWidth(0.5).moveTo(36, 802).lineTo(559, 802).stroke();
-    doc.fillColor(colors.subtle).fontSize(6.5).text('Centre Point Hospitality | Daily Flash Report | Internal Use Only', 36, 810, { lineBreak: false });
+    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text('Centre Point Hospitality | Daily Flash Report | Internal Use Only', 36, 810, { lineBreak: false });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5).text(`Page ${pageNo}`, 430, 810, { width: 129, align: 'right', lineBreak: false });
     doc.restore();
-    doc.y = contentTop;
+    doc.y = pageNo === 1 ? FIRST_PAGE_TOP : SUBSEQUENT_PAGE_TOP;
   }
 
   function ensureSpace(height) {
     if (doc.y + height > contentBottom) {
       doc.addPage();
-      header();
+      decoratePage();
     }
   }
 
   function sectionTitle(title) {
-    ensureSpace(28);
-    doc.moveDown(0.1);
+    ensureSpace(24);
     const y = doc.y;
     doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8.5).text(safeText(title), 36, y);
     doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 13).lineTo(559, y + 13).stroke();
-    doc.y = y + 24;
+    doc.y = y + 19;
   }
 
   function hero(title, source, value, change = '') {
-    ensureSpace(38);
+    ensureSpace(32);
     const y = doc.y;
     doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(11).text(safeText(title), 36, y, { width: 170, lineBreak: false });
     doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(source), 212, y + 2, { width: 190 });
@@ -152,23 +154,23 @@ export function createDailyFlashPdf(data, date) {
     if (change) {
       doc.fillColor(change.startsWith('-') ? colors.red : colors.headerSoft).font('Helvetica-Bold').fontSize(7).text(safeText(change), 420, y + 14, { width: 139, align: 'right' });
     }
-    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 23).lineTo(559, y + 23).stroke();
-    doc.y = y + 36;
+    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 20).lineTo(559, y + 20).stroke();
+    doc.y = y + 28;
   }
 
   function summaryCards(items) {
-    ensureSpace(44);
+    ensureSpace(40);
     const y = doc.y;
-    const rowH = 34;
+    const rowH = 32;
     const cardW = width / items.length;
     doc.rect(36, y, width, rowH).fill(colors.panel).strokeColor(colors.line).lineWidth(0.5).stroke();
     items.forEach((item, index) => {
       const x = 36 + index * cardW;
       if (index) doc.strokeColor(colors.line).lineWidth(0.4).moveTo(x, y).lineTo(x, y + rowH).stroke();
-      doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(5.8).text(safeText(item.label).toUpperCase(), x + 8, y + 7, { width: cardW - 16 });
-      doc.fillColor(item.tone ?? colors.ink).font('Helvetica-Bold').fontSize(9).text(safeText(item.value), x + 8, y + 19, { width: cardW - 16, lineBreak: false });
+      doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(5.8).text(safeText(item.label).toUpperCase(), x + 8, y + 6, { width: cardW - 16 });
+      doc.fillColor(item.tone ?? colors.ink).font('Helvetica-Bold').fontSize(9).text(safeText(item.value), x + 8, y + 18, { width: cardW - 16, lineBreak: false });
     });
-    doc.y = y + 48;
+    doc.y = y + rowH + 10;
   }
 
   function table(columns, rows, options = {}) {
@@ -197,7 +199,7 @@ export function createDailyFlashPdf(data, date) {
       if (y + rowHeight > contentBottom) {
         doc.y = y;
         doc.addPage();
-        header();
+        decoratePage();
         y = doc.y;
         drawHeader();
       }
@@ -218,7 +220,7 @@ export function createDailyFlashPdf(data, date) {
     });
 
     doc.strokeColor(colors.line).lineWidth(0.6).rect(x, doc.y, width, y - doc.y).stroke();
-    doc.y = y + 14;
+    doc.y = y + 10;
   }
 
   function flagCell(label) {
@@ -242,16 +244,11 @@ export function createDailyFlashPdf(data, date) {
     );
   }
 
-  function sheetRef(url) {
-    if (!url) return;
-    ensureSpace(16);
-    const y = doc.y;
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5)
-      .text('Source sheet available', 36, y);
-    doc.y = y + 16;
+  function sheetRef() {
+    // Intentionally a no-op: source-sheet reference removed for a denser layout.
   }
 
-  header();
+  decoratePage();
 
   const bankRowsRaw = data.bankPosition ?? [];
   const bankNet = (row) => String(row.netBalance ?? '').trim() !== ''
@@ -327,8 +324,6 @@ export function createDailyFlashPdf(data, date) {
     { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 }
   );
 
-  doc.addPage();
-  header();
   const hotelRevenue = pnl.filter((row) => row.unit === 'CP Nagpur' || row.unit === 'CP NM').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
   hero('Hotels', 'IDS (CP Nagpur) | Hotelogix (CP Navi Mumbai)', money(hotelRevenue), '');
   const cpNmExclude = ['F&B Outlets', 'Banquets'];
@@ -343,8 +338,6 @@ export function createDailyFlashPdf(data, date) {
     }
   }
 
-  doc.addPage();
-  header();
   const fnbRevenue = pnl.filter((row) => row.unit === 'Pablo' || row.unit === 'Dali').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
   hero('Standalone F&B', 'Pet Pooja API | Pablo & Dali', money(fnbRevenue), '');
   for (const brand of ['Pablo', 'Dali']) {
@@ -355,16 +348,12 @@ export function createDailyFlashPdf(data, date) {
     }
   }
 
-  doc.addPage();
-  header();
   const rabbitsRows = data.rabbits ?? [];
   hero('Rabbits', 'POS EOD Email | Delivery Platforms', money(revenueFor(rabbitsRows)), '');
   for (const section of [...new Set(rabbitsRows.map((row) => row.section))]) {
     kpiTable(`Rabbits - ${section}`, rabbitsRows.filter((row) => row.section === section), true);
   }
 
-  doc.addPage();
-  header();
   const mickysRows = data.mickys ?? [];
   hero("Micky's by CP Foods", 'Google Sheet (Leads) | Tally Cloud (Day End)', money(revenueFor(mickysRows)), '');
   sheetRef(SHEET_URLS.mickysLeads);
@@ -372,8 +361,6 @@ export function createDailyFlashPdf(data, date) {
     kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section), true);
   }
 
-  doc.addPage();
-  header();
   const purosoulRows = data.purosoul ?? [];
   hero('Purosoul', 'Google Drive (Daily Flash) | Tally Cloud (Day End)', money(revenueFor(purosoulRows)), '');
   for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
@@ -386,8 +373,6 @@ export function createDailyFlashPdf(data, date) {
     { widths: [100, 80, 90, 90, 80, 83] }
   );
 
-  doc.addPage();
-  header();
   sectionTitle('Settlement');
   table(
     ['Mode', ...UNITS, 'Group Total'],
@@ -407,22 +392,7 @@ export function createDailyFlashPdf(data, date) {
     { widths: [132, 132, 132, 127] }
   );
 
-  sectionTitle('Source Control');
-  const sourceStatus = buildSourceStatus(data);
-  table(
-    ['Source', 'Type', 'Status', 'Last Import / File'],
-    sourceStatus.sources.map((source) => [
-      source.sheetUrl ? { text: source.label, color: '#1a6b9a' } : source.label,
-      source.type,
-      flagCell(source.status === 'Pending' ? 'WATCH' : 'ON TRACK'),
-      source.file || source.importedAt || '-'
-    ]),
-    { widths: [180, 100, 82, 161], leftColumns: [0, 3], fontSize: 7 }
-  );
-
-  doc.addPage();
-  header();
-  notesPage(doc, data);
+  notesPage(doc, data, ensureSpace);
 
   return doc;
 }
@@ -440,7 +410,7 @@ function actionFor(row) {
   return 'Track closely in daily meeting.';
 }
 
-function notesPage(doc, data) {
+function notesPage(doc, data, ensureSpace) {
   const pnl = pnlRows(data);
   const settlement = settlementTotals(data);
   const risks = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED');
@@ -452,32 +422,38 @@ function notesPage(doc, data) {
     weakestUnit ? `Needs attention: ${weakestUnit.unit} at ${money(weakestUnit.netProfit)} estimated net profit.` : '',
     `${risks.length} watch/action flags need manager review.`,
     `Settlement difference: ${money(groupRevenue(data) - settlement.groupTotal)} across all units.`,
-    'Close pending source feeds before final circulation.',
     'Use this report as the daily morning review copy for unit heads.'
   ].filter(Boolean);
 
-  doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(13).text('Management Notes', 36, 122);
-  doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5).text('Prepared from the current daily flash data.', 36, 141);
-  doc.strokeColor(colors.line).lineWidth(0.7).moveTo(36, 158).lineTo(559, 158).stroke();
-  doc.roundedRect(36, 178, 523, 250, 3).fill(colors.white).strokeColor(colors.line).lineWidth(0.6).stroke();
-  doc.fillColor(colors.ink).font('Helvetica').fontSize(8);
-  let y = 198;
-  for (const note of notes) {
-    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(8).text(String(notes.indexOf(note) + 1).padStart(2, '0'), 54, y, { width: 18 });
-    doc.fillColor(colors.ink).font('Helvetica').fontSize(8).text(safeText(note), 84, y, { width: 430, lineGap: 3 });
-    y += 28;
-  }
-
-  doc.roundedRect(36, 462, 523, 96, 3).fill(colors.panel).strokeColor(colors.line).lineWidth(0.6).stroke();
-  doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text('Close-of-day checklist', 56, 484);
-  doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5);
-  [
-    'Confirm all pending source feeds before circulation.',
+  const checklist = [
     'Review WATCH and ACTION flags with unit owners.',
-    'Resolve settlement mismatch before final archive.'
-  ].forEach((item, index) => {
-    const rowY = 506 + index * 16;
-    doc.rect(56, rowY - 1, 9, 9).strokeColor(colors.lineDark).lineWidth(0.7).stroke();
-    doc.text(item, 74, rowY - 1, { width: 440 });
+    'Resolve settlement mismatch before final archive.',
+    'Confirm closing position before circulation.'
+  ];
+  const noteRowH = 22;
+  const totalH = 30 + notes.length * noteRowH + 16 + 22 + checklist.length * 14 + 12;
+  ensureSpace(totalH);
+
+  let y = doc.y;
+  doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(11).text('Management Notes', 36, y);
+  doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text('Prepared from the current daily flash data.', 36, y + 14);
+  doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 26).lineTo(559, y + 26).stroke();
+  y += 32;
+
+  doc.roundedRect(36, y, 523, notes.length * noteRowH + 8, 3).fill(colors.white).strokeColor(colors.line).lineWidth(0.5).stroke();
+  notes.forEach((note, index) => {
+    const rowY = y + 6 + index * noteRowH;
+    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(7.5).text(String(index + 1).padStart(2, '0'), 48, rowY, { width: 18 });
+    doc.fillColor(colors.ink).font('Helvetica').fontSize(8).text(safeText(note), 72, rowY, { width: 470, lineGap: 2 });
   });
+  y += notes.length * noteRowH + 14;
+
+  doc.roundedRect(36, y, 523, checklist.length * 14 + 22, 3).fill(colors.panel).strokeColor(colors.line).lineWidth(0.5).stroke();
+  doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8.5).text('Close-of-day checklist', 48, y + 6);
+  checklist.forEach((item, index) => {
+    const rowY = y + 22 + index * 14;
+    doc.rect(48, rowY, 8, 8).strokeColor(colors.lineDark).lineWidth(0.6).stroke();
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5).text(item, 64, rowY - 1, { width: 480 });
+  });
+  doc.y = y + checklist.length * 14 + 30;
 }
