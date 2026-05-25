@@ -208,14 +208,14 @@ input[type='date'] {
     filter: drop-shadow(0 6px 14px rgba(167, 0, 98, 0.16));
     transform-origin: 50% 50%;
     will-change: transform;
-    -webkit-mask-image: radial-gradient(circle closest-side at center, transparent 0 38%, #000 39% 100%);
-    mask-image: radial-gradient(circle closest-side at center, transparent 0 38%, #000 39% 100%);
+    -webkit-mask-image: radial-gradient(circle closest-side at center, transparent 0 49%, #000 51% 100%);
+    mask-image: radial-gradient(circle closest-side at center, transparent 0 49%, #000 51% 100%);
   }
 
   .brand-loader-center {
     filter: drop-shadow(0 5px 10px rgba(23, 32, 38, 0.08));
-    -webkit-mask-image: radial-gradient(circle closest-side at center, #000 0 38%, transparent 39% 100%);
-    mask-image: radial-gradient(circle closest-side at center, #000 0 38%, transparent 39% 100%);
+    -webkit-mask-image: radial-gradient(circle closest-side at center, #000 0 49%, transparent 51% 100%);
+    mask-image: radial-gradient(circle closest-side at center, #000 0 49%, transparent 51% 100%);
   }
 
   /* Safe-area helper for the floating mobile bottom nav. */
