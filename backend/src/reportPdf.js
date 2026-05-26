@@ -107,7 +107,7 @@ function niceDate(date) {
 }
 
 function safeText(value) {
-  return String(value ?? '').replace(/[₹]/g, 'Rs.');
+  return String(value ?? '').replace(/\u20b9/g, 'Rs.');
 }
 
 export function createDailyFlashPdf(data, date, options = {}) {
@@ -126,7 +126,6 @@ export function createDailyFlashPdf(data, date, options = {}) {
   const SUBSEQUENT_PAGE_TOP = 64;
   const contentBottom = 790;
   const width = doc.page.width - 72;
-  let sectionCounter = 0;
 
   function decoratePage() {
     pageNo += 1;
@@ -141,11 +140,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
       doc.fillColor('#ffffff').opacity(0.78).font('Helvetica-Bold').fontSize(7).text('CENTRE POINT HOSPITALITY', 36, 26, { characterSpacing: 1.2 });
       doc.opacity(1);
       doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(20).text(isWeekly ? 'Weekly Flash Report' : 'Daily Flash Report', 36, 42);
-      doc.fillColor('#ffffff').opacity(0.82).font('Helvetica').fontSize(8).text('Internal management report — Centre Point Group', 36, 72);
+      doc.fillColor('#ffffff').opacity(0.82).font('Helvetica').fontSize(8).text('Internal management report - Centre Point Group', 36, 72);
       doc.opacity(1);
 
       // Date pill on the right
-      const dateLabel = isWeekly && week ? `${niceDate(week.start)} — ${niceDate(week.end)}` : niceDate(date);
+      const dateLabel = isWeekly && week ? `${niceDate(week.start)} - ${niceDate(week.end)}` : niceDate(date);
       const pillWidth = Math.max(150, doc.widthOfString(dateLabel) + 28);
       const pillX = doc.page.width - 36 - pillWidth;
       doc.roundedRect(pillX, 36, pillWidth, 26, 13).fill('#ffffff').opacity(1);
@@ -158,14 +157,14 @@ export function createDailyFlashPdf(data, date, options = {}) {
       // Slim header for subsequent pages
       doc.rect(0, 0, doc.page.width, 32).fill(colors.accentTint);
       doc.rect(0, 32, doc.page.width, 2).fill(colors.accent);
-      doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(8).text(`Centre Point Hospitality · ${isWeekly ? 'Weekly' : 'Daily'} Flash Report`, 36, 12);
-      const dateLabel = isWeekly && week ? `${niceDate(week.start)} — ${niceDate(week.end)}` : niceDate(date);
+      doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(8).text(`Centre Point Hospitality | ${isWeekly ? 'Weekly' : 'Daily'} Flash Report`, 36, 12);
+      const dateLabel = isWeekly && week ? `${niceDate(week.start)} - ${niceDate(week.end)}` : niceDate(date);
       doc.fillColor(colors.muted).font('Helvetica').fontSize(8).text(dateLabel, 36, 12, { width: width, align: 'right' });
     }
 
     // Footer
     doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, 808).lineTo(559, 808).stroke();
-    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(`Centre Point Hospitality  ·  ${isWeekly ? 'Weekly' : 'Daily'} Flash Report  ·  Internal Use Only`, 36, 816, { lineBreak: false });
+    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(`Centre Point Hospitality | ${isWeekly ? 'Weekly' : 'Daily'} Flash Report | Internal Use Only`, 36, 816, { lineBreak: false });
     doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(6.5).text(`Page ${pageNo}`, 36, 816, { width: width, align: 'right', lineBreak: false });
     doc.restore();
     doc.y = pageNo === 1 ? FIRST_PAGE_TOP : SUBSEQUENT_PAGE_TOP;
@@ -180,24 +179,14 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   function sectionTitle(title) {
     ensureSpace(30);
-    // Strip leading "1. " etc. — we render the number ourselves as a chip
-    const match = String(title).match(/^\s*(\d+)\.\s*(.*)$/);
-    let displayTitle = title;
-    let number = null;
-    if (match) { number = match[1]; displayTitle = match[2]; }
-    else { sectionCounter += 1; number = String(sectionCounter).padStart(2, '0'); }
-    if (number.length === 1) number = `0${number}`;
+    // Strip any old leading "1. " style labels before rendering.
+    const displayTitle = String(title).replace(/^\s*\d+\.\s*/, '');
 
     const y = doc.y;
-    // Numbered accent chip
-    doc.roundedRect(36, y, 28, 18, 4).fill(colors.accent);
-    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(8.5).text(number, 36, y + 5, { width: 28, align: 'center', lineBreak: false });
-    // Title
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(11).text(safeText(displayTitle), 72, y + 3, { width: width - 36, lineBreak: false });
-    // Accent underline (short, under chip+title area)
-    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 24).lineTo(559, y + 24).stroke();
-    doc.strokeColor(colors.accent).lineWidth(1.5).moveTo(36, y + 24).lineTo(96, y + 24).stroke();
-    doc.y = y + 32;
+    doc.roundedRect(36, y, width, 26, 5).fill(colors.accentTint);
+    doc.rect(36, y, 4, 26).fill(colors.accent);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10.5).text(safeText(displayTitle), 50, y + 8, { width: width - 28, lineBreak: false });
+    doc.y = y + 34;
   }
 
   function hero(title, source, value, change = '') {
@@ -262,8 +251,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
     let y = doc.y;
 
     function drawHeader() {
-      doc.rect(x, y, width, headerHeight).fill(colors.panel);
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(6.8);
+      doc.rect(x, y, width, headerHeight).fill(colors.header);
+      doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(6.8);
       let cursor = x;
       columns.forEach((column, index) => {
         doc.text(safeText(column), cursor + 7, y + 7, { width: colWidths[index] - 12, align: index === 0 ? 'left' : 'right' });
@@ -284,7 +273,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
         firstRowOnPage = true;
       }
 
-      doc.rect(x, y, width, rowHeight).fill(rowIndex % 2 ? colors.panelAlt : colors.white);
+      doc.rect(x, y, width, rowHeight).fill(rowIndex % 2 ? colors.panel : colors.white);
       doc.fillColor(colors.ink).font('Helvetica').fontSize(fontSize);
       let cursor = x;
       row.forEach((cell, index) => {
@@ -392,7 +381,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   if (hasSection('bank')) {
-    sectionTitle('1. Bank Position - Daily Cash Summary');
+    sectionTitle('Bank Position - Daily Cash Summary');
     sheetRef(SHEET_URLS.bankPosition);
     table(
       ['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'],
@@ -405,7 +394,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   if (hasSection('pnl')) {
-    sectionTitle(`${isWeekly ? '1' : '2'}. Unit-wise Estimated P&L`);
+    sectionTitle('Unit-wise Estimated P&L');
     table(
       ['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'],
       [
@@ -417,7 +406,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   if (hasSection('flags')) {
-    sectionTitle(`${isWeekly ? '2' : '3'}. Watch Out Flag Summary`);
+    sectionTitle('Watch Out Flag Summary');
     const flags = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').slice(0, 16);
     table(
       ['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'],
