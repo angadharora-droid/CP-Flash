@@ -178,41 +178,43 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   function sectionTitle(title) {
-    ensureSpace(30);
+    ensureSpace(24);
     // Strip any old leading "1. " style labels before rendering.
     const displayTitle = String(title).replace(/^\s*\d+\.\s*/, '');
 
     const y = doc.y;
-    doc.roundedRect(36, y, width, 26, 5).fill(colors.accentTint);
-    doc.rect(36, y, 4, 26).fill(colors.accent);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10.5).text(safeText(displayTitle), 50, y + 8, { width: width - 28, lineBreak: false });
-    doc.y = y + 34;
+    doc.roundedRect(36, y, width, 22, 4).fill(colors.accentTint);
+    doc.rect(36, y, 4, 22).fill(colors.accent);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(displayTitle), 50, y + 7, { width: width - 28, lineBreak: false });
+    doc.y = y + 26;
   }
 
   function hero(title, source, value, change = '') {
-    ensureSpace(42);
+    ensureSpace(38);
     const y = doc.y;
-    // Tinted panel with left accent bar
-    doc.rect(36, y, width, 36).fill(colors.accentTint);
-    doc.rect(36, y, 3, 36).fill(colors.accent);
+    // Dark unit title band
+    doc.roundedRect(36, y, width, 34, 5).fill(colors.header);
+    doc.rect(36, y, 4, 34).fill(colors.accent);
     // Title
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(12).text(safeText(title), 48, y + 8, { width: 200, lineBreak: false });
+    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(12).text(safeText(title), 48, y + 7, { width: 200, lineBreak: false });
     // Source
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5).text(safeText(source), 48, y + 24, { width: 280, lineBreak: false });
+    doc.fillColor(colors.white).opacity(0.72).font('Helvetica').fontSize(7.5).text(safeText(source), 48, y + 23, { width: 280, lineBreak: false });
+    doc.opacity(1);
     // Value (right)
-    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6).text('REVENUE', 420, y + 7, { width: 127, align: 'right', characterSpacing: 1.2 });
-    doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(13).text(safeText(value), 420, y + 16, { width: 127, align: 'right', lineBreak: false });
+    doc.fillColor(colors.white).opacity(0.72).font('Helvetica-Bold').fontSize(6).text('REVENUE', 420, y + 6, { width: 127, align: 'right', characterSpacing: 1.2 });
+    doc.opacity(1);
+    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(13).text(safeText(value), 420, y + 15, { width: 127, align: 'right', lineBreak: false });
     if (change) {
       doc.fillColor(change.startsWith('-') ? colors.red : colors.green).font('Helvetica-Bold').fontSize(7).text(safeText(change), 420, y + 30, { width: 127, align: 'right', lineBreak: false });
     }
-    doc.y = y + 42;
+    doc.y = y + 38;
   }
 
   function unitDivider() {
-    ensureSpace(16);
+    ensureSpace(10);
     const y = doc.y;
-    doc.strokeColor(colors.lineSoft).lineWidth(0.5).dash(2, { space: 3 }).moveTo(36, y + 4).lineTo(559, y + 4).stroke().undash();
-    doc.y = y + 14;
+    doc.strokeColor(colors.lineSoft).lineWidth(0.5).dash(2, { space: 3 }).moveTo(36, y + 3).lineTo(559, y + 3).stroke().undash();
+    doc.y = y + 8;
   }
 
   function summaryCards(items) {
@@ -251,8 +253,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
     let y = doc.y;
 
     function drawHeader() {
-      doc.rect(x, y, width, headerHeight).fill(colors.header);
-      doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(6.8);
+      doc.rect(x, y, width, headerHeight).fill(colors.panel);
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(6.8);
       let cursor = x;
       columns.forEach((column, index) => {
         doc.text(safeText(column), cursor + 7, y + 7, { width: colWidths[index] - 12, align: index === 0 ? 'left' : 'right' });
@@ -292,7 +294,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     });
 
     doc.strokeColor(colors.line).lineWidth(0.6).rect(x, doc.y, width, y - doc.y).stroke();
-    doc.y = y + 10;
+    doc.y = y + 6;
   }
 
   function flagCell(label) {
