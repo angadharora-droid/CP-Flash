@@ -240,6 +240,29 @@ function dateKey(date = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+function parseIsoDate(date) {
+  return new Date(`${date}T00:00:00.000Z`);
+}
+
+function isoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function weekRangeForDate(date) {
+  const parsed = parseIsoDate(date);
+  const day = parsed.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const start = addDays(parsed, mondayOffset);
+  const end = addDays(start, 6);
+  return { start: isoDate(start), end: isoDate(end) };
+}
+
 const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit'];
 
 function hasEnteredPnlValues(row) {
@@ -370,6 +393,21 @@ async function listDailyDates(prefix) {
     if (err.code === 'ENOENT') return [];
     throw err;
   }
+}
+
+async function listDailyDatesInRange(startDate, endDate) {
+  const prefixes = new Set();
+  let cursor = parseIsoDate(startDate);
+  const end = parseIsoDate(endDate);
+  while (cursor <= end) {
+    prefixes.add(isoDate(cursor).slice(0, 7));
+    cursor = addDays(cursor, 1);
+  }
+  const groupedDates = await Promise.all(Array.from(prefixes, (prefix) => listDailyDates(prefix)));
+  return groupedDates
+    .flat()
+    .filter((dailyDate) => dailyDate >= startDate && dailyDate <= endDate)
+    .sort();
 }
 
 function collectKpiRows(data) {
@@ -524,6 +562,71 @@ async function aggregateYtdFromMonthlyMtd(dates) {
   return { pnl: pnlByUnit, kpis };
 }
 
+function formatAggregate(value) {
+  return String(Math.round(numberValue(value) * 100) / 100);
+}
+
+function applyKpiAggregatesToActuals(data, aggregate) {
+  const weekSums = aggregate?.kpis ?? {};
+  const kpiModes = aggregate?.kpiModes ?? {};
+  const mergeRows = (rows) => {
+    if (!Array.isArray(rows)) return rows;
+    return rows.map((row) => {
+      if (!row?.id || weekSums[row.id] === undefined) return row;
+      const target = numberValue(row.target);
+      return {
+        ...row,
+        actual: formatAggregate(weekSums[row.id]),
+        target: target && kpiModes[row.id] !== 'avg' ? formatAggregate(target * 7) : row.target
+      };
+    });
+  };
+  return {
+    ...data,
+    hotels: mergeRows(data.hotels).filter((row) => row.section !== 'Forecast'),
+    rabbits: mergeRows(data.rabbits),
+    mickys: mergeRows(data.mickys),
+    purosoul: mergeRows(data.purosoul),
+    purosoulSku: mergeRows(data.purosoulSku),
+    fnb: {
+      ...(data.fnb ?? {}),
+      Pablo: mergeRows(data.fnb?.Pablo),
+      Dali: mergeRows(data.fnb?.Dali)
+    }
+  };
+}
+
+function applyPnlAggregatesToWeeklyData(data, aggregate) {
+  const pnlByUnit = aggregate?.pnl ?? {};
+  return {
+    ...data,
+    pnl: (data.pnl ?? []).map((row) => {
+      const weekRow = pnlByUnit[row.unit];
+      if (!weekRow) return row;
+      return {
+        ...row,
+        revenueToday: formatAggregate(weekRow.revenue),
+        purchasesToday: formatAggregate(weekRow.purchases),
+        fixedCost: formatAggregate(weekRow.gp - weekRow.netProfit)
+      };
+    })
+  };
+}
+
+async function buildWeeklyReportData(data, date) {
+  const { start, end } = weekRangeForDate(date);
+  const weekDates = await listDailyDatesInRange(start, end);
+  const weeklyAggregate = await aggregatePeriodForDates(weekDates);
+  const withoutForecast = {
+    ...data,
+    bankPosition: [],
+    hotels: (data.hotels ?? []).filter((row) => row.section !== 'Forecast')
+  };
+  const withKpis = applyKpiAggregatesToActuals(withoutForecast, weeklyAggregate);
+  const withPnl = applyPnlAggregatesToWeeklyData(withKpis, weeklyAggregate);
+  return { data: withPnl, week: { start, end, dates: weekDates } };
+}
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.post('/api/login', loginIpRateLimit, wrap(async (req, res) => {
@@ -617,15 +720,18 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
   const date = String(req.query.date || dateKey());
   const monthPrefix = date.slice(0, 7);
   const yearPrefix = date.slice(0, 4);
+  const weekRange = weekRangeForDate(date);
 
   const [monthDates, yearDates] = await Promise.all([
     listDailyDates(monthPrefix),
     listDailyDates(yearPrefix)
   ]);
+  const weekDates = await listDailyDatesInRange(weekRange.start, weekRange.end);
   const mtdDates = monthDates.filter((dailyDate) => dailyDate <= date);
   const ytdDates = yearDates.filter((dailyDate) => dailyDate <= date);
 
-  const [mtdAgg, ytdAgg] = await Promise.all([
+  const [weekAgg, mtdAgg, ytdAgg] = await Promise.all([
+    aggregatePeriodForDates(weekDates),
     aggregatePeriodForDates(mtdDates),
     aggregateYtdFromMonthlyMtd(ytdDates)
   ]);
@@ -634,11 +740,15 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     date,
     monthPrefix,
     yearPrefix,
+    weekStart: weekRange.start,
+    weekEnd: weekRange.end,
+    weekDates,
     mtdDates,
     ytdDates,
+    week: weekAgg.pnl,
     mtd: mtdAgg.pnl,
     ytd: ytdAgg.pnl,
-    kpis: { mtd: mtdAgg.kpis, ytd: ytdAgg.kpis }
+    kpis: { week: weekAgg.kpis, mtd: mtdAgg.kpis, ytd: ytdAgg.kpis }
   });
 }));
 
@@ -728,19 +838,24 @@ app.get('/api/source-report-preview', wrap(async (req, res) => {
 
 app.get('/api/report.pdf', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
+  const reportType = String(req.query.reportType ?? 'daily').toLowerCase() === 'weekly' ? 'weekly' : 'daily';
   const sections = String(req.query.sections ?? '')
     .split(',')
     .map((section) => section.trim())
     .filter(Boolean);
   const seed = buildSeedData();
   const saved = await readDailyData(date);
-  const data = mergeDailyData(seed, saved);
-  const filename = `cp-daily-flash-${date}.pdf`;
+  const dailyData = mergeDailyData(seed, saved);
+  const weekly = reportType === 'weekly' ? await buildWeeklyReportData(dailyData, date) : null;
+  const data = weekly?.data ?? dailyData;
+  const filename = reportType === 'weekly'
+    ? `cp-weekly-flash-${weekly.week.start}-to-${weekly.week.end}.pdf`
+    : `cp-daily-flash-${date}.pdf`;
 
   const disposition = req.query.inline ? 'inline' : 'attachment';
   res.setHeader('content-type', 'application/pdf');
   res.setHeader('content-disposition', `${disposition}; filename="${filename}"`);
-  const doc = createDailyFlashPdf(data, date, { sections });
+  const doc = createDailyFlashPdf(data, date, { sections, reportType, week: weekly?.week });
   doc.pipe(res);
   doc.end();
 }));
