@@ -12,7 +12,7 @@ const PAGE_META = {
   hotels:      { label: 'Hotels',   icon: 'hotel',           tone: 'indigo' },
   'fnb.Pablo': { label: 'Pablo',    icon: 'restaurant',      tone: 'teal'   },
   'fnb.Dali':  { label: 'Dali',     icon: 'restaurant',      tone: 'teal'   },
-  rabbits:     { label: 'Rabbits',  icon: 'delivery_dining', tone: 'amber'  },
+  rabbits:     { label: 'Rabbit',   icon: 'delivery_dining', tone: 'amber'  },
   mickys:      { label: "Micky's",  icon: 'inventory_2',     tone: 'rose'   },
   purosoul:    { label: 'Purosoul', icon: 'factory',         tone: 'slate'  }
 };

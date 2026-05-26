@@ -10,7 +10,7 @@ import SourceReportPreviewScreen from './pages/SourceReportPreviewScreen';
 import SourceControlPage from './pages/SourceControlPage';
 import HotelsPage from './pages/HotelsPage';
 import FnbPage from './pages/FnbPage';
-import RabbitsPage from './pages/RabbitsPage';
+import RabbitPage from './pages/RabbitPage';
 import MickysPage from './pages/MickysPage';
 import PurosoulPage from './pages/PurosoulPage';
 import SettlementPage from './pages/SettlementPage';
@@ -42,14 +42,18 @@ function hasEnteredPnlValues(row) {
   return PNL_VALUE_KEYS.some((key) => String(row?.[key] ?? '').trim() !== '');
 }
 
+function canonicalUnit(unit) {
+  return unit === 'Rabbit' + 's' ? 'Rabbit' : unit;
+}
+
 function firstKpiValue(rows = [], unit, names = []) {
-  const match = rows.find((row) => row.unit === unit && names.some((name) => row.name === name));
+  const match = rows.find((row) => canonicalUnit(row.unit) === unit && names.some((name) => row.name === name));
   return match?.actual;
 }
 
 function sumKpiValues(rows = [], unit, names = []) {
   const total = rows
-    .filter((row) => row.unit === unit && names.some((name) => row.name === name))
+    .filter((row) => canonicalUnit(row.unit) === unit && names.some((name) => row.name === name))
     .reduce((sum, row) => sum + numberValue(row.actual), 0);
   return total ? String(Math.round(total * 100) / 100) : '';
 }
@@ -60,14 +64,14 @@ function derivePnlRows(data) {
     'CP NM': () => sumKpiValues(data.hotels, 'CP NM', ['Room Revenue', 'Meeting Point Revenue', 'Freakk Revenue', 'Bougainvillea Revenue', 'High Steaks Revenue', 'In-Room Dining Revenue', 'Revenue Today']),
     Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Gross Sales']),
     Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Gross Sales']),
-    Rabbits: () => firstKpiValue(data.rabbits, 'Rabbits', ['Total Revenue']),
+    Rabbit: () => firstKpiValue(data.rabbits, 'Rabbit', ['Total Revenue']),
     "Micky's": () => firstKpiValue(data.mickys, "Micky's", ['Order Revenue Today']),
     Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['Total Revenue Today'])
   };
   const purchasesByUnit = {
     Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Total Purchase']),
     Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Total Purchase']),
-    Rabbits: () => firstKpiValue(data.rabbits, 'Rabbits', ['Purchase/RM Cost Today']),
+    Rabbit: () => firstKpiValue(data.rabbits, 'Rabbit', ['Purchase/RM Cost Today']),
     Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['RM Cost Today'])
   };
   return (data.pnl ?? []).map((row) => {
@@ -78,25 +82,25 @@ function derivePnlRows(data) {
 }
 
 function mergePnlRows(seedRows = [], savedRows = [], previousRows = []) {
-  const savedByUnit = new Map(savedRows.map((row) => [row.unit, row]));
-  const previousByUnit = new Map(previousRows.map((row) => [row.unit, row]));
+  const savedByUnit = new Map(savedRows.map((row) => [canonicalUnit(row.unit), row]));
+  const previousByUnit = new Map(previousRows.map((row) => [canonicalUnit(row.unit), row]));
   return seedRows.map((seedRow) => {
     const savedRow = savedByUnit.get(seedRow.unit);
     const previousRow = previousByUnit.get(seedRow.unit);
-    if (hasEnteredPnlValues(savedRow)) return { ...seedRow, ...savedRow };
-    if (hasEnteredPnlValues(previousRow)) return { ...seedRow, ...previousRow };
-    return savedRow ? { ...seedRow, ...savedRow } : seedRow;
+    if (hasEnteredPnlValues(savedRow)) return { ...seedRow, ...savedRow, unit: seedRow.unit };
+    if (hasEnteredPnlValues(previousRow)) return { ...seedRow, ...previousRow, unit: seedRow.unit };
+    return savedRow ? { ...seedRow, ...savedRow, unit: seedRow.unit } : seedRow;
   });
 }
 
-function normalizeRabbitsCategoryBreakdown(seedRows = [], savedRows = []) {
+function normalizeRabbitCategoryBreakdown(seedRows = [], savedRows = []) {
   const fixedCategoryRows = seedRows.filter((row) => row.section === 'Category Breakdown');
   if (!fixedCategoryRows.length) return savedRows;
 
   const savedByName = new Map(savedRows.map((row) => [row.name, row]));
   const normalizedCategoryRows = fixedCategoryRows.map((seedRow) => {
     const savedRow = savedByName.get(seedRow.name);
-    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id, unit: seedRow.unit } : seedRow;
   });
   const nextRows = [];
   let inserted = false;
@@ -109,7 +113,7 @@ function normalizeRabbitsCategoryBreakdown(seedRows = [], savedRows = []) {
       }
       continue;
     }
-    nextRows.push(row);
+    nextRows.push({ ...row, unit: canonicalUnit(row.unit) });
   }
 
   return inserted ? nextRows : [...savedRows, ...normalizedCategoryRows];
@@ -118,12 +122,12 @@ function normalizeRabbitsCategoryBreakdown(seedRows = [], savedRows = []) {
 function mergeSeedKpiRows(seedRows = [], savedRows = []) {
   if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
   const savedById = new Map(savedRows.map((row) => [row.id, row]));
-  const savedByUnitAndName = new Map(savedRows.map((row) => [`${row.unit ?? ''}::${row.name ?? ''}`, row]));
+  const savedByUnitAndName = new Map(savedRows.map((row) => [`${canonicalUnit(row.unit) ?? ''}::${row.name ?? ''}`, row]));
   const seen = new Set();
   const mergedSeedRows = seedRows.map((seedRow) => {
-    const savedRow = savedById.get(seedRow.id) ?? savedByUnitAndName.get(`${seedRow.unit ?? ''}::${seedRow.name ?? ''}`);
+    const savedRow = savedById.get(seedRow.id) ?? savedByUnitAndName.get(`${canonicalUnit(seedRow.unit) ?? ''}::${seedRow.name ?? ''}`);
     if (savedRow?.id) seen.add(savedRow.id);
-    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id, section: seedRow.section } : seedRow;
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id, unit: seedRow.unit, section: seedRow.section } : seedRow;
   });
   const extraRows = savedRows.filter((row) => !seen.has(row.id));
   return [...mergedSeedRows, ...extraRows];
@@ -185,7 +189,7 @@ function mergeWithSeed(seed, saved, previous = null) {
     Dali: mergeSeedKpiRows(seed.fnb?.Dali, merged.fnb?.Dali)
   };
   merged.hotels = mergeSeedKpiRows(seed.hotels, merged.hotels);
-  merged.rabbits = normalizeRabbitsCategoryBreakdown(seed.rabbits, merged.rabbits);
+  merged.rabbits = normalizeRabbitCategoryBreakdown(seed.rabbits, merged.rabbits);
   merged.pnl = mergePnlRows(seed.pnl, saved.pnl, previous?.pnl);
   merged.pnl = derivePnlRows(merged);
   return merged;
@@ -341,7 +345,7 @@ export default function App() {
     if (active === 'flags') return <FlagsPage data={enrichedData} />;
     if (active === 'hotels') return <HotelsPage {...common} />;
     if (active === 'fnb') return <FnbPage {...common} />;
-    if (active === 'rabbits') return <RabbitsPage data={enrichedData} date={date} />;
+    if (active === 'rabbits') return <RabbitPage data={enrichedData} date={date} />;
     if (active === 'mickys') return <MickysPage data={enrichedData} date={date} />;
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;

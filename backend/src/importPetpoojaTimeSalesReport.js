@@ -257,7 +257,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     };
   }
 
-  const targetRows = outlet === 'Rabbits' ? data.rabbits : data.fnb?.[outlet];
+  const targetRows = outlet === 'Rabbit' ? data.rabbits : data.fnb?.[outlet];
   if (outlet === 'Pablo' || outlet === 'Dali') {
     setKpi(targetRows, 'Lunch Revenue', split.lunch);
     setKpi(targetRows, 'Supper Revenue', split.supper);
@@ -301,7 +301,7 @@ const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   const [, , file, outlet = 'Pablo', outDate = new Date().toISOString().slice(0, 10)] = process.argv;
   if (!file) {
-    console.error('Usage: node src/importPetpoojaTimeSalesReport.js <file> <Pablo|Dali|Rabbits> [YYYY-MM-DD]');
+    console.error('Usage: node src/importPetpoojaTimeSalesReport.js <file> <Pablo|Dali|Rabbit> [YYYY-MM-DD]');
     process.exit(1);
   }
   importPetpoojaTimeSalesReport(file, outlet, outDate).then((result) => console.log(JSON.stringify(result, null, 2)));

@@ -207,13 +207,13 @@ const HANDLERS = [
     }
   },
   {
-    name: 'Petpooja Billing - Rabbits',
+    name: 'Petpooja Billing - Rabbit',
     importSourceKey: 'rabbitsPetpoojaImportedAt',
     matches: (s, parsed) => !findSpreadsheet(parsed) && subjectContains(s, 'report notification') && subjectContains(s, 'rabbit') && !subjectContains(s, 'payment wise'),
-    run: async (parsed, date) => importPetpoojaReport(parsed.html || '', 'Rabbits', date)
+    run: async (parsed, date) => importPetpoojaReport(parsed.html || '', 'Rabbit', date)
   },
   {
-    name: 'Petpooja Payment Summary - Rabbits',
+    name: 'Petpooja Payment Summary - Rabbit',
     importSourceKey: 'rabbitsPaymentImportedAt',
     matches: (s) => subjectContains(s, 'payment wise summary') && subjectContains(s, 'rabbit'),
     run: async (parsed, date) => {
@@ -221,11 +221,11 @@ const HANDLERS = [
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'petpooja-rabbits-payment', date);
-      return importPetpoojaPaymentSummary(filePath, 'Rabbits', date);
+      return importPetpoojaPaymentSummary(filePath, 'Rabbit', date);
     }
   },
   {
-    name: 'Petpooja Time Sales - Rabbits',
+    name: 'Petpooja Time Sales - Rabbit',
     importSourceKey: 'rabbitsTimeSalesImportedAt',
     matches: (s, parsed) => isDetailedSalesReport(s, parsed, /rabbit/i),
     currentFile: (file) => /item.*bill|item_bill/i.test(file),
@@ -235,7 +235,7 @@ const HANDLERS = [
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'petpooja-rabbits-time-sales', date);
-      return importPetpoojaTimeSalesReport(filePath, 'Rabbits', date);
+      return importPetpoojaTimeSalesReport(filePath, 'Rabbit', date);
     }
   },
   {

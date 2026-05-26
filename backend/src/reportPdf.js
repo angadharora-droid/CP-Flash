@@ -464,9 +464,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   if (hasSection('rabbits')) {
     const rabbitsRows = data.rabbits ?? [];
-    hero('Rabbits', 'POS EOD Email | Delivery Platforms', money(revenueFor(rabbitsRows)), '');
+    hero('Rabbit', 'POS EOD Email | Delivery Platforms', money(revenueFor(rabbitsRows)), '');
     for (const section of [...new Set(rabbitsRows.map((row) => row.section))]) {
-      kpiTable(`Rabbits - ${section}`, rabbitsRows.filter((row) => row.section === section), true);
+      kpiTable(`Rabbit - ${section}`, rabbitsRows.filter((row) => row.section === section), true);
     }
   }
 

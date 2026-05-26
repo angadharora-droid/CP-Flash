@@ -15,7 +15,7 @@ const UNIT_ICON = {
   'CP NM': 'apartment',
   Pablo: 'restaurant',
   Dali: 'restaurant',
-  Rabbits: 'delivery_dining',
+  Rabbit: 'delivery_dining',
   "Micky's": 'inventory_2',
   Purosoul: 'factory'
 };
@@ -26,7 +26,7 @@ const UNIT_TINT = {
   'CP NM':          { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20' },
   Pablo:            { bg: 'bg-tertiary-container/70', text: 'text-on-tertiary-container', border: 'border-tertiary/25' },
   Dali:             { bg: 'bg-tertiary-container/70', text: 'text-on-tertiary-container', border: 'border-tertiary/25' },
-  Rabbits:          { bg: 'bg-error-container/45', text: 'text-error', border: 'border-error/20' },
+  Rabbit:           { bg: 'bg-error-container/45', text: 'text-error', border: 'border-error/20' },
   "Micky's":        { bg: 'bg-secondary-container/45', text: 'text-on-secondary-container', border: 'border-secondary/25' },
   Purosoul:         { bg: 'bg-tertiary-container/70', text: 'text-on-tertiary-container', border: 'border-tertiary/25' }
 };

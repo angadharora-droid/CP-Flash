@@ -13,7 +13,7 @@ const PDF_SECTIONS = [
   { key: 'flags', label: 'Flags' },
   { key: 'hotels', label: 'Hotels' },
   { key: 'fnb', label: 'Standalone F&B' },
-  { key: 'rabbits', label: 'Rabbits' },
+  { key: 'rabbits', label: 'Rabbit' },
   { key: 'mickys', label: "Micky's" },
   { key: 'purosoul', label: 'Purosoul' },
   { key: 'settlement', label: 'Settlement' }
