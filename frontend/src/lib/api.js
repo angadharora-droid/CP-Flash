@@ -140,16 +140,22 @@ function applyPdfSectionParams(params, sections) {
   if (Array.isArray(sections) && sections.length) params.set('sections', sections.join(','));
 }
 
-export function reportPdfUrl(date, token, sections) {
+function applyPdfReportType(params, reportType) {
+  if (reportType === 'weekly') params.set('reportType', 'weekly');
+}
+
+export function reportPdfUrl(date, token, sections, reportType = 'daily') {
   const params = new URLSearchParams({ date });
   if (token) params.set('token', token);
   applyPdfSectionParams(params, sections);
+  applyPdfReportType(params, reportType);
   return `${API_BASE}/api/report.pdf?${params.toString()}`;
 }
 
-export function reportPdfPreviewUrl(date, token, sections) {
+export function reportPdfPreviewUrl(date, token, sections, reportType = 'daily') {
   const params = new URLSearchParams({ date, inline: '1' });
   if (token) params.set('token', token);
   applyPdfSectionParams(params, sections);
+  applyPdfReportType(params, reportType);
   return `${API_BASE}/api/report.pdf?${params.toString()}`;
 }

@@ -107,10 +107,14 @@ function safeText(value) {
 export function createDailyFlashPdf(data, date, options = {}) {
   const doc = new PDFDocument({ size: 'A4', margins: { top: 36, right: 36, bottom: 24, left: 36 }, bufferPages: true });
   let pageNo = 0;
+  const reportType = options.reportType === 'weekly' ? 'weekly' : 'daily';
+  const isWeekly = reportType === 'weekly';
+  const week = options.week ?? null;
   const requestedSections = Array.isArray(options.sections)
     ? options.sections.filter((section) => PDF_SECTIONS.has(section))
     : [];
-  const enabledSections = requestedSections.length ? new Set(requestedSections) : PDF_SECTIONS;
+  const enabledSections = requestedSections.length ? new Set(requestedSections) : new Set(PDF_SECTIONS);
+  if (isWeekly) enabledSections.delete('bank');
 
   const FIRST_PAGE_TOP = 96;
   const SUBSEQUENT_PAGE_TOP = 40;
@@ -123,14 +127,15 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(colors.page);
     if (pageNo === 1) {
       doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6.5).text('CENTRE POINT HOSPITALITY', 36, 28);
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(16).text('Daily Flash Report', 36, 43);
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(16).text(isWeekly ? 'Weekly Flash Report' : 'Daily Flash Report', 36, 43);
       doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text('Internal management report', 36, 64);
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(niceDate(date), 430, 35, { width: 129, align: 'right' });
+      const dateLabel = isWeekly && week ? `${niceDate(week.start)} - ${niceDate(week.end)}` : niceDate(date);
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(dateLabel, 360, 35, { width: 199, align: 'right' });
       doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`, 430, 51, { width: 129, align: 'right' });
       doc.strokeColor(colors.lineDark).lineWidth(0.7).moveTo(36, 84).lineTo(559, 84).stroke();
     }
     doc.strokeColor(colors.lineDark).lineWidth(0.5).moveTo(36, 802).lineTo(559, 802).stroke();
-    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text('Centre Point Hospitality | Daily Flash Report | Internal Use Only', 36, 810, { lineBreak: false });
+    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(`Centre Point Hospitality | ${isWeekly ? 'Weekly' : 'Daily'} Flash Report | Internal Use Only`, 36, 810, { lineBreak: false });
     doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5).text(`Page ${pageNo}`, 430, 810, { width: 129, align: 'right', lineBreak: false });
     doc.restore();
     doc.y = pageNo === 1 ? FIRST_PAGE_TOP : SUBSEQUENT_PAGE_TOP;
@@ -244,8 +249,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   function kpiTable(title, rows, includeYtd = true) {
     sectionTitle(title);
+    const actualColumn = isWeekly ? 'Week' : 'Today';
     table(
-      includeYtd ? ['KPI', 'Today', 'AOP Target', 'MTD', 'YTD', 'Flag'] : ['KPI', 'Today', 'AOP Target', 'MTD', 'Flag'],
+      includeYtd ? ['KPI', actualColumn, 'AOP Target', 'MTD', 'YTD', 'Flag'] : ['KPI', actualColumn, 'AOP Target', 'MTD', 'Flag'],
       rows.map((row) => {
         const flag = calcFlag(row.actual, row.target, row.direction).label;
         const base = [row.name, formatValue(row.actual, row.name), formatValue(row.target, row.name), formatValue(row.mtd, row.name)];
@@ -306,12 +312,18 @@ export function createDailyFlashPdf(data, date, options = {}) {
   const settlementDiff = groupRevenue(data) - settlement.groupTotal;
 
   if (hasSection('summary')) {
-    summaryCards([
+    const cards = [
       { label: 'Group Revenue', value: money(pnlTotals.revenue), tone: colors.header, caption: 'Today' },
       { label: 'Est. Net Profit', value: money(pnlTotals.net), tone: pnlTotals.net >= 0 ? colors.green : colors.red, caption: 'After fixed cost' },
       { label: 'Bank Net Available', value: money(bankTotals.net), tone: colors.headerSoft, caption: `${bankRowsRaw.length} accounts` },
       { label: 'Open Risks', value: String(flagCount), tone: flagCount ? colors.amber : colors.green, caption: 'Watch / action flags' }
-    ]);
+    ];
+    if (isWeekly) {
+      cards[0] = { ...cards[0], label: 'Weekly Revenue', caption: `${week?.dates?.length ?? 0} saved days` };
+      cards[1] = { ...cards[1], label: 'Weekly Net Profit' };
+      cards.splice(2, 1);
+    }
+    summaryCards(cards);
   }
 
   if (hasSection('bank')) {
@@ -328,7 +340,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   if (hasSection('pnl')) {
-    sectionTitle('2. Unit-wise Estimated P&L');
+    sectionTitle(`${isWeekly ? '1' : '2'}. Unit-wise Estimated P&L`);
     table(
       ['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'],
       [
@@ -340,11 +352,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   if (hasSection('flags')) {
-    sectionTitle('3. Watch Out Flag Summary');
+    sectionTitle(`${isWeekly ? '2' : '3'}. Watch Out Flag Summary`);
     const flags = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').slice(0, 16);
     table(
-      ['Unit', 'KPI', 'Target', 'Today', 'Flag', 'Action Required'],
-      flags.map((row) => [row.unit, row.kpiName, formatValue(row.aopTarget, row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), actionFor(row)]),
+      ['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'],
+      flags.map((row) => [row.unit, row.kpiName, formatValue(row.aopTarget, row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), actionFor(row, { isWeekly })]),
       { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 }
     );
   }
@@ -357,7 +369,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const label = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
       const rows = (data.hotels ?? []).filter((row) => row.unit === unit);
       const sections = [...new Set(rows.map((row) => row.section))].filter(
-        (s) => unit !== 'CP NM' || !cpNmExclude.includes(s)
+        (s) => s !== 'Forecast' && (unit !== 'CP NM' || !cpNmExclude.includes(s))
       );
       for (const section of sections) {
         kpiTable(`${label} - ${section}`, rows.filter((row) => row.section === section), false);
@@ -438,9 +450,9 @@ function revenueFor(rows) {
   return revenueRow?.actual ?? 0;
 }
 
-function actionFor(row) {
+function actionFor(row, { isWeekly = false } = {}) {
   if (row.flag === 'ACTION NEEDED') return 'Manager review before noon.';
-  if (/occupancy/i.test(row.kpiName)) return 'Push pickup and review forecast.';
+  if (/occupancy/i.test(row.kpiName)) return isWeekly ? 'Push pickup and review occupancy pace.' : 'Push pickup and review forecast.';
   if (/cost|purchase/i.test(row.kpiName)) return 'Check purchase and wastage today.';
   if (/sales|revenue|orders|covers|apc/i.test(row.kpiName)) return 'Focus upsell, covers, and channel push.';
   return 'Track closely in daily meeting.';

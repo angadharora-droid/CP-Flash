@@ -29,16 +29,22 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
   const [previewError, setPreviewError] = useState('');
   const [selectedSections, setSelectedSections] = useState(() => PDF_SECTIONS.map((section) => section.key));
   const [draftSections, setDraftSections] = useState(() => PDF_SECTIONS.map((section) => section.key));
+  const [reportType, setReportType] = useState('daily');
+  const [draftReportType, setDraftReportType] = useState('daily');
   const [showSectionPicker, setShowSectionPicker] = useState(true);
   const [hasGenerated, setHasGenerated] = useState(false);
 
-  const previewUrl = reportPdfPreviewUrl(date, authToken, selectedSections);
+  const availableDraftSections = PDF_SECTIONS.filter((section) => draftReportType !== 'weekly' || section.key !== 'bank');
+  const availableDraftKeys = availableDraftSections.map((section) => section.key);
+  const normalizedDraftSections = draftSections.filter((key) => availableDraftKeys.includes(key));
+  const previewUrl = reportPdfPreviewUrl(date, authToken, selectedSections, reportType);
   const appPreviewUrl = objectUrl ? `${objectUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH` : '';
-  const downloadUrl = reportPdfUrl(date, authToken, selectedSections);
+  const downloadUrl = reportPdfUrl(date, authToken, selectedSections, reportType);
   const previewStatus = frameState === 'ready' ? 'Ready' : frameState === 'error' ? 'Preview issue' : 'Loading';
-  const allDraftSelected = draftSections.length === PDF_SECTIONS.length;
+  const allDraftSelected = normalizedDraftSections.length === availableDraftKeys.length;
 
   const toggleDraftSection = (key) => {
+    if (!availableDraftKeys.includes(key)) return;
     setDraftSections((current) => {
       if (current.includes(key)) return current.length === 1 ? current : current.filter((item) => item !== key);
       return [...current, key];
@@ -46,11 +52,22 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
   };
 
   const setAllDraftSections = () => {
-    setDraftSections(PDF_SECTIONS.map((section) => section.key));
+    setDraftSections(availableDraftKeys);
+  };
+
+  const changeDraftReportType = (nextType) => {
+    setDraftReportType(nextType);
+    if (nextType === 'weekly') {
+      setDraftSections((current) => {
+        const nextSections = current.filter((key) => key !== 'bank');
+        return nextSections.length ? nextSections : PDF_SECTIONS.filter((section) => section.key !== 'bank').map((section) => section.key);
+      });
+    }
   };
 
   const openSectionPicker = () => {
     setDraftSections(selectedSections);
+    setDraftReportType(reportType);
     setShowSectionPicker(true);
   };
 
@@ -60,11 +77,13 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
       return;
     }
     setDraftSections(selectedSections);
+    setDraftReportType(reportType);
     setShowSectionPicker(false);
   };
 
   const confirmSections = () => {
-    setSelectedSections(draftSections);
+    setReportType(draftReportType);
+    setSelectedSections(normalizedDraftSections);
     setShowSectionPicker(false);
     setHasGenerated(true);
     setFrameState('loading');
@@ -157,7 +176,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
               ) : null}
             </div>
             <p className="mt-0.5 truncate text-xs text-on-surface-variant">
-              Daily flash report for {date}{lastRefreshed ? ` / refreshed ${lastRefreshed}` : ''}
+              {reportType === 'weekly' ? 'Weekly' : 'Daily'} flash report for {date}{lastRefreshed ? ` / refreshed ${lastRefreshed}` : ''}
             </p>
           </div>
         </div>
@@ -269,6 +288,28 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
             </div>
 
             <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+              <div className="mb-4">
+                <span className="mb-2 block text-xs font-extrabold uppercase tracking-[0.08em] text-on-surface-variant">Report Type</span>
+                <div className="inline-flex rounded-lg border border-outline-variant/70 bg-surface-container-lowest p-1">
+                  {[
+                    ['daily', 'Daily'],
+                    ['weekly', 'Weekly']
+                  ].map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => changeDraftReportType(key)}
+                      className={`h-8 rounded-md px-3 text-xs font-bold transition-colors ${
+                        draftReportType === key
+                          ? 'bg-primary text-on-primary shadow-primary'
+                          : 'text-on-surface-variant hover:bg-surface-container-high'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-on-surface-variant">Sections</span>
                 <button
@@ -282,8 +323,8 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {PDF_SECTIONS.map((section) => {
-                  const checked = draftSections.includes(section.key);
+                {availableDraftSections.map((section) => {
+                  const checked = normalizedDraftSections.includes(section.key);
                   return (
                     <label
                       key={section.key}
@@ -310,7 +351,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
               <ActionButton onClick={cancelSectionPicker}>
                 {hasGenerated ? 'Cancel' : 'Close'}
               </ActionButton>
-              <ActionButton onClick={confirmSections} variant="primary" disabled={draftSections.length === 0}>
+              <ActionButton onClick={confirmSections} variant="primary" disabled={normalizedDraftSections.length === 0}>
                 <MIcon name="picture_as_pdf" className="text-[17px]" />
                 {hasGenerated ? 'Update Preview' : 'Generate Preview'}
               </ActionButton>
