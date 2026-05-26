@@ -398,54 +398,23 @@ export function PinGate({ onUnlock }) {
 
       <form
         onSubmit={submit}
-        className="relative z-10 mx-auto grid min-h-[calc(100vh-3rem)] w-full max-w-5xl animate-fade-in-up overflow-hidden rounded-2xl border border-outline-variant/70 bg-surface-container-lowest shadow-cardHover lg:min-h-[38rem] lg:grid-cols-[1.08fr_0.92fr]"
+        className="relative z-10 mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-[28rem] animate-fade-in-up items-center sm:min-h-0 lg:min-h-0"
       >
-        <section className="relative flex min-h-[17rem] flex-col justify-between overflow-hidden bg-[#fbf7f0] px-6 py-7 text-on-surface sm:px-8 lg:min-h-0 lg:p-9">
-          <div className="absolute inset-x-0 top-0 h-1 bg-accent-stripe" />
-          <div className="absolute inset-y-8 right-0 w-px bg-outline-variant/60" />
-          <div className="absolute -right-20 top-10 size-64 rounded-full border border-[#d8b15c]/25" />
-          <div className="absolute -bottom-24 left-8 size-72 rounded-full border border-primary/15" />
-
-          <div className="relative">
+        <section className="w-full overflow-hidden rounded-2xl border border-outline-variant/70 bg-surface-container-lowest shadow-cardHover">
+          <div className="border-b border-outline-variant/60 bg-surface-container-lowest px-5 py-6 text-center sm:px-8">
             <div
-              className="flex items-center justify-center rounded-2xl border border-[#e2d4bd] bg-white p-2.5"
-              style={{ width: '5rem', height: '5rem', boxShadow: '0 24px 60px -32px rgba(154, 90, 0, 0.42)' }}
+              className="mx-auto flex items-center justify-center rounded-2xl border border-outline-variant/70 bg-white p-2.5"
+              style={{ width: '5rem', height: '5rem', boxShadow: '0 24px 60px -32px rgba(8, 120, 108, 0.52)' }}
             >
               <img src={cpLogo} alt="Centre Point logo" className="h-full w-full object-contain" />
             </div>
-            <div className="mt-7 text-[10px] font-bold uppercase tracking-[0.28em] text-[#9a5a00]">Centre Point Nagpur</div>
-            <h1 className="mt-2 max-w-sm text-[32px] font-bold leading-9 tracking-tight text-on-surface sm:text-[38px] sm:leading-10">
-              Stay Centered
-            </h1>
-            <p className="mt-4 max-w-sm text-sm font-medium leading-6 text-on-surface-variant">
-              DailyFlash keeps the hotel’s operating picture close at hand, from arrivals to dining and events.
-            </p>
+            <div className="mt-5 text-[10px] font-bold uppercase tracking-[0.28em] text-primary">DailyFlash</div>
+            <h1 className="mt-2 text-display-mobile font-bold tracking-tight text-on-surface">CP Flash Report</h1>
+            <p className="mt-1.5 text-sm font-medium text-on-surface-variant">Centre Point Hospitality Group</p>
           </div>
 
-          <div className="relative mt-8">
-            <div className="grid grid-cols-3 overflow-hidden rounded-xl border border-[#e2d4bd] bg-white/75 shadow-sm">
-              <div className="border-r border-[#eadfce] px-3 py-3">
-                <div className="num text-lg font-bold text-primary">136</div>
-                <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">Rooms</div>
-              </div>
-              <div className="border-r border-[#eadfce] px-3 py-3">
-                <div className="num text-lg font-bold text-secondary">4</div>
-                <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">Dining</div>
-              </div>
-              <div className="px-3 py-3">
-                <div className="num text-lg font-bold text-[#9a5a00]">35k+</div>
-                <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">MICE</div>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center gap-2 text-xs font-bold text-on-surface-variant">
-              <MIcon name="location_on" filled className="text-[17px] text-primary" />
-              Ramdaspeth, Nagpur
-            </div>
-          </div>
-        </section>
-
-        <section className="flex items-center bg-surface-container-lowest px-5 py-7 sm:px-8 lg:px-10">
-          <div className="w-full">
+          <div className="px-5 py-7 sm:px-8">
+            <div className="w-full">
             <div className="mb-7 flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Secure Access</p>
@@ -527,6 +496,7 @@ export function PinGate({ onUnlock }) {
             <div className="mt-5 flex items-center justify-center gap-2 text-xs font-semibold text-on-surface-variant">
               <MIcon name="shield_lock" filled className="text-[16px] text-primary" />
               Authorized access only
+            </div>
             </div>
           </div>
         </section>
