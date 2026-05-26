@@ -628,12 +628,6 @@ export default function App() {
       {/* ---- Main content ---- */}
       <main className="min-h-screen px-3 pb-28 pt-20 transition-all duration-300 sm:px-4 md:ml-72 md:pb-12 md:pt-24 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <div className="mx-auto max-w-[110rem] 2xl:max-w-[120rem]">
-          {status && refreshing ? (
-            <div className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-on-surface-variant">
-              <BrandLoader size={18} />
-              {status}
-            </div>
-          ) : null}
           {data && !Object.values(data.importSource ?? {}).some((v) => v) ? (
             <div className="glass-card mb-6 flex items-start gap-3 border border-tertiary/30 bg-tertiary-container/60 px-5 py-4 text-sm text-on-tertiary-container animate-fade-in-up">
               <MIcon name="warning" filled className="shrink-0 text-tertiary" />

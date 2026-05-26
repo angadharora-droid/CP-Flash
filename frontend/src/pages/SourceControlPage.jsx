@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BrandLoader, statusTone } from '../components/DashboardUi';
+import { statusTone } from '../components/DashboardUi';
 import { getEmailImportStatus, getSourceStatus, runEmailImport } from '../lib/api';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
