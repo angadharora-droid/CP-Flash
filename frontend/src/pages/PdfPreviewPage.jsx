@@ -19,6 +19,59 @@ const PDF_SECTIONS = [
   { key: 'settlement', label: 'Settlement' }
 ];
 
+const pad = (n) => String(n).padStart(2, '0');
+const isoFromUtc = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+
+function monthKeyFromDate(dateStr) {
+  return dateStr.slice(0, 7);
+}
+
+function buildMonthOptions(referenceDate, count = 12) {
+  const [refYear, refMonth] = referenceDate.slice(0, 7).split('-').map(Number);
+  const options = [];
+  for (let i = 0; i < count; i += 1) {
+    const d = new Date(Date.UTC(refYear, refMonth - 1 - i, 1));
+    const key = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
+    const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    options.push({ key, label });
+  }
+  return options;
+}
+
+function buildWeekOptions(monthKey) {
+  const [year, month] = monthKey.split('-').map(Number);
+  const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
+  const lastOfMonth = new Date(Date.UTC(year, month, 0));
+  const day = firstOfMonth.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const cursor = new Date(firstOfMonth);
+  cursor.setUTCDate(cursor.getUTCDate() + mondayOffset);
+  const weeks = [];
+  let weekNo = 1;
+  while (cursor <= lastOfMonth) {
+    const start = new Date(cursor);
+    const end = new Date(cursor);
+    end.setUTCDate(end.getUTCDate() + 6);
+    const fmt = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' });
+    weeks.push({
+      key: isoFromUtc(start),
+      end: isoFromUtc(end),
+      label: `W${weekNo}: ${fmt(start)} – ${fmt(end)}`
+    });
+    cursor.setUTCDate(cursor.getUTCDate() + 7);
+    weekNo += 1;
+  }
+  return weeks;
+}
+
+function weekStartContaining(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00.000Z`);
+  const day = d.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + mondayOffset);
+  return isoFromUtc(d);
+}
+
 export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
   const [pdfKey, setPdfKey] = useState(0);
   const [frameState, setFrameState] = useState('loading');
@@ -31,15 +84,24 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
   const [draftSections, setDraftSections] = useState(() => PDF_SECTIONS.map((section) => section.key));
   const [reportType, setReportType] = useState('daily');
   const [draftReportType, setDraftReportType] = useState('daily');
+  const initialWeekStart = weekStartContaining(date);
+  const [weekStart, setWeekStart] = useState(initialWeekStart);
+  const [draftWeekMonth, setDraftWeekMonth] = useState(monthKeyFromDate(initialWeekStart));
+  const [draftWeekStart, setDraftWeekStart] = useState(initialWeekStart);
   const [showSectionPicker, setShowSectionPicker] = useState(true);
   const [hasGenerated, setHasGenerated] = useState(false);
 
+  const monthOptions = buildMonthOptions(date, 12);
+  const draftWeekOptions = buildWeekOptions(draftWeekMonth);
+  const activeDraftWeekStart = draftWeekOptions.find((week) => week.key === draftWeekStart)?.key
+    ?? draftWeekOptions[0]?.key
+    ?? initialWeekStart;
   const availableDraftSections = PDF_SECTIONS.filter((section) => draftReportType !== 'weekly' || section.key !== 'bank');
   const availableDraftKeys = availableDraftSections.map((section) => section.key);
   const normalizedDraftSections = draftSections.filter((key) => availableDraftKeys.includes(key));
-  const previewUrl = reportPdfPreviewUrl(date, authToken, selectedSections, reportType);
+  const previewUrl = reportPdfPreviewUrl(date, authToken, selectedSections, reportType, reportType === 'weekly' ? weekStart : '');
   const appPreviewUrl = objectUrl ? `${objectUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH` : '';
-  const downloadUrl = reportPdfUrl(date, authToken, selectedSections, reportType);
+  const downloadUrl = reportPdfUrl(date, authToken, selectedSections, reportType, reportType === 'weekly' ? weekStart : '');
   const previewStatus = frameState === 'ready' ? 'Ready' : frameState === 'error' ? 'Preview issue' : 'Loading';
   const allDraftSelected = normalizedDraftSections.length === availableDraftKeys.length;
 
@@ -65,9 +127,17 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
     }
   };
 
+  const changeDraftWeekMonth = (monthKey) => {
+    setDraftWeekMonth(monthKey);
+    const weeks = buildWeekOptions(monthKey);
+    if (weeks.length) setDraftWeekStart(weeks[0].key);
+  };
+
   const openSectionPicker = () => {
     setDraftSections(selectedSections);
     setDraftReportType(reportType);
+    setDraftWeekMonth(monthKeyFromDate(weekStart));
+    setDraftWeekStart(weekStart);
     setShowSectionPicker(true);
   };
 
@@ -78,12 +148,15 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
     }
     setDraftSections(selectedSections);
     setDraftReportType(reportType);
+    setDraftWeekMonth(monthKeyFromDate(weekStart));
+    setDraftWeekStart(weekStart);
     setShowSectionPicker(false);
   };
 
   const confirmSections = () => {
     setReportType(draftReportType);
     setSelectedSections(normalizedDraftSections);
+    if (draftReportType === 'weekly') setWeekStart(activeDraftWeekStart);
     setShowSectionPicker(false);
     setHasGenerated(true);
     setFrameState('loading');
@@ -176,7 +249,10 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
               ) : null}
             </div>
             <p className="mt-0.5 truncate text-xs text-on-surface-variant">
-              {reportType === 'weekly' ? 'Weekly' : 'Daily'} flash report for {date}{lastRefreshed ? ` / refreshed ${lastRefreshed}` : ''}
+              {reportType === 'weekly'
+                ? `Weekly flash report (week of ${weekStart})`
+                : `Daily flash report for ${date}`}
+              {lastRefreshed ? ` / refreshed ${lastRefreshed}` : ''}
             </p>
           </div>
         </div>
@@ -310,6 +386,34 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
                   ))}
                 </div>
               </div>
+              {draftReportType === 'weekly' ? (
+                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-extrabold uppercase tracking-[0.08em] text-on-surface-variant">Month</span>
+                    <select
+                      value={draftWeekMonth}
+                      onChange={(event) => changeDraftWeekMonth(event.target.value)}
+                      className="h-9 w-full rounded-md border border-outline-variant/70 bg-surface-container-lowest px-2 text-xs font-bold text-on-surface focus:border-primary focus:outline-none"
+                    >
+                      {monthOptions.map((option) => (
+                        <option key={option.key} value={option.key}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-extrabold uppercase tracking-[0.08em] text-on-surface-variant">Week</span>
+                    <select
+                      value={activeDraftWeekStart}
+                      onChange={(event) => setDraftWeekStart(event.target.value)}
+                      className="h-9 w-full rounded-md border border-outline-variant/70 bg-surface-container-lowest px-2 text-xs font-bold text-on-surface focus:border-primary focus:outline-none"
+                    >
+                      {draftWeekOptions.map((option) => (
+                        <option key={option.key} value={option.key}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : null}
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-on-surface-variant">Sections</span>
                 <button
