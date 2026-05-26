@@ -103,8 +103,8 @@ export const dailySources = [
   },
   {
     id: 'rabbits-sales',
-    label: 'Rabbits POS EOD',
-    unit: 'Rabbits',
+    label: 'Rabbit POS EOD',
+    unit: 'Rabbit',
     type: 'Mail / POS',
     paths: ['rabbits', 'settlement'],
     meta: {

@@ -147,7 +147,7 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
   }
 
   let rabbitSplit = null;
-  if (outlet === 'Rabbits') {
+  if (outlet === 'Rabbit') {
     rabbitSplit = buildAreaSplit(rows);
     const totalOrders = rabbitSplit.swiggy.orders + rabbitSplit.zomato.orders + rabbitSplit.direct.orders;
     const totalRevenue = rabbitSplit.swiggy.revenue + rabbitSplit.zomato.revenue + rabbitSplit.direct.revenue;

@@ -14,7 +14,7 @@ import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
 import { buildSourceStatus } from './sources.js';
-import { normalizeRabbitsCategoryBreakdown, UNITS } from './schema.js';
+import { normalizeRabbitCategoryBreakdown, UNITS } from './schema.js';
 import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
 import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
 import { readAopTargets, writeAopTargets, applyDailyTargetOverrides, collectKpiCatalog } from './aopTargets.js';
@@ -287,14 +287,18 @@ function numberValue(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function canonicalUnit(unit) {
+  return unit === 'Rabbit' + 's' ? 'Rabbit' : unit;
+}
+
 function firstKpiValue(rows = [], unit, names = []) {
-  const match = rows.find((row) => row.unit === unit && names.some((name) => row.name === name));
+  const match = rows.find((row) => canonicalUnit(row.unit) === unit && names.some((name) => row.name === name));
   return match?.actual;
 }
 
 function sumKpiValues(rows = [], unit, names = []) {
   const total = rows
-    .filter((row) => row.unit === unit && names.some((name) => row.name === name))
+    .filter((row) => canonicalUnit(row.unit) === unit && names.some((name) => row.name === name))
     .reduce((sum, row) => sum + numberValue(row.actual), 0);
   return total ? String(Math.round(total * 100) / 100) : '';
 }
@@ -305,14 +309,14 @@ function derivePnlRows(data) {
     'CP NM': () => sumKpiValues(data.hotels, 'CP NM', ['Room Revenue', 'Meeting Point Revenue', 'Freakk Revenue', 'Bougainvillea Revenue', 'High Steaks Revenue', 'In-Room Dining Revenue', 'Revenue Today']),
     Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Gross Sales']),
     Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Gross Sales']),
-    Rabbits: () => firstKpiValue(data.rabbits, 'Rabbits', ['Total Revenue']),
+    Rabbit: () => firstKpiValue(data.rabbits, 'Rabbit', ['Total Revenue']),
     "Micky's": () => firstKpiValue(data.mickys, "Micky's", ['Order Revenue Today']),
     Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['Total Revenue Today'])
   };
   const purchasesByUnit = {
     Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Total Purchase']),
     Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Total Purchase']),
-    Rabbits: () => firstKpiValue(data.rabbits, 'Rabbits', ['Purchase/RM Cost Today']),
+    Rabbit: () => firstKpiValue(data.rabbits, 'Rabbit', ['Purchase/RM Cost Today']),
     Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['RM Cost Today'])
   };
   return (data.pnl ?? []).map((row) => {
@@ -323,11 +327,11 @@ function derivePnlRows(data) {
 }
 
 function mergePnlRows(seedRows = [], savedRows = []) {
-  const savedByUnit = new Map(savedRows.map((row) => [row.unit, row]));
+  const savedByUnit = new Map(savedRows.map((row) => [canonicalUnit(row.unit), row]));
   return seedRows.map((seedRow) => {
     const savedRow = savedByUnit.get(seedRow.unit);
     if (!savedRow) return seedRow;
-    if (hasEnteredPnlValues(savedRow)) return { ...seedRow, ...savedRow };
+    if (hasEnteredPnlValues(savedRow)) return { ...seedRow, ...savedRow, unit: seedRow.unit };
     return seedRow;
   });
 }
@@ -335,12 +339,12 @@ function mergePnlRows(seedRows = [], savedRows = []) {
 function mergeSeedKpiRows(seedRows = [], savedRows = []) {
   if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
   const savedById = new Map(savedRows.map((row) => [row.id, row]));
-  const savedByUnitAndName = new Map(savedRows.map((row) => [`${row.unit ?? ''}::${row.name ?? ''}`, row]));
+  const savedByUnitAndName = new Map(savedRows.map((row) => [`${canonicalUnit(row.unit) ?? ''}::${row.name ?? ''}`, row]));
   const seen = new Set();
   const mergedSeedRows = seedRows.map((seedRow) => {
-    const savedRow = savedById.get(seedRow.id) ?? savedByUnitAndName.get(`${seedRow.unit ?? ''}::${seedRow.name ?? ''}`);
+    const savedRow = savedById.get(seedRow.id) ?? savedByUnitAndName.get(`${canonicalUnit(seedRow.unit) ?? ''}::${seedRow.name ?? ''}`);
     if (savedRow?.id) seen.add(savedRow.id);
-    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id, section: seedRow.section } : seedRow;
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id, unit: seedRow.unit, section: seedRow.section } : seedRow;
   });
   const extraRows = savedRows.filter((row) => !seen.has(row.id));
   return [...mergedSeedRows, ...extraRows];
@@ -359,7 +363,7 @@ function mergeDailyData(seed, saved) {
     },
     pnl: mergePnlRows(seed.pnl, saved.pnl)
   };
-  return normalizeRabbitsCategoryBreakdown({ ...merged, pnl: derivePnlRows(merged) });
+  return normalizeRabbitCategoryBreakdown({ ...merged, pnl: derivePnlRows(merged) });
 }
 
 let cachedAopTargets = null;

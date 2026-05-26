@@ -1,4 +1,4 @@
-export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbits', "Micky's", 'Purosoul'];
+export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbit', "Micky's", 'Purosoul'];
 
 export const settlementModes = [
   'Cash',

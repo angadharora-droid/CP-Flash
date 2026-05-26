@@ -35,7 +35,7 @@ export function buildSeedData() {
     pnl: UNITS.map((unit) => ({ unit, revenueToday: '', purchasesToday: '', fixedCost: fixedCostDefaults[unit], mtdNetProfit: '', ytdNetProfit: '' })),
     hotels,
     fnb,
-    rabbits: schemaRowsToKpis('Rabbits', 'rabbits', pageSchemas.rabbits),
+    rabbits: schemaRowsToKpis('Rabbit', 'rabbits', pageSchemas.rabbits),
     mickys: schemaRowsToKpis("Micky's", 'mickys', pageSchemas.mickys),
     purosoul: schemaRowsToKpis('Purosoul', 'purosoul', pageSchemas.purosoul),
     settlement: {},

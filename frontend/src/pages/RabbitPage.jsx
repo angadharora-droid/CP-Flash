@@ -2,10 +2,10 @@ import React from 'react';
 import { SECTION_ICONS } from '../components/DashboardUi';
 import GroupedKpiPage from './GroupedKpiPage';
 
-export default function RabbitsPage({ data, date }) {
+export default function RabbitPage({ data, date }) {
   return (
     <GroupedKpiPage
-      title="Rabbits Data"
+      title="Rabbit Data"
       subtitle="Cloud kitchen sales, platform split, category, and cost KPIs."
       dataKey="rabbits"
       data={data}

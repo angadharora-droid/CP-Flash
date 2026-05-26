@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSeedData } from './excel.js';
-import { normalizeRabbitsCategoryBreakdown } from './schema.js';
+import { normalizeRabbitCategoryBreakdown } from './schema.js';
 import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 function num(str) {
@@ -166,8 +166,8 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
 
   const data = (await readDailyJson(outDate)) ?? buildSeedData();
 
-  if (outlet === 'Rabbits') {
-    normalizeRabbitsCategoryBreakdown(data);
+  if (outlet === 'Rabbit') {
+    normalizeRabbitCategoryBreakdown(data);
   } else if (outlet === 'Pablo' || outlet === 'Dali') {
     const seed = buildSeedData();
     data.fnb = {
@@ -197,7 +197,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const key = outlet.toLowerCase();
   const hasPaymentImport = Boolean(data.importSource?.[`${key}PaymentImportedAt`]);
 
-  if (outlet === 'Rabbits') {
+  if (outlet === 'Rabbit') {
     if (!hasPaymentImport) {
       setKpi('Total Revenue', grossSales);
       setKpi('Total Orders', bills);

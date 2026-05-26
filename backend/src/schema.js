@@ -1,11 +1,11 @@
-export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbits', "Micky's", 'Purosoul'];
+export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbit', "Micky's", 'Purosoul'];
 
 export const fixedCostDefaults = {
   'CP Nagpur': 185000,
   'CP NM': 135000,
   Pablo: 42000,
   Dali: 36000,
-  Rabbits: 9000,
+  Rabbit: 9000,
   "Micky's": 12000,
   Purosoul: 8000
 };
@@ -140,15 +140,15 @@ export function schemaRowsToKpis(unit, pageKey, sections) {
   );
 }
 
-export function normalizeRabbitsCategoryBreakdown(data) {
+export function normalizeRabbitCategoryBreakdown(data) {
   if (!data?.rabbits) return data;
 
   const categorySection = pageSchemas.rabbits.find((section) => section.title === 'Category Breakdown');
-  const fixedRows = schemaRowsToKpis('Rabbits', 'rabbits', [categorySection]);
+  const fixedRows = schemaRowsToKpis('Rabbit', 'rabbits', [categorySection]);
   const savedByName = new Map(data.rabbits.map((row) => [row.name, row]));
   const normalizedCategoryRows = fixedRows.map((seedRow) => {
     const savedRow = savedByName.get(seedRow.name);
-    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
+    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id, unit: seedRow.unit } : seedRow;
   });
   const nextRows = [];
   let inserted = false;
@@ -161,7 +161,7 @@ export function normalizeRabbitsCategoryBreakdown(data) {
       }
       continue;
     }
-    nextRows.push(row);
+    nextRows.push({ ...row, unit: row.unit === 'Rabbit' + 's' ? 'Rabbit' : row.unit });
   }
 
   data.rabbits = inserted ? nextRows : [...data.rabbits, ...normalizedCategoryRows];
