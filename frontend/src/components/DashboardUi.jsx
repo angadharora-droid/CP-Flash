@@ -392,58 +392,93 @@ export function PinGate({ onUnlock }) {
   };
 
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-surface px-4 py-8 sm:px-6">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-44 border-b border-outline-variant/45 bg-surface-container-lowest/70" />
-      <form onSubmit={submit} className="relative z-10 w-full max-w-[28rem] animate-fade-in-up">
-        <div className="glass-card overflow-hidden border-outline-variant/70 shadow-cardHover">
-          <div className="bg-surface-container-lowest px-6 pb-6 pt-7 text-center sm:px-8">
+    <main className="relative min-h-screen overflow-hidden bg-surface px-4 py-6 sm:px-6 lg:grid lg:place-items-center">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#ffffff_0%,#f4f6f8_42%,#eef2f5_100%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-accent-stripe" />
+
+      <form
+        onSubmit={submit}
+        className="relative z-10 mx-auto grid min-h-[calc(100vh-3rem)] w-full max-w-5xl animate-fade-in-up overflow-hidden rounded-2xl border border-outline-variant/70 bg-surface-container-lowest shadow-cardHover lg:min-h-[38rem] lg:grid-cols-[1.08fr_0.92fr]"
+      >
+        <section className="relative flex min-h-[17rem] flex-col justify-between overflow-hidden bg-inverse-surface px-6 py-7 text-inverse-on-surface sm:px-8 lg:min-h-0 lg:p-9">
+          <div className="absolute inset-x-0 top-0 h-1 bg-accent-stripe" />
+          <div className="absolute -right-16 -top-16 size-56 rounded-full border border-white/10" />
+          <div className="absolute -bottom-24 left-10 size-72 rounded-full border border-white/10" />
+
+          <div className="relative">
             <div
-              className="mx-auto flex items-center justify-center rounded-2xl border border-outline-variant/70 bg-surface p-2.5"
-              style={{ width: '5rem', height: '5rem', boxShadow: '0 24px 60px -28px rgba(8, 120, 108, 0.75)' }}
+              className="flex items-center justify-center rounded-2xl border border-white/15 bg-white p-2.5"
+              style={{ width: '5rem', height: '5rem', boxShadow: '0 24px 60px -30px rgba(255, 255, 255, 0.55)' }}
             >
               <img src={cpLogo} alt="Centre Point logo" className="h-full w-full object-contain" />
             </div>
-            <div className="mt-5 text-[10px] font-bold uppercase tracking-[0.28em] text-primary">DailyFlash</div>
-            <h1 className="mt-2 text-display-mobile font-bold tracking-tight text-on-surface">CP Flash Report</h1>
-            <p className="mt-1.5 text-sm font-medium text-on-surface-variant">Centre Point Hospitality Group</p>
+            <div className="mt-7 text-[10px] font-bold uppercase tracking-[0.28em] text-inverse-primary">DailyFlash</div>
+            <h1 className="mt-2 max-w-sm text-[30px] font-bold leading-9 tracking-tight text-white sm:text-[34px] sm:leading-10">
+              CP Flash Report
+            </h1>
+            <p className="mt-3 max-w-sm text-sm font-medium leading-6 text-inverse-on-surface/74">
+              Centre Point Hospitality Group
+            </p>
           </div>
 
-          <div className="border-y border-outline-variant/45 bg-surface-container-low px-5 py-3 sm:px-7">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Secure Access</p>
-                <p className="mt-0.5 text-sm font-bold text-on-surface">Enter your dashboard PIN</p>
+          <div className="relative mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3">
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-inverse-primary">
+                <MIcon name="verified_user" filled className="text-[17px]" />
+                Private Console
               </div>
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
-                <MIcon name="lock" filled className="text-[21px]" />
+              <p className="mt-1 text-xs font-medium text-inverse-on-surface/68">Session access stays on this device.</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3">
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#f4c36d]">
+                <MIcon name="bolt" filled className="text-[17px]" />
+                Daily Ops
               </div>
+              <p className="mt-1 text-xs font-medium text-inverse-on-surface/68">Fast access to live report views.</p>
             </div>
           </div>
+        </section>
 
-          <div className="px-5 py-7 sm:px-8 sm:py-8">
-            <label className={`relative mx-auto flex w-full max-w-[20rem] cursor-text items-center justify-center gap-4 rounded-xl border bg-surface-container-lowest px-5 py-5 transition-all duration-200 ${
+        <section className="flex items-center bg-surface-container-lowest px-5 py-7 sm:px-8 lg:px-10">
+          <div className="w-full">
+            <div className="mb-7 flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Secure Access</p>
+                <h2 className="mt-2 text-headline-md font-bold tracking-tight text-on-surface">Enter PIN</h2>
+              </div>
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                <MIcon name="lock" filled className="text-[22px]" />
+              </div>
+            </div>
+
+            <label className={`relative flex w-full cursor-text items-center justify-center gap-2.5 rounded-xl border bg-surface-container-low px-3 py-3.5 transition-all duration-200 sm:gap-3 sm:px-4 sm:py-4 ${
               shake
                 ? 'border-error/60 shadow-[0_0_0_5px_rgba(186,26,26,0.16)] animate-shake'
                 : focused
                   ? 'border-primary/70 shadow-[0_0_0_5px_rgba(8,120,108,0.14)]'
-                  : 'border-outline-variant/65 shadow-sm'
+                  : 'border-outline-variant/70'
             }`}>
               {Array.from({ length: 6 }, (_, i) => {
                 const filled = i < pin.length;
                 const current = i === pin.length && focused;
+                const slotBase = shake
+                  ? 'border-error/45 bg-error/10'
+                  : current
+                    ? 'border-primary/60 bg-primary/10'
+                    : filled
+                      ? 'border-primary/30 bg-primary/10'
+                      : 'border-outline-variant/70 bg-surface-container-lowest';
                 const dotBase = shake
-                  ? 'scale-110 bg-error'
+                  ? 'bg-error'
                   : filled
-                    ? 'scale-110 bg-primary'
-                    : 'bg-outline-variant/40';
-                const dotShadow = shake
-                  ? { boxShadow: '0 0 0 4px rgba(186, 26, 26, 0.20)' }
-                  : filled
-                    ? { boxShadow: '0 0 0 4px rgba(8, 120, 108, 0.18)' }
-                    : undefined;
+                    ? 'bg-primary'
+                    : current
+                      ? 'bg-primary/40'
+                      : 'bg-transparent';
                 return (
-                  <span key={i} className={`relative flex h-3.5 w-3.5 items-center justify-center rounded-full transition-all duration-300 ${dotBase}`} style={dotShadow}>
-                    {current && !shake ? <span className="absolute inset-0 -m-1 animate-ping rounded-full bg-primary/40" /> : null}
+                  <span key={i} className={`relative flex h-12 flex-1 items-center justify-center rounded-lg border transition-all duration-200 ${slotBase}`}>
+                    <span className={`size-2.5 rounded-full transition-all duration-200 ${dotBase}`} />
+                    {current && !shake ? <span className="absolute inset-x-3 bottom-2 h-0.5 rounded-full bg-primary" /> : null}
                   </span>
                 );
               })}
@@ -474,7 +509,7 @@ export function PinGate({ onUnlock }) {
             <button
               type="submit"
               disabled={loading || isLocked || pin.length < 4}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-sm font-bold uppercase tracking-[0.05em] text-on-primary shadow-md shadow-primary/30 transition-all duration-200 hover:bg-primary-container hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold uppercase tracking-[0.05em] text-on-primary shadow-primary transition-all duration-200 hover:bg-primary-container hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-surface-container-high disabled:text-on-surface-variant disabled:shadow-none"
             >
               {loading ? (
                 <>
@@ -484,11 +519,12 @@ export function PinGate({ onUnlock }) {
               ) : isLocked ? `Blocked ${lockoutRemaining || ''}` : 'Unlock Dashboard'}
             </button>
 
-            <p className="mt-4 text-center text-xs font-medium leading-5 text-on-surface-variant">
-              Authorized access for daily operations.
-            </p>
+            <div className="mt-5 flex items-center justify-center gap-2 text-xs font-semibold text-on-surface-variant">
+              <MIcon name="shield_lock" filled className="text-[16px] text-primary" />
+              Authorized access only
+            </div>
           </div>
-        </div>
+        </section>
       </form>
     </main>
   );
