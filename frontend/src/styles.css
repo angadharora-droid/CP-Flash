@@ -193,6 +193,7 @@ input[type='date'] {
     position: relative;
     height: var(--brand-loader-size, 64px);
     width: var(--brand-loader-size, 64px);
+    --brand-loader-spin-duration: 4s;
     isolation: isolate;
   }
 
@@ -213,7 +214,7 @@ input[type='date'] {
   }
 
   .brand-loader-petals {
-    animation: brand-petal-spin 4s linear infinite;
+    animation: brand-petal-spin var(--brand-loader-spin-duration) linear infinite;
     backface-visibility: hidden;
     filter: drop-shadow(0 6px 14px rgba(167, 0, 98, 0.16));
     transform-origin: 50% 50%;
@@ -249,12 +250,5 @@ input[type='date'] {
   }
   to {
     transform: translateZ(0) scale(1.03) rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .brand-loader-petals {
-    animation-duration: 12s;
-    animation-timing-function: linear;
   }
 }
