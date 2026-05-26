@@ -123,8 +123,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
   if (isWeekly) enabledSections.delete('bank');
 
   const FIRST_PAGE_TOP = 124;
-  const SUBSEQUENT_PAGE_TOP = 64;
-  const contentBottom = 790;
+  const SUBSEQUENT_PAGE_TOP = 44;
+  const contentBottom = 776;
   const width = doc.page.width - 72;
 
   function decoratePage() {
@@ -163,9 +163,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
     }
 
     // Footer
-    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, 808).lineTo(559, 808).stroke();
-    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(`Centre Point Hospitality | ${isWeekly ? 'Weekly' : 'Daily'} Flash Report | Internal Use Only`, 36, 816, { lineBreak: false });
-    doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(6.5).text(`Page ${pageNo}`, 36, 816, { width: width, align: 'right', lineBreak: false });
+    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, 790).lineTo(559, 790).stroke();
+    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(`Centre Point Hospitality | ${isWeekly ? 'Weekly' : 'Daily'} Flash Report | Internal Use Only`, 36, 798, { lineBreak: false });
+    doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(6.5).text(`Page ${pageNo}`, 36, 798, { width, align: 'right', lineBreak: false });
     doc.restore();
     doc.y = pageNo === 1 ? FIRST_PAGE_TOP : SUBSEQUENT_PAGE_TOP;
   }
@@ -249,6 +249,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   function table(columns, rows, options = {}) {
+    if (!rows.length) return;
     const rowHeight = options.rowHeight ?? 22;
     const headerHeight = options.headerHeight ?? rowHeight;
     const colWidths = options.widths ?? columns.map(() => width / columns.length);
@@ -421,13 +422,15 @@ export function createDailyFlashPdf(data, date, options = {}) {
   if (hasSection('flags')) {
     const flags = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').slice(0, 16);
     const flagTableRows = flags.map((row) => [row.unit, row.kpiName, formatValue(row.aopTarget, row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), actionFor(row, { isWeekly })]);
-    const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
-    sectionTitle('Watch Out Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
-    table(
-      ['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'],
-      flagTableRows,
-      flagTableOptions
-    );
+    if (flagTableRows.length) {
+      const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
+      sectionTitle('Watch Out Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
+      table(
+        ['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'],
+        flagTableRows,
+        flagTableOptions
+      );
+    }
   }
 
   if (hasSection('hotels')) {
@@ -483,13 +486,15 @@ export function createDailyFlashPdf(data, date, options = {}) {
       kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section), true);
     }
     const skuTableRows = (data.purosoulSku ?? []).map((row) => [row.sku, row.produced || '-', row.dispatched || '-', numberValue(row.produced) - numberValue(row.dispatched), row.mtd || '-', row.ytd || '-']);
-    const skuTableOptions = { widths: [100, 80, 90, 90, 80, 83] };
-    sectionTitle('Purosoul - SKU Production & Dispatch', tablePreviewHeight(skuTableRows, skuTableOptions));
-    table(
-      ['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD', 'YTD'],
-      skuTableRows,
-      skuTableOptions
-    );
+    if (skuTableRows.length) {
+      const skuTableOptions = { widths: [100, 80, 90, 90, 80, 83] };
+      sectionTitle('Purosoul - SKU Production & Dispatch', tablePreviewHeight(skuTableRows, skuTableOptions));
+      table(
+        ['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD', 'YTD'],
+        skuTableRows,
+        skuTableOptions
+      );
+    }
   }
 
   if (hasSection('settlement')) {
