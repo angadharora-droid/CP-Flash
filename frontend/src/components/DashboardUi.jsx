@@ -400,41 +400,46 @@ export function PinGate({ onUnlock }) {
         onSubmit={submit}
         className="relative z-10 mx-auto grid min-h-[calc(100vh-3rem)] w-full max-w-5xl animate-fade-in-up overflow-hidden rounded-2xl border border-outline-variant/70 bg-surface-container-lowest shadow-cardHover lg:min-h-[38rem] lg:grid-cols-[1.08fr_0.92fr]"
       >
-        <section className="relative flex min-h-[17rem] flex-col justify-between overflow-hidden bg-inverse-surface px-6 py-7 text-inverse-on-surface sm:px-8 lg:min-h-0 lg:p-9">
+        <section className="relative flex min-h-[17rem] flex-col justify-between overflow-hidden bg-[#fbf7f0] px-6 py-7 text-on-surface sm:px-8 lg:min-h-0 lg:p-9">
           <div className="absolute inset-x-0 top-0 h-1 bg-accent-stripe" />
-          <div className="absolute -right-16 -top-16 size-56 rounded-full border border-white/10" />
-          <div className="absolute -bottom-24 left-10 size-72 rounded-full border border-white/10" />
+          <div className="absolute inset-y-8 right-0 w-px bg-outline-variant/60" />
+          <div className="absolute -right-20 top-10 size-64 rounded-full border border-[#d8b15c]/25" />
+          <div className="absolute -bottom-24 left-8 size-72 rounded-full border border-primary/15" />
 
           <div className="relative">
             <div
-              className="flex items-center justify-center rounded-2xl border border-white/15 bg-white p-2.5"
-              style={{ width: '5rem', height: '5rem', boxShadow: '0 24px 60px -30px rgba(255, 255, 255, 0.55)' }}
+              className="flex items-center justify-center rounded-2xl border border-[#e2d4bd] bg-white p-2.5"
+              style={{ width: '5rem', height: '5rem', boxShadow: '0 24px 60px -32px rgba(154, 90, 0, 0.42)' }}
             >
               <img src={cpLogo} alt="Centre Point logo" className="h-full w-full object-contain" />
             </div>
-            <div className="mt-7 text-[10px] font-bold uppercase tracking-[0.28em] text-inverse-primary">DailyFlash</div>
-            <h1 className="mt-2 max-w-sm text-[30px] font-bold leading-9 tracking-tight text-white sm:text-[34px] sm:leading-10">
-              CP Flash Report
+            <div className="mt-7 text-[10px] font-bold uppercase tracking-[0.28em] text-[#9a5a00]">Centre Point Nagpur</div>
+            <h1 className="mt-2 max-w-sm text-[32px] font-bold leading-9 tracking-tight text-on-surface sm:text-[38px] sm:leading-10">
+              Stay Centered
             </h1>
-            <p className="mt-3 max-w-sm text-sm font-medium leading-6 text-inverse-on-surface/74">
-              Centre Point Hospitality Group
+            <p className="mt-4 max-w-sm text-sm font-medium leading-6 text-on-surface-variant">
+              DailyFlash keeps the hotel’s operating picture close at hand, from arrivals to dining and events.
             </p>
           </div>
 
-          <div className="relative mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <div className="rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3">
-              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-inverse-primary">
-                <MIcon name="verified_user" filled className="text-[17px]" />
-                Private Console
+          <div className="relative mt-8">
+            <div className="grid grid-cols-3 overflow-hidden rounded-xl border border-[#e2d4bd] bg-white/75 shadow-sm">
+              <div className="border-r border-[#eadfce] px-3 py-3">
+                <div className="num text-lg font-bold text-primary">136</div>
+                <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">Rooms</div>
               </div>
-              <p className="mt-1 text-xs font-medium text-inverse-on-surface/68">Session access stays on this device.</p>
+              <div className="border-r border-[#eadfce] px-3 py-3">
+                <div className="num text-lg font-bold text-secondary">4</div>
+                <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">Dining</div>
+              </div>
+              <div className="px-3 py-3">
+                <div className="num text-lg font-bold text-[#9a5a00]">35k+</div>
+                <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">MICE</div>
+              </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3">
-              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#f4c36d]">
-                <MIcon name="bolt" filled className="text-[17px]" />
-                Daily Ops
-              </div>
-              <p className="mt-1 text-xs font-medium text-inverse-on-surface/68">Fast access to live report views.</p>
+            <div className="mt-4 flex items-center gap-2 text-xs font-bold text-on-surface-variant">
+              <MIcon name="location_on" filled className="text-[17px] text-primary" />
+              Ramdaspeth, Nagpur
             </div>
           </div>
         </section>
