@@ -17,6 +17,7 @@ import { buildSourceStatus } from './sources.js';
 import { normalizeRabbitsCategoryBreakdown, UNITS } from './schema.js';
 import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
 import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
+import { readAopTargets, writeAopTargets, applyDailyTargetOverrides, collectKpiCatalog } from './aopTargets.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -361,6 +362,16 @@ function mergeDailyData(seed, saved) {
   return normalizeRabbitsCategoryBreakdown({ ...merged, pnl: derivePnlRows(merged) });
 }
 
+let cachedAopTargets = null;
+async function getAopTargets() {
+  if (cachedAopTargets) return cachedAopTargets;
+  cachedAopTargets = await readAopTargets(getDb);
+  return cachedAopTargets;
+}
+function invalidateAopTargetsCache() {
+  cachedAopTargets = null;
+}
+
 async function readDailyData(date = dateKey()) {
   const db = await getDb();
   if (db) {
@@ -595,6 +606,7 @@ function applyKpiAggregatesToActuals(data, aggregate, options = {}) {
   const periodDays = Math.max(1, options.periodDays ?? 7);
   const blankMissing = options.blankMissing !== false;
   const stripCumulative = options.stripCumulative !== false;
+  const weeklyOverrides = options.weeklyTargets ?? {};
   const mergeRows = (rows) => {
     if (!Array.isArray(rows)) return rows;
     const filtered = stripCumulative
@@ -605,9 +617,12 @@ function applyKpiAggregatesToActuals(data, aggregate, options = {}) {
       const hasAggregate = weekSums[row.id] !== undefined;
       const target = numberValue(row.target);
       const mode = kpiModes[row.id];
-      const scaledTarget = target && mode === 'sum'
-        ? formatAggregate(target * periodDays)
-        : row.target;
+      const overrideTarget = weeklyOverrides[row.id];
+      const scaledTarget = overrideTarget !== undefined
+        ? String(overrideTarget)
+        : target && mode === 'sum'
+          ? formatAggregate(target * periodDays)
+          : row.target;
       if (!hasAggregate) {
         return { ...row, actual: blankMissing ? '' : row.actual, target: scaledTarget };
       }
@@ -663,12 +678,13 @@ async function buildWeeklyReportData(data, date, options = {}) {
   const { start, end } = range;
   const weekDates = await listDailyDatesInRange(start, end);
   const weeklyAggregate = await aggregatePeriodForDates(weekDates);
+  const overrides = await getAopTargets();
   const withoutForecast = {
     ...data,
     bankPosition: [],
     hotels: (data.hotels ?? []).filter((row) => row.section !== 'Forecast')
   };
-  const aggregateOptions = { periodDays: 7 };
+  const aggregateOptions = { periodDays: 7, weeklyTargets: overrides.weekly };
   const withKpis = applyKpiAggregatesToActuals(withoutForecast, weeklyAggregate, aggregateOptions);
   const withPnl = applyPnlAggregatesToWeeklyData(withKpis, weeklyAggregate, aggregateOptions);
   return { data: withPnl, week: { start, end, dates: weekDates } };
@@ -731,8 +747,10 @@ app.get('/api/seed', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
   const seed = buildSeedData();
   const rawSaved = await readDailyData(date);
-  const saved = rawSaved ? mergeDailyData(seed, rawSaved) : null;
-  res.json({ seed, saved, date });
+  const overrides = await getAopTargets();
+  const seedWithOverrides = applyDailyTargetOverrides(seed, overrides.daily);
+  const saved = rawSaved ? applyDailyTargetOverrides(mergeDailyData(seed, rawSaved), overrides.daily) : null;
+  res.json({ seed: seedWithOverrides, saved, date });
 }));
 
 for (const route of ['bank-position', 'pnl', 'hotels', 'fnb', 'rabbits', 'mickys', 'purosoul', 'settlement']) {
@@ -740,7 +758,8 @@ for (const route of ['bank-position', 'pnl', 'hotels', 'fnb', 'rabbits', 'mickys
     const key = route.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
     const seed = buildSeedData();
     const saved = await readDailyData(req.query.date || dateKey());
-    const data = mergeDailyData(seed, saved);
+    const overrides = await getAopTargets();
+    const data = applyDailyTargetOverrides(mergeDailyData(seed, saved), overrides.daily);
     res.json(data[key] ?? null);
   }));
 }
@@ -754,7 +773,21 @@ app.post('/api/data', wrap(async (req, res) => {
 app.get('/api/flags', wrap(async (req, res) => {
   const seed = buildSeedData();
   const saved = await readDailyData(req.query.date || dateKey());
-  res.json(collectFlags(mergeDailyData(seed, saved)));
+  const overrides = await getAopTargets();
+  res.json(collectFlags(applyDailyTargetOverrides(mergeDailyData(seed, saved), overrides.daily)));
+}));
+
+app.get('/api/aop-targets', wrap(async (_req, res) => {
+  const seed = buildSeedData();
+  const overrides = await getAopTargets();
+  const kpis = collectKpiCatalog(seed);
+  res.json({ kpis, daily: overrides.daily, weekly: overrides.weekly });
+}));
+
+app.post('/api/aop-targets', wrap(async (req, res) => {
+  const saved = await writeAopTargets(req.body ?? {}, getDb);
+  invalidateAopTargetsCache();
+  res.json({ ok: true, daily: saved.daily, weekly: saved.weekly });
 }));
 
 app.get('/api/source-status', wrap(async (req, res) => {
@@ -894,7 +927,8 @@ app.get('/api/report.pdf', wrap(async (req, res) => {
   const weekStart = /^\d{4}-\d{2}-\d{2}$/.test(weekStartRaw) ? weekStartRaw : null;
   const seed = buildSeedData();
   const saved = await readDailyData(date);
-  const dailyData = mergeDailyData(seed, saved);
+  const overrides = await getAopTargets();
+  const dailyData = applyDailyTargetOverrides(mergeDailyData(seed, saved), overrides.daily);
   const weekly = reportType === 'weekly'
     ? await buildWeeklyReportData(dailyData, date, weekStart ? { weekStart } : {})
     : null;
