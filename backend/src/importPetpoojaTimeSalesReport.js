@@ -129,16 +129,23 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     ['Invoice No', 'Invoice No.', 'Invoice Number', 'Invoice ID', 'Bill No', 'Bill No.', 'Bill Number', 'Bill ID', 'Order No', 'Order No.', 'Order Number', 'Order ID'],
     [/invoice.*(no|num|id)/, /bill.*(no|num|id)/, /order.*(no|num|id)/]
   );
+  const orderTypeCol = findColumn(
+    header,
+    ['Order Type', 'Bill Type', 'Type', 'Sales Type', 'Mode', 'Order Mode', 'Service Type'],
+    [/order.*type/, /bill.*type/, /sales.*type/, /service.*type/, /^type$/, /^mode$/]
+  );
 
   if (timeCol === -1 || amountCol === -1) {
     throw new Error('Detailed sales report is missing time or amount columns.');
   }
 
   const LIQUOR_PATTERN = /\b(liquor|beer|wine|cocktail|spirit|spirits|whisky|whiskey|vodka|rum|tequila|gin|imfl|alcohol)\b/i;
+  const DINE_IN_PATTERN = /\bdine[\s_-]?in\b/i;
   const split = { lunch: 0, supper: 0, dinner: 0 };
   const itemTotals = new Map();
   const allBills = new Set();
   const liquorBills = new Set();
+  const dineInBills = new Set();
   let comboSales = 0;
   let totalSales = 0;
   let mappedRows = 0;
@@ -159,7 +166,9 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     const itemName = String(itemCol === -1 ? '' : row[itemCol] ?? '').trim();
     const rawInvoice = invoiceCol === -1 ? '' : String(row[invoiceCol] ?? '').trim();
     const billId = rawInvoice || `row-${headerIndex + 1 + rowIndex}`;
+    const orderType = orderTypeCol === -1 ? '' : String(row[orderTypeCol] ?? '');
     allBills.add(billId);
+    if (DINE_IN_PATTERN.test(orderType)) dineInBills.add(billId);
     if (LIQUOR_PATTERN.test(`${category} ${itemName}`)) liquorBills.add(billId);
     if (/mix|match|combo/i.test(`${category} ${itemName}`)) comboSales += amount;
     if (itemName) {
@@ -173,6 +182,9 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
   }
 
   const beverageAttachRate = allBills.size ? (liquorBills.size / allBills.size) * 100 : 0;
+  const TABLE_COUNTS = { Pablo: 26, Dali: 25 };
+  const tableCount = TABLE_COUNTS[outlet];
+  const tableTurnover = tableCount && dineInBills.size ? tableCount / dineInBills.size : 0;
 
   if (!mappedRows) throw new Error(`No dated time-level rows found for ${outDate}.`);
 
@@ -193,6 +205,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     setKpi(targetRows, 'Dinner Revenue', split.dinner);
     setKpi(targetRows, 'Combo Sales %', totalSales ? (comboSales / totalSales) * 100 : 0);
     setKpi(targetRows, 'Beverage Attach Rate', beverageAttachRate);
+    if (tableCount) setKpi(targetRows, 'Table Turnover', tableTurnover);
     data.topItems = {
       ...(data.topItems ?? {}),
       [outlet]: [...itemTotals.entries()]
@@ -213,12 +226,14 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     [`${key}TimeSalesTotalSales`]: totalSales,
     [`${key}TimeSalesBills`]: allBills.size,
     [`${key}TimeSalesLiquorBills`]: liquorBills.size,
-    [`${key}TimeSalesBeverageAttachRate`]: beverageAttachRate
+    [`${key}TimeSalesDineInBills`]: dineInBills.size,
+    [`${key}TimeSalesBeverageAttachRate`]: beverageAttachRate,
+    [`${key}TimeSalesTableTurnover`]: tableTurnover
   };
 
   await writeDailyJson(outDate, data);
 
-  return { ok: true, date: outDate, outlet, mappedRows, split, comboSales, totalSales, bills: allBills.size, liquorBills: liquorBills.size, beverageAttachRate };
+  return { ok: true, date: outDate, outlet, mappedRows, split, comboSales, totalSales, bills: allBills.size, liquorBills: liquorBills.size, dineInBills: dineInBills.size, beverageAttachRate, tableTurnover };
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
