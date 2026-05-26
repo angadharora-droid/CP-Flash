@@ -180,7 +180,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
   function tablePreviewHeight(rows = [], options = {}) {
     const rowHeight = options.rowHeight ?? 22;
     const headerHeight = options.headerHeight ?? rowHeight;
-    return headerHeight + rowHeight * Math.min(rows.length, 3);
+    return headerHeight + rowHeight * Math.min(rows.length, 1);
   }
 
   function sectionTitle(title, followingHeight = 0) {
@@ -255,7 +255,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const fontSize = options.fontSize ?? 7.5;
     const x = 36;
 
-    ensureSpace(headerHeight + rowHeight * Math.min(rows.length, 3));
+    ensureSpace(headerHeight + rowHeight * Math.min(rows.length, 1));
     let y = doc.y;
 
     function drawHeader() {
