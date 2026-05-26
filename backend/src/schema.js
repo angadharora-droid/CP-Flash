@@ -73,7 +73,7 @@ export const pageSchemas = {
   ],
   fnb: {
     Pablo: [
-      { title: 'Sales', rows: [['Gross Sales', 160000], ['Covers', 135], ['Avg Bill', 1185], ['Combo Sales %', 28, 'max'], ['Beverage Attach Rate', 1.5], ['Lunch Revenue', 55000], ['Supper Revenue', 25000], ['Dinner Revenue', 80000]] },
+      { title: 'Sales', rows: [['Gross Sales', 160000], ['Covers', 135], ['Avg Bill', 1185], ['Combo Sales %', 28, 'max'], ['Beverage Attach Rate', 1.5], ['Table Turnover', 50], ['Lunch Revenue', 55000], ['Supper Revenue', 25000], ['Dinner Revenue', 80000]] },
       { title: 'Cost', rows: [['Food Cost %', 40], ['Liquor Cost %', 42], ['Food Purchase Today', 42000], ['Liquor Purchase Today', 30000], ['Total Purchase', 72000]] }
     ],
     Dali: [
