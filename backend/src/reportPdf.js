@@ -12,22 +12,28 @@ const SHEET_URLS = {
 const PDF_SECTIONS = new Set(['summary', 'bank', 'pnl', 'flags', 'hotels', 'fnb', 'rabbits', 'mickys', 'purosoul', 'settlement']);
 
 const colors = {
-  header: '#111827',
-  headerSoft: '#4b5563',
-  accent: '#6b7280',
-  accentSoft: '#f5f6f8',
-  page: '#ffffff',
-  panel: '#fafafa',
-  panelAlt: '#f6f7f9',
-  line: '#d9dde3',
-  lineDark: '#aeb6c2',
-  ink: '#111827',
-  muted: '#64748b',
-  subtle: '#94a3b8',
-  green: '#374151',
-  amber: '#6b7280',
-  red: '#7f1d1d',
-  white: '#ffffff'
+  header:     '#0f172a',
+  headerSoft: '#475569',
+  accent:     '#08786c',
+  accentDark: '#075e55',
+  accentSoft: '#cfeee8',
+  accentTint: '#edf8f6',
+  page:       '#ffffff',
+  panel:      '#f7f9fa',
+  panelAlt:   '#eef2f5',
+  line:       '#cad3da',
+  lineSoft:   '#e4eaee',
+  lineDark:   '#94a3b8',
+  ink:        '#0f172a',
+  muted:      '#5a6872',
+  subtle:     '#94a3b8',
+  green:      '#0d7c4d',
+  greenSoft:  '#dcf5ea',
+  amber:      '#b45309',
+  amberSoft:  '#fef0d6',
+  red:        '#b91c1c',
+  redSoft:    '#fde2e2',
+  white:      '#ffffff'
 };
 
 function numberValue(value) {
@@ -116,27 +122,51 @@ export function createDailyFlashPdf(data, date, options = {}) {
   const enabledSections = requestedSections.length ? new Set(requestedSections) : new Set(PDF_SECTIONS);
   if (isWeekly) enabledSections.delete('bank');
 
-  const FIRST_PAGE_TOP = 96;
-  const SUBSEQUENT_PAGE_TOP = 40;
-  const contentBottom = 786;
+  const FIRST_PAGE_TOP = 124;
+  const SUBSEQUENT_PAGE_TOP = 64;
+  const contentBottom = 790;
   const width = doc.page.width - 72;
+  let sectionCounter = 0;
 
   function decoratePage() {
     pageNo += 1;
     doc.save();
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(colors.page);
+
     if (pageNo === 1) {
-      doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6.5).text('CENTRE POINT HOSPITALITY', 36, 28);
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(16).text(isWeekly ? 'Weekly Flash Report' : 'Daily Flash Report', 36, 43);
-      doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text('Internal management report', 36, 64);
-      const dateLabel = isWeekly && week ? `${niceDate(week.start)} - ${niceDate(week.end)}` : niceDate(date);
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(dateLabel, 360, 35, { width: 199, align: 'right' });
-      doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`, 430, 51, { width: 129, align: 'right' });
-      doc.strokeColor(colors.lineDark).lineWidth(0.7).moveTo(36, 84).lineTo(559, 84).stroke();
+      // Brand header band
+      doc.rect(0, 0, doc.page.width, 102).fill(colors.accent);
+      doc.rect(0, 102, doc.page.width, 4).fill(colors.accentDark);
+
+      doc.fillColor('#ffffff').opacity(0.78).font('Helvetica-Bold').fontSize(7).text('CENTRE POINT HOSPITALITY', 36, 26, { characterSpacing: 1.2 });
+      doc.opacity(1);
+      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(20).text(isWeekly ? 'Weekly Flash Report' : 'Daily Flash Report', 36, 42);
+      doc.fillColor('#ffffff').opacity(0.82).font('Helvetica').fontSize(8).text('Internal management report — Centre Point Group', 36, 72);
+      doc.opacity(1);
+
+      // Date pill on the right
+      const dateLabel = isWeekly && week ? `${niceDate(week.start)} — ${niceDate(week.end)}` : niceDate(date);
+      const pillWidth = Math.max(150, doc.widthOfString(dateLabel) + 28);
+      const pillX = doc.page.width - 36 - pillWidth;
+      doc.roundedRect(pillX, 36, pillWidth, 26, 13).fill('#ffffff').opacity(1);
+      doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(6.5).text(isWeekly ? 'REPORT PERIOD' : 'REPORT DATE', pillX + 14, 41, { width: pillWidth - 28, characterSpacing: 0.9 });
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9.5).text(dateLabel, pillX + 14, 51, { width: pillWidth - 28, lineBreak: false });
+
+      doc.fillColor('#ffffff').opacity(0.7).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}`, pillX, 75, { width: pillWidth, align: 'right' });
+      doc.opacity(1);
+    } else {
+      // Slim header for subsequent pages
+      doc.rect(0, 0, doc.page.width, 32).fill(colors.accentTint);
+      doc.rect(0, 32, doc.page.width, 2).fill(colors.accent);
+      doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(8).text(`Centre Point Hospitality · ${isWeekly ? 'Weekly' : 'Daily'} Flash Report`, 36, 12);
+      const dateLabel = isWeekly && week ? `${niceDate(week.start)} — ${niceDate(week.end)}` : niceDate(date);
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(8).text(dateLabel, 36, 12, { width: width, align: 'right' });
     }
-    doc.strokeColor(colors.lineDark).lineWidth(0.5).moveTo(36, 802).lineTo(559, 802).stroke();
-    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(`Centre Point Hospitality | ${isWeekly ? 'Weekly' : 'Daily'} Flash Report | Internal Use Only`, 36, 810, { lineBreak: false });
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(6.5).text(`Page ${pageNo}`, 430, 810, { width: 129, align: 'right', lineBreak: false });
+
+    // Footer
+    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, 808).lineTo(559, 808).stroke();
+    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(`Centre Point Hospitality  ·  ${isWeekly ? 'Weekly' : 'Daily'} Flash Report  ·  Internal Use Only`, 36, 816, { lineBreak: false });
+    doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(6.5).text(`Page ${pageNo}`, 36, 816, { width: width, align: 'right', lineBreak: false });
     doc.restore();
     doc.y = pageNo === 1 ? FIRST_PAGE_TOP : SUBSEQUENT_PAGE_TOP;
   }
@@ -149,46 +179,76 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   function sectionTitle(title) {
-    ensureSpace(24);
+    ensureSpace(30);
+    // Strip leading "1. " etc. — we render the number ourselves as a chip
+    const match = String(title).match(/^\s*(\d+)\.\s*(.*)$/);
+    let displayTitle = title;
+    let number = null;
+    if (match) { number = match[1]; displayTitle = match[2]; }
+    else { sectionCounter += 1; number = String(sectionCounter).padStart(2, '0'); }
+    if (number.length === 1) number = `0${number}`;
+
     const y = doc.y;
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8.5).text(safeText(title), 36, y);
-    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 13).lineTo(559, y + 13).stroke();
-    doc.y = y + 19;
+    // Numbered accent chip
+    doc.roundedRect(36, y, 28, 18, 4).fill(colors.accent);
+    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(8.5).text(number, 36, y + 5, { width: 28, align: 'center', lineBreak: false });
+    // Title
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(11).text(safeText(displayTitle), 72, y + 3, { width: width - 36, lineBreak: false });
+    // Accent underline (short, under chip+title area)
+    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 24).lineTo(559, y + 24).stroke();
+    doc.strokeColor(colors.accent).lineWidth(1.5).moveTo(36, y + 24).lineTo(96, y + 24).stroke();
+    doc.y = y + 32;
   }
 
   function hero(title, source, value, change = '') {
-    ensureSpace(32);
+    ensureSpace(42);
     const y = doc.y;
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(11).text(safeText(title), 36, y, { width: 170, lineBreak: false });
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(source), 212, y + 2, { width: 190 });
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(value), 420, y, { width: 139, align: 'right' });
+    // Tinted panel with left accent bar
+    doc.rect(36, y, width, 36).fill(colors.accentTint);
+    doc.rect(36, y, 3, 36).fill(colors.accent);
+    // Title
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(12).text(safeText(title), 48, y + 8, { width: 200, lineBreak: false });
+    // Source
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5).text(safeText(source), 48, y + 24, { width: 280, lineBreak: false });
+    // Value (right)
+    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6).text('REVENUE', 420, y + 7, { width: 127, align: 'right', characterSpacing: 1.2 });
+    doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(13).text(safeText(value), 420, y + 16, { width: 127, align: 'right', lineBreak: false });
     if (change) {
-      doc.fillColor(change.startsWith('-') ? colors.red : colors.headerSoft).font('Helvetica-Bold').fontSize(7).text(safeText(change), 420, y + 14, { width: 139, align: 'right' });
+      doc.fillColor(change.startsWith('-') ? colors.red : colors.green).font('Helvetica-Bold').fontSize(7).text(safeText(change), 420, y + 30, { width: 127, align: 'right', lineBreak: false });
     }
-    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, y + 20).lineTo(559, y + 20).stroke();
-    doc.y = y + 28;
+    doc.y = y + 42;
   }
 
   function unitDivider() {
-    ensureSpace(14);
+    ensureSpace(16);
     const y = doc.y;
-    doc.strokeColor(colors.lineDark).lineWidth(0.75).moveTo(36, y).lineTo(559, y).stroke();
+    doc.strokeColor(colors.lineSoft).lineWidth(0.5).dash(2, { space: 3 }).moveTo(36, y + 4).lineTo(559, y + 4).stroke().undash();
     doc.y = y + 14;
   }
 
   function summaryCards(items) {
-    ensureSpace(40);
+    ensureSpace(54);
     const y = doc.y;
-    const rowH = 32;
-    const cardW = width / items.length;
-    doc.rect(36, y, width, rowH).fill(colors.panel).strokeColor(colors.line).lineWidth(0.5).stroke();
+    const gap = 8;
+    const cardW = (width - gap * (items.length - 1)) / items.length;
+    const cardH = 50;
     items.forEach((item, index) => {
-      const x = 36 + index * cardW;
-      if (index) doc.strokeColor(colors.line).lineWidth(0.4).moveTo(x, y).lineTo(x, y + rowH).stroke();
-      doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(5.8).text(safeText(item.label).toUpperCase(), x + 8, y + 6, { width: cardW - 16 });
-      doc.fillColor(item.tone ?? colors.ink).font('Helvetica-Bold').fontSize(9).text(safeText(item.value), x + 8, y + 18, { width: cardW - 16, lineBreak: false });
+      const x = 36 + index * (cardW + gap);
+      // Card body
+      doc.roundedRect(x, y, cardW, cardH, 6).fill(colors.white);
+      doc.roundedRect(x, y, cardW, cardH, 6).strokeColor(colors.line).lineWidth(0.6).stroke();
+      // Top accent stripe
+      doc.rect(x, y, cardW, 3).fill(item.tone ?? colors.accent);
+      // Label
+      doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6).text(safeText(item.label).toUpperCase(), x + 12, y + 11, { width: cardW - 24, characterSpacing: 1.1, lineBreak: false });
+      // Value
+      doc.fillColor(item.tone ?? colors.ink).font('Helvetica-Bold').fontSize(13).text(safeText(item.value), x + 12, y + 22, { width: cardW - 24, lineBreak: false });
+      // Caption
+      if (item.caption) {
+        doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(safeText(item.caption), x + 12, y + 39, { width: cardW - 24, lineBreak: false });
+      }
     });
-    doc.y = y + rowH + 10;
+    doc.y = y + cardH + 12;
   }
 
   function table(columns, rows, options = {}) {
