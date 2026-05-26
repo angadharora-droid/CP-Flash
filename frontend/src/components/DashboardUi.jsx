@@ -392,35 +392,41 @@ export function PinGate({ onUnlock }) {
   };
 
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-surface px-4">
-      <form onSubmit={submit} className="relative z-10 w-full max-w-sm animate-fade-in-up">
-        <div className="mb-8 flex flex-col items-center gap-3.5 text-center">
-          <div className="relative">
+    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-surface px-4 py-8 sm:px-6">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-44 border-b border-outline-variant/45 bg-surface-container-lowest/70" />
+      <form onSubmit={submit} className="relative z-10 w-full max-w-[28rem] animate-fade-in-up">
+        <div className="glass-card overflow-hidden border-outline-variant/70 shadow-cardHover">
+          <div className="bg-surface-container-lowest px-6 pb-6 pt-7 text-center sm:px-8">
             <div
-              className="flex items-center justify-center rounded-xl bg-surface-container-lowest p-2 ring-1 ring-outline-variant/70"
-              style={{ width: '4.5rem', height: '4.5rem', boxShadow: '0 20px 50px -24px rgba(8, 120, 108, 0.55)' }}
+              className="mx-auto flex items-center justify-center rounded-2xl border border-outline-variant/70 bg-surface p-2.5"
+              style={{ width: '5rem', height: '5rem', boxShadow: '0 24px 60px -28px rgba(8, 120, 108, 0.75)' }}
             >
               <img src={cpLogo} alt="Centre Point logo" className="h-full w-full object-contain" />
             </div>
+            <div className="mt-5 text-[10px] font-bold uppercase tracking-[0.28em] text-primary">DailyFlash</div>
+            <h1 className="mt-2 text-display-mobile font-bold tracking-tight text-on-surface">CP Flash Report</h1>
+            <p className="mt-1.5 text-sm font-medium text-on-surface-variant">Centre Point Hospitality Group</p>
           </div>
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">DailyFlash</div>
-            <h1 className="mt-1.5 text-display-mobile font-bold tracking-tight text-on-surface">CP Flash Report</h1>
-            <p className="mt-1 text-sm text-on-surface-variant">Centre Point Hospitality Group</p>
-          </div>
-        </div>
 
-        <div className="glass-card overflow-hidden">
-          <div className="border-b border-outline-variant/20 px-6 py-3 text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-on-surface-variant">Secure Access</p>
+          <div className="border-y border-outline-variant/45 bg-surface-container-low px-5 py-3 sm:px-7">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Secure Access</p>
+                <p className="mt-0.5 text-sm font-bold text-on-surface">Enter your dashboard PIN</p>
+              </div>
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                <MIcon name="lock" filled className="text-[21px]" />
+              </div>
+            </div>
           </div>
-          <div className="px-7 py-8">
-            <label className={`relative mx-auto flex w-full max-w-[260px] cursor-text items-center justify-center gap-3.5 rounded-lg border bg-surface-container-lowest py-4 transition-all duration-200 ${
+
+          <div className="px-5 py-7 sm:px-8 sm:py-8">
+            <label className={`relative mx-auto flex w-full max-w-[20rem] cursor-text items-center justify-center gap-4 rounded-xl border bg-surface-container-lowest px-5 py-5 transition-all duration-200 ${
               shake
-                ? 'border-error/60 shadow-[0_0_0_4px_rgba(186,26,26,0.18)] animate-shake'
+                ? 'border-error/60 shadow-[0_0_0_5px_rgba(186,26,26,0.16)] animate-shake'
                 : focused
-                  ? 'border-primary/60 shadow-[0_0_0_4px_rgba(8,120,108,0.15)]'
-                  : 'border-outline-variant/40'
+                  ? 'border-primary/70 shadow-[0_0_0_5px_rgba(8,120,108,0.14)]'
+                  : 'border-outline-variant/65 shadow-sm'
             }`}>
               {Array.from({ length: 6 }, (_, i) => {
                 const filled = i < pin.length;
@@ -436,7 +442,7 @@ export function PinGate({ onUnlock }) {
                     ? { boxShadow: '0 0 0 4px rgba(8, 120, 108, 0.18)' }
                     : undefined;
                 return (
-                  <span key={i} className={`relative flex h-3 w-3 items-center justify-center rounded-full transition-all duration-300 ${dotBase}`} style={dotShadow}>
+                  <span key={i} className={`relative flex h-3.5 w-3.5 items-center justify-center rounded-full transition-all duration-300 ${dotBase}`} style={dotShadow}>
                     {current && !shake ? <span className="absolute inset-0 -m-1 animate-ping rounded-full bg-primary/40" /> : null}
                   </span>
                 );
@@ -459,7 +465,7 @@ export function PinGate({ onUnlock }) {
             </label>
 
             {status ? (
-              <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-error/20 bg-error/10 px-3.5 py-2.5 text-sm font-medium text-error">
+              <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-error/25 bg-error/10 px-3.5 py-3 text-sm font-semibold text-error">
                 <MIcon name="error" className="mt-0.5 shrink-0" />
                 <span>{status}{isLocked && lockoutRemaining ? ` Try again in ${lockoutRemaining}.` : ''}</span>
               </div>
@@ -468,7 +474,7 @@ export function PinGate({ onUnlock }) {
             <button
               type="submit"
               disabled={loading || isLocked || pin.length < 4}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3.5 text-sm font-bold uppercase tracking-[0.05em] text-on-primary shadow-md shadow-primary/30 transition-all duration-200 hover:bg-primary-container hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-sm font-bold uppercase tracking-[0.05em] text-on-primary shadow-md shadow-primary/30 transition-all duration-200 hover:bg-primary-container hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
             >
               {loading ? (
                 <>
@@ -477,10 +483,12 @@ export function PinGate({ onUnlock }) {
                 </>
               ) : isLocked ? `Blocked ${lockoutRemaining || ''}` : 'Unlock Dashboard'}
             </button>
+
+            <p className="mt-4 text-center text-xs font-medium leading-5 text-on-surface-variant">
+              Authorized access for daily operations.
+            </p>
           </div>
         </div>
-
-        <p className="mt-5 text-center text-xs text-on-surface-variant">Contact your administrator if you need access.</p>
       </form>
     </main>
   );
