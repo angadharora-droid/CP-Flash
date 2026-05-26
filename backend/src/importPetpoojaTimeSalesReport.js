@@ -21,6 +21,54 @@ function norm(value) {
   return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+const CORE_4_RULES = {
+  Pablo: {
+    categories: new Set([
+      'beers',
+      'mickyscraftbeerafter7pm',
+      'mickyscraftbeerbefore7pm',
+      'pittsa',
+      'pizzao',
+      'sweetenough',
+      'sweetenougho',
+      'teacoffee',
+      'teacoffeehot',
+      'teacoffeecold',
+      'teacoffeecoldo',
+      'teacoffeehoto'
+    ]),
+    items: new Set([
+      'comboof6beer',
+      'comboof3beer',
+      'comboof6beerbud',
+      'comboof3beerbud'
+    ])
+  },
+  Dali: {
+    categories: new Set([
+      'coffeetea',
+      'coffeeteao',
+      'pizza',
+      'pizzao',
+      'pizzaburgermore',
+      'asweetending',
+      'beers',
+      'mickyscraftbeerafter7pm',
+      'mickyscraftbeerbefore7pm'
+    ]),
+    items: new Set([
+      'comboof6beer',
+      'comboof3beer'
+    ])
+  }
+};
+
+function isCore4Row(outlet, category, itemName) {
+  const rules = CORE_4_RULES[outlet];
+  if (!rules) return false;
+  return rules.categories.has(norm(category)) || rules.items.has(norm(itemName));
+}
+
 function setKpi(rows, name, actual) {
   const row = rows?.find((item) => item.name === name);
   if (row && actual !== null && actual !== undefined) row.actual = round(actual);
@@ -152,6 +200,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
   const liquorBills = new Set();
   const dineInBills = new Set();
   let comboSales = 0;
+  let core4Sales = 0;
   let totalSales = 0;
   let mappedRows = 0;
 
@@ -180,6 +229,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     if (isDineIn) dineInBills.add(billId);
     if (LIQUOR_PATTERN.test(`${category} ${itemName}`)) liquorBills.add(billId);
     if (/mix|match|combo/i.test(`${category} ${itemName}`)) comboSales += amount;
+    if (isCore4Row(outlet, category, itemName)) core4Sales += amount;
     if (itemName) {
       const item = itemTotals.get(itemName) ?? { qty: 0, sales: 0 };
       item.qty += qtyCol === -1 ? 0 : num(row[qtyCol]);
@@ -213,6 +263,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     setKpi(targetRows, 'Supper Revenue', split.supper);
     setKpi(targetRows, 'Dinner Revenue', split.dinner);
     setKpi(targetRows, 'Combo Sales %', totalSales ? (comboSales / totalSales) * 100 : 0);
+    setKpi(targetRows, 'Core 4 Revenue %', totalSales ? (core4Sales / totalSales) * 100 : 0);
     setKpi(targetRows, 'Beverage Attach Rate', beverageAttachRate);
     if (tableCount) setKpi(targetRows, 'Table Turnover', tableTurnover);
     data.topItems = {
@@ -232,6 +283,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     [`${key}TimeSalesVersion`]: 3,
     [`${key}TimeSalesSplit`]: split,
     [`${key}TimeSalesComboSales`]: comboSales,
+    [`${key}TimeSalesCore4Sales`]: core4Sales,
     [`${key}TimeSalesTotalSales`]: totalSales,
     [`${key}TimeSalesBills`]: allBills.size,
     [`${key}TimeSalesLiquorBills`]: liquorBills.size,
