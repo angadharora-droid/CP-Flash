@@ -69,43 +69,6 @@ function parseHtml(html) {
   return map;
 }
 
-function parseTopCategories(html) {
-  const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || [];
-  const categories = [];
-  let inCategoryTable = false;
-
-  for (const row of rows) {
-    const cells = [...row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
-      .map((m) => stripHtmlTags(m[1]))
-      .filter(Boolean);
-    if (!cells.length) continue;
-
-    const normalized = cells.map(normalizeText);
-    const rowText = normalized.join(' ');
-
-    if (normalized.includes('category') && normalized.includes('qty') && rowText.includes('total sales')) {
-      inCategoryTable = true;
-      continue;
-    }
-
-    if (!inCategoryTable) continue;
-    if (rowText.includes('last 7 days')) break;
-    if (cells.length < 6) continue;
-
-    const name = cells[0];
-    const qty = num(cells[1]);
-    const totalSales = num(cells[cells.length - 1]);
-    if (!name || qty === null || totalSales === null) continue;
-
-    categories.push({ name, qty, totalSales });
-  }
-
-  return categories
-    .sort((a, b) => b.totalSales - a.totalSales)
-    .slice(0, 3)
-    .map((item) => `${item.name} - ${round(item.totalSales)} (${round(item.qty)} qty)`);
-}
-
 function parseCategoryBreakdown(html) {
   const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || [];
   const categories = new Map();
@@ -198,7 +161,6 @@ function getMatching(map, ...patterns) {
 
 export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const values = parseHtml(emailHtml);
-  const topCategories = parseTopCategories(emailHtml);
   const categoryBreakdown = parseCategoryBreakdown(emailHtml);
   const comboCategorySales = parseComboCategorySales(emailHtml);
 
@@ -265,12 +227,6 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     setKpi('Lunch Revenue', get(values, 'lunch', 'lunch sales', 'lunch revenue'));
     setKpi('Dinner Revenue', get(values, 'dinner', 'dinner sales', 'dinner revenue'));
     if (grossSales) setKpi('Combo Sales %', (comboCategorySales / grossSales) * 100);
-    if (topCategories.length) {
-      data.topItems = {
-        ...(data.topItems ?? {}),
-        [outlet]: [...topCategories, '', '', ''].slice(0, 3)
-      };
-    }
   }
 
   if (!hasPaymentImport) {
