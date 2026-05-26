@@ -193,7 +193,7 @@ input[type='date'] {
     position: relative;
     height: var(--brand-loader-size, 64px);
     width: var(--brand-loader-size, 64px);
-    --brand-loader-spin-duration: 4s;
+    --brand-loader-spin-duration: 8s;
     isolation: isolate;
   }
 
