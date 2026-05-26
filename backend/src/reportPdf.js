@@ -177,8 +177,14 @@ export function createDailyFlashPdf(data, date, options = {}) {
     }
   }
 
-  function sectionTitle(title) {
-    ensureSpace(24);
+  function tablePreviewHeight(rows = [], options = {}) {
+    const rowHeight = options.rowHeight ?? 22;
+    const headerHeight = options.headerHeight ?? rowHeight;
+    return headerHeight + rowHeight * Math.min(rows.length, 3);
+  }
+
+  function sectionTitle(title, followingHeight = 0) {
+    ensureSpace(26 + followingHeight);
     // Strip any old leading "1. " style labels before rendering.
     const displayTitle = String(title).replace(/^\s*\d+\.\s*/, '');
 
@@ -304,8 +310,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   function kpiTable(title, rows, includeYtd = true) {
-    sectionTitle(title);
     const actualColumn = isWeekly ? 'Week' : 'Today';
+    const tableOptions = { widths: includeYtd ? [126, 70, 74, 74, 74, 105] : [145, 90, 86, 90, 112] };
+    sectionTitle(title, tablePreviewHeight(rows, tableOptions));
     table(
       includeYtd ? ['KPI', actualColumn, 'AOP Target', 'MTD', 'YTD', 'Flag'] : ['KPI', actualColumn, 'AOP Target', 'MTD', 'Flag'],
       rows.map((row) => {
@@ -315,7 +322,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
         base.push(flagCell(flag));
         return base;
       }),
-      { widths: includeYtd ? [126, 70, 74, 74, 74, 105] : [145, 90, 86, 90, 112] }
+      tableOptions
     );
   }
 
@@ -383,37 +390,43 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   if (hasSection('bank')) {
-    sectionTitle('Bank Position - Daily Cash Summary');
+    const bankTableRows = [
+      ...bankRows.map((row) => [row.unit, money(row.actual), money(row.fd), money(row.issued), money(row.hand), { text: money(row.net), color: colors.green, bold: true }]),
+      [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true }, { text: money(bankTotals.fd), bold: true }, { text: money(bankTotals.issued), bold: true }, { text: money(bankTotals.hand), bold: true }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
+    ];
+    const bankTableOptions = { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 };
+    sectionTitle('Bank Position - Daily Cash Summary', tablePreviewHeight(bankTableRows, bankTableOptions));
     sheetRef(SHEET_URLS.bankPosition);
     table(
       ['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'],
-      [
-        ...bankRows.map((row) => [row.unit, money(row.actual), money(row.fd), money(row.issued), money(row.hand), { text: money(row.net), color: colors.green, bold: true }]),
-        [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true }, { text: money(bankTotals.fd), bold: true }, { text: money(bankTotals.issued), bold: true }, { text: money(bankTotals.hand), bold: true }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
-      ],
-      { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 }
+      bankTableRows,
+      bankTableOptions
     );
   }
 
   if (hasSection('pnl')) {
-    sectionTitle('Unit-wise Estimated P&L');
+    const pnlTableRows = [
+      ...pnl.map((row) => [row.unit, money(row.revenueToday), money(row.purchasesToday), money(row.grossProfit), percent(row.gpPercent), { text: money(row.netProfit), color: row.netProfit >= 0 ? colors.green : colors.red, bold: true }]),
+      [{ text: 'GROUP TOTAL', bold: true }, { text: money(pnlTotals.revenue), bold: true }, { text: money(pnlTotals.purchases), bold: true }, { text: money(pnlTotals.gp), bold: true }, '', { text: money(pnlTotals.net), bold: true, color: pnlTotals.net >= 0 ? colors.green : colors.red }]
+    ];
+    const pnlTableOptions = { widths: [112, 88, 88, 88, 62, 85] };
+    sectionTitle('Unit-wise Estimated P&L', tablePreviewHeight(pnlTableRows, pnlTableOptions));
     table(
       ['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'],
-      [
-        ...pnl.map((row) => [row.unit, money(row.revenueToday), money(row.purchasesToday), money(row.grossProfit), percent(row.gpPercent), { text: money(row.netProfit), color: row.netProfit >= 0 ? colors.green : colors.red, bold: true }]),
-        [{ text: 'GROUP TOTAL', bold: true }, { text: money(pnlTotals.revenue), bold: true }, { text: money(pnlTotals.purchases), bold: true }, { text: money(pnlTotals.gp), bold: true }, '', { text: money(pnlTotals.net), bold: true, color: pnlTotals.net >= 0 ? colors.green : colors.red }]
-      ],
-      { widths: [112, 88, 88, 88, 62, 85] }
+      pnlTableRows,
+      pnlTableOptions
     );
   }
 
   if (hasSection('flags')) {
-    sectionTitle('Watch Out Flag Summary');
     const flags = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').slice(0, 16);
+    const flagTableRows = flags.map((row) => [row.unit, row.kpiName, formatValue(row.aopTarget, row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), actionFor(row, { isWeekly })]);
+    const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
+    sectionTitle('Watch Out Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
     table(
       ['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'],
-      flags.map((row) => [row.unit, row.kpiName, formatValue(row.aopTarget, row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), actionFor(row, { isWeekly })]),
-      { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 }
+      flagTableRows,
+      flagTableOptions
     );
   }
 
@@ -469,32 +482,39 @@ export function createDailyFlashPdf(data, date, options = {}) {
     for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
       kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section), true);
     }
-    sectionTitle('Purosoul - SKU Production & Dispatch');
+    const skuTableRows = (data.purosoulSku ?? []).map((row) => [row.sku, row.produced || '-', row.dispatched || '-', numberValue(row.produced) - numberValue(row.dispatched), row.mtd || '-', row.ytd || '-']);
+    const skuTableOptions = { widths: [100, 80, 90, 90, 80, 83] };
+    sectionTitle('Purosoul - SKU Production & Dispatch', tablePreviewHeight(skuTableRows, skuTableOptions));
     table(
       ['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD', 'YTD'],
-      (data.purosoulSku ?? []).map((row) => [row.sku, row.produced || '-', row.dispatched || '-', numberValue(row.produced) - numberValue(row.dispatched), row.mtd || '-', row.ytd || '-']),
-      { widths: [100, 80, 90, 90, 80, 83] }
+      skuTableRows,
+      skuTableOptions
     );
   }
 
   if (hasSection('settlement')) {
-    sectionTitle('Settlement');
+    const settlementRows = settlementModes.map((mode) => [mode, ...UNITS.map((unit) => money(data.settlement?.[mode]?.[unit])), { text: money(settlement.rowTotals[mode]), bold: true }]);
+    const settlementOptions = { widths: [95, 50, 50, 50, 50, 50, 50, 50, 78], fontSize: 6.3, leftColumns: [0] };
+    sectionTitle('Settlement', tablePreviewHeight(settlementRows, settlementOptions));
     table(
       ['Mode', ...UNITS, 'Group Total'],
-      settlementModes.map((mode) => [mode, ...UNITS.map((unit) => money(data.settlement?.[mode]?.[unit])), { text: money(settlement.rowTotals[mode]), bold: true }]),
-      { widths: [95, 50, 50, 50, 50, 50, 50, 50, 78], fontSize: 6.3, leftColumns: [0] }
+      settlementRows,
+      settlementOptions
     );
-    sectionTitle('Reconciliation');
+    sectionTitle('Reconciliation', 54);
     summaryCards([
       { label: 'Total Revenue', value: money(groupRevenue(data)), tone: colors.header },
       { label: 'Total Settled', value: money(settlement.groupTotal), tone: colors.green },
       { label: 'Difference', value: money(settlementDiff), tone: settlementDiff === 0 ? colors.green : colors.red },
       { label: 'Status', value: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', tone: settlementDiff === 0 ? colors.green : colors.red }
     ]);
+    const reconciliationRows = [[money(groupRevenue(data)), money(settlement.groupTotal), { text: money(settlementDiff), color: settlementDiff === 0 ? colors.green : colors.red, bold: true }, { text: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', color: settlementDiff === 0 ? colors.green : colors.red, bold: true }]];
+    const reconciliationOptions = { widths: [132, 132, 132, 127] };
+    ensureSpace(tablePreviewHeight(reconciliationRows, reconciliationOptions));
     table(
       ['Total Revenue Today', 'Total Settled', 'Difference', 'Status'],
-      [[money(groupRevenue(data)), money(settlement.groupTotal), { text: money(settlementDiff), color: settlementDiff === 0 ? colors.green : colors.red, bold: true }, { text: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', color: settlementDiff === 0 ? colors.green : colors.red, bold: true }]],
-      { widths: [132, 132, 132, 127] }
+      reconciliationRows,
+      reconciliationOptions
     );
   }
 
