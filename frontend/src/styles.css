@@ -216,7 +216,6 @@ input[type='date'] {
   .brand-loader-petals {
     animation: brand-petal-spin var(--brand-loader-spin-duration) linear infinite;
     backface-visibility: hidden;
-    filter: drop-shadow(0 6px 14px rgba(167, 0, 98, 0.16));
     transform-origin: 50% 50%;
     will-change: transform;
   }
