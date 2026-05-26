@@ -263,6 +263,18 @@ function weekRangeForDate(date) {
   return { start: isoDate(start), end: isoDate(end) };
 }
 
+function weekRangeFromStart(weekStart) {
+  const start = parseIsoDate(weekStart);
+  const end = addDays(start, 6);
+  return { start: isoDate(start), end: isoDate(end) };
+}
+
+const CUMULATIVE_KPI_PATTERN = /\b(mtd|ytd|month to date|year to date)\b/i;
+
+function isCumulativeKpiName(name) {
+  return CUMULATIVE_KPI_PATTERN.test(String(name ?? ''));
+}
+
 const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit'];
 
 function hasEnteredPnlValues(row) {
@@ -424,6 +436,7 @@ function collectKpiRows(data) {
 
 function getKpiAggregationMode(name) {
   const label = String(name ?? '').toLowerCase();
+  if (isCumulativeKpiName(label)) return 'latest';
   if (
     label.includes('%')
     || label.includes('avg')
@@ -460,7 +473,8 @@ async function aggregatePeriodForDates(dates) {
   const kpiTotals = Object.create(null);
   const kpiModes = Object.create(null);
 
-  for (const date of dates) {
+  const sortedDates = [...dates].sort();
+  for (const date of sortedDates) {
     const raw = await readDailyData(date);
     if (!raw) continue;
     const merged = mergeDailyData(seedTemplate, raw);
@@ -485,21 +499,30 @@ async function aggregatePeriodForDates(dates) {
       const aggregate = kpiTotals[kpi.id] ??= {
         mode: getKpiAggregationMode(kpi.name),
         sum: 0,
-        count: 0
+        count: 0,
+        latest: 0,
+        latestDate: ''
       };
       kpiModes[kpi.id] = aggregate.mode;
-      aggregate.sum += numberValue(actual);
-      aggregate.count += 1;
+      const value = numberValue(actual);
+      if (aggregate.mode === 'latest') {
+        if (date >= aggregate.latestDate) {
+          aggregate.latest = value;
+          aggregate.latestDate = date;
+        }
+      } else {
+        aggregate.sum += value;
+        aggregate.count += 1;
+      }
     }
   }
 
   const kpiSums = Object.fromEntries(
-    Object.entries(kpiTotals).map(([id, aggregate]) => [
-      id,
-      aggregate.mode === 'avg' && aggregate.count
-        ? aggregate.sum / aggregate.count
-        : aggregate.sum
-    ])
+    Object.entries(kpiTotals).map(([id, aggregate]) => {
+      if (aggregate.mode === 'latest') return [id, aggregate.latest];
+      if (aggregate.mode === 'avg') return [id, aggregate.count ? aggregate.sum / aggregate.count : 0];
+      return [id, aggregate.sum];
+    })
   );
 
   return { pnl: pnlByUnit, kpis: kpiSums, kpiModes };
@@ -566,18 +589,32 @@ function formatAggregate(value) {
   return String(Math.round(numberValue(value) * 100) / 100);
 }
 
-function applyKpiAggregatesToActuals(data, aggregate) {
+function applyKpiAggregatesToActuals(data, aggregate, options = {}) {
   const weekSums = aggregate?.kpis ?? {};
   const kpiModes = aggregate?.kpiModes ?? {};
+  const periodDays = Math.max(1, options.periodDays ?? 7);
+  const blankMissing = options.blankMissing !== false;
+  const stripCumulative = options.stripCumulative !== false;
   const mergeRows = (rows) => {
     if (!Array.isArray(rows)) return rows;
-    return rows.map((row) => {
-      if (!row?.id || weekSums[row.id] === undefined) return row;
+    const filtered = stripCumulative
+      ? rows.filter((row) => !isCumulativeKpiName(row?.name))
+      : rows;
+    return filtered.map((row) => {
+      if (!row?.id) return row;
+      const hasAggregate = weekSums[row.id] !== undefined;
       const target = numberValue(row.target);
+      const mode = kpiModes[row.id];
+      const scaledTarget = target && mode === 'sum'
+        ? formatAggregate(target * periodDays)
+        : row.target;
+      if (!hasAggregate) {
+        return { ...row, actual: blankMissing ? '' : row.actual, target: scaledTarget };
+      }
       return {
         ...row,
         actual: formatAggregate(weekSums[row.id]),
-        target: target && kpiModes[row.id] !== 'avg' ? formatAggregate(target * 7) : row.target
+        target: scaledTarget
       };
     });
   };
@@ -596,25 +633,34 @@ function applyKpiAggregatesToActuals(data, aggregate) {
   };
 }
 
-function applyPnlAggregatesToWeeklyData(data, aggregate) {
+function applyPnlAggregatesToWeeklyData(data, aggregate, options = {}) {
   const pnlByUnit = aggregate?.pnl ?? {};
+  const periodDays = Math.max(1, options.periodDays ?? 7);
   return {
     ...data,
     pnl: (data.pnl ?? []).map((row) => {
       const weekRow = pnlByUnit[row.unit];
-      if (!weekRow) return row;
+      const dailyFixed = numberValue(row.fixedCost) || (weekRow ? weekRow.fixedCost : 0);
+      const weeklyFixed = dailyFixed * periodDays;
+      const revenue = weekRow ? weekRow.revenue : 0;
+      const purchases = weekRow ? weekRow.purchases : 0;
       return {
         ...row,
-        revenueToday: formatAggregate(weekRow.revenue),
-        purchasesToday: formatAggregate(weekRow.purchases),
-        fixedCost: formatAggregate(weekRow.gp - weekRow.netProfit)
+        revenueToday: formatAggregate(revenue),
+        purchasesToday: formatAggregate(purchases),
+        fixedCost: formatAggregate(weeklyFixed),
+        mtdNetProfit: '',
+        ytdNetProfit: ''
       };
     })
   };
 }
 
-async function buildWeeklyReportData(data, date) {
-  const { start, end } = weekRangeForDate(date);
+async function buildWeeklyReportData(data, date, options = {}) {
+  const range = options.weekStart
+    ? weekRangeFromStart(options.weekStart)
+    : weekRangeForDate(date);
+  const { start, end } = range;
   const weekDates = await listDailyDatesInRange(start, end);
   const weeklyAggregate = await aggregatePeriodForDates(weekDates);
   const withoutForecast = {
@@ -622,8 +668,9 @@ async function buildWeeklyReportData(data, date) {
     bankPosition: [],
     hotels: (data.hotels ?? []).filter((row) => row.section !== 'Forecast')
   };
-  const withKpis = applyKpiAggregatesToActuals(withoutForecast, weeklyAggregate);
-  const withPnl = applyPnlAggregatesToWeeklyData(withKpis, weeklyAggregate);
+  const aggregateOptions = { periodDays: 7 };
+  const withKpis = applyKpiAggregatesToActuals(withoutForecast, weeklyAggregate, aggregateOptions);
+  const withPnl = applyPnlAggregatesToWeeklyData(withKpis, weeklyAggregate, aggregateOptions);
   return { data: withPnl, week: { start, end, dates: weekDates } };
 }
 
@@ -843,10 +890,14 @@ app.get('/api/report.pdf', wrap(async (req, res) => {
     .split(',')
     .map((section) => section.trim())
     .filter(Boolean);
+  const weekStartRaw = String(req.query.weekStart ?? '').trim();
+  const weekStart = /^\d{4}-\d{2}-\d{2}$/.test(weekStartRaw) ? weekStartRaw : null;
   const seed = buildSeedData();
   const saved = await readDailyData(date);
   const dailyData = mergeDailyData(seed, saved);
-  const weekly = reportType === 'weekly' ? await buildWeeklyReportData(dailyData, date) : null;
+  const weekly = reportType === 'weekly'
+    ? await buildWeeklyReportData(dailyData, date, weekStart ? { weekStart } : {})
+    : null;
   const data = weekly?.data ?? dailyData;
   const filename = reportType === 'weekly'
     ? `cp-weekly-flash-${weekly.week.start}-to-${weekly.week.end}.pdf`
