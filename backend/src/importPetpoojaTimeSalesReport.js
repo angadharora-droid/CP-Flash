@@ -124,18 +124,26 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     [/net.*amount/, /net.*sale/, /grand.*total/, /bill.*amount/, /sub.*total/, /^amount$/, /^total$/, /sales/]
   );
   const statusCol = findColumn(header, ['Status', 'Order Status', 'Bill Status'], [/status/]);
+  const invoiceCol = findColumn(
+    header,
+    ['Invoice No', 'Invoice No.', 'Invoice Number', 'Invoice ID', 'Bill No', 'Bill No.', 'Bill Number', 'Bill ID', 'Order No', 'Order No.', 'Order Number', 'Order ID'],
+    [/invoice.*(no|num|id)/, /bill.*(no|num|id)/, /order.*(no|num|id)/]
+  );
 
   if (timeCol === -1 || amountCol === -1) {
     throw new Error('Detailed sales report is missing time or amount columns.');
   }
 
+  const LIQUOR_PATTERN = /\b(liquor|beer|wine|cocktail|spirit|spirits|whisky|whiskey|vodka|rum|tequila|gin|imfl|alcohol)\b/i;
   const split = { lunch: 0, supper: 0, dinner: 0 };
   const itemTotals = new Map();
+  const allBills = new Set();
+  const liquorBills = new Set();
   let comboSales = 0;
   let totalSales = 0;
   let mappedRows = 0;
 
-  for (const row of rows.slice(headerIndex + 1)) {
+  for (const [rowIndex, row] of rows.slice(headerIndex + 1).entries()) {
     if (!row?.length || /^total$/i.test(String(row[0] ?? '').trim())) continue;
     if (isCancelled(row, statusCol)) continue;
     if (dateCol !== -1 && parseDate(row[dateCol]) !== outDate) continue;
@@ -149,6 +157,10 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
 
     const category = String(categoryCol === -1 ? '' : row[categoryCol] ?? '');
     const itemName = String(itemCol === -1 ? '' : row[itemCol] ?? '').trim();
+    const rawInvoice = invoiceCol === -1 ? '' : String(row[invoiceCol] ?? '').trim();
+    const billId = rawInvoice || `row-${headerIndex + 1 + rowIndex}`;
+    allBills.add(billId);
+    if (LIQUOR_PATTERN.test(`${category} ${itemName}`)) liquorBills.add(billId);
     if (/mix|match|combo/i.test(`${category} ${itemName}`)) comboSales += amount;
     if (itemName) {
       const item = itemTotals.get(itemName) ?? { qty: 0, sales: 0 };
@@ -159,6 +171,8 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
 
     mappedRows += 1;
   }
+
+  const beverageAttachRate = allBills.size ? (liquorBills.size / allBills.size) * 100 : 0;
 
   if (!mappedRows) throw new Error(`No dated time-level rows found for ${outDate}.`);
 
@@ -178,6 +192,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     setKpi(targetRows, 'Supper Revenue', split.supper);
     setKpi(targetRows, 'Dinner Revenue', split.dinner);
     setKpi(targetRows, 'Combo Sales %', totalSales ? (comboSales / totalSales) * 100 : 0);
+    setKpi(targetRows, 'Beverage Attach Rate', beverageAttachRate);
     data.topItems = {
       ...(data.topItems ?? {}),
       [outlet]: [...itemTotals.entries()]
@@ -195,12 +210,15 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     [`${key}TimeSalesVersion`]: 3,
     [`${key}TimeSalesSplit`]: split,
     [`${key}TimeSalesComboSales`]: comboSales,
-    [`${key}TimeSalesTotalSales`]: totalSales
+    [`${key}TimeSalesTotalSales`]: totalSales,
+    [`${key}TimeSalesBills`]: allBills.size,
+    [`${key}TimeSalesLiquorBills`]: liquorBills.size,
+    [`${key}TimeSalesBeverageAttachRate`]: beverageAttachRate
   };
 
   await writeDailyJson(outDate, data);
 
-  return { ok: true, date: outDate, outlet, mappedRows, split, comboSales, totalSales };
+  return { ok: true, date: outDate, outlet, mappedRows, split, comboSales, totalSales, bills: allBills.size, liquorBills: liquorBills.size, beverageAttachRate };
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
