@@ -486,10 +486,7 @@ export function PinGate({ onUnlock }) {
               className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold uppercase tracking-[0.05em] text-on-primary shadow-primary transition-all duration-200 hover:bg-primary-container hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-surface-container-high disabled:text-on-surface-variant disabled:shadow-none"
             >
               {loading ? (
-                <>
-                  <BrandLoader size={22} />
-                  Verifying...
-                </>
+                'Verifying...'
               ) : isLocked ? `Blocked ${lockoutRemaining || ''}` : 'Unlock Dashboard'}
             </button>
 
