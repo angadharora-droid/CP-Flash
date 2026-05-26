@@ -127,6 +127,20 @@ export async function getSourceReportPreview(date, sourceId, file, token) {
   }, 'Unable to load report preview');
 }
 
+export async function getAopTargets(token) {
+  return apiFetch('/api/aop-targets', {
+    headers: { ...authHeaders(token) }
+  }, 'Unable to load AOP targets');
+}
+
+export async function saveAopTargets(payload, token) {
+  return apiFetch('/api/aop-targets', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(payload)
+  }, 'Unable to save AOP targets');
+}
+
 export async function generateAiNotes(prompt, token) {
   const json = await apiFetch('/api/ai-notes', {
     method: 'POST',

@@ -19,7 +19,8 @@ export const pages = [
   ['purosoul', '08', 'Purosoul'],
   ['settlement', '09', 'Settlement'],
   ['ai', '10', 'AI Notes'],
-  ['pdf', '11', 'PDF Preview']
+  ['pdf', '11', 'PDF Preview'],
+  ['aop', '12', 'AOP Targets']
 ];
 
 // `icon` is a Material Symbol name (rendered via `<span class="material-symbols-outlined">{icon}</span>`).
@@ -49,6 +50,12 @@ export const NAV_GROUPS = [
       { key: 'settlement', label: 'Settlement', icon: 'point_of_sale' },
       { key: 'ai',         label: 'AI Notes',   icon: 'auto_awesome' },
       { key: 'pdf',        label: 'PDF Preview', icon: 'picture_as_pdf' }
+    ]
+  },
+  {
+    label: 'Configuration',
+    items: [
+      { key: 'aop', label: 'AOP Targets', icon: 'flag' }
     ]
   }
 ];

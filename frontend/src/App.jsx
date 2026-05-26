@@ -16,6 +16,7 @@ import PurosoulPage from './pages/PurosoulPage';
 import SettlementPage from './pages/SettlementPage';
 import AiPage from './pages/AiPage';
 import PdfPreviewPage from './pages/PdfPreviewPage';
+import AopTargetsPage from './pages/AopTargetsPage';
 import cpLogo from './cp-logo.png';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
@@ -344,6 +345,7 @@ export default function App() {
     if (active === 'mickys') return <MickysPage data={enrichedData} date={date} />;
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
+    if (active === 'aop') return <AopTargetsPage authToken={authToken} />;
     return <AiPage data={enrichedData} authToken={authToken} />;
   }, [active, enrichedData, date, authToken, period, openSourceReportPreview, handleRefresh]);
 
