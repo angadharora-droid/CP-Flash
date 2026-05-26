@@ -134,6 +134,11 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     ['Order Type', 'Bill Type', 'Type', 'Sales Type', 'Mode', 'Order Mode', 'Service Type'],
     [/order.*type/, /bill.*type/, /sales.*type/, /service.*type/, /^type$/, /^mode$/]
   );
+  const tableCol = findColumn(
+    header,
+    ['Table No', 'Table No.', 'Table Number', 'Table'],
+    [/table.*(no|num)/, /^table$/]
+  );
 
   if (timeCol === -1 || amountCol === -1) {
     throw new Error('Detailed sales report is missing time or amount columns.');
@@ -167,8 +172,12 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     const rawInvoice = invoiceCol === -1 ? '' : String(row[invoiceCol] ?? '').trim();
     const billId = rawInvoice || `row-${headerIndex + 1 + rowIndex}`;
     const orderType = orderTypeCol === -1 ? '' : String(row[orderTypeCol] ?? '');
+    const tableNo = tableCol === -1 ? '' : String(row[tableCol] ?? '').trim();
+    const isDineIn = orderTypeCol !== -1
+      ? DINE_IN_PATTERN.test(orderType)
+      : Boolean(tableNo) && tableNo !== '0';
     allBills.add(billId);
-    if (DINE_IN_PATTERN.test(orderType)) dineInBills.add(billId);
+    if (isDineIn) dineInBills.add(billId);
     if (LIQUOR_PATTERN.test(`${category} ${itemName}`)) liquorBills.add(billId);
     if (/mix|match|combo/i.test(`${category} ${itemName}`)) comboSales += amount;
     if (itemName) {
