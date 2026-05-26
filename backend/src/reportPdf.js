@@ -213,6 +213,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     }
 
     drawHeader();
+    let firstRowOnPage = true;
     rows.forEach((row, rowIndex) => {
       if (y + rowHeight > contentBottom) {
         doc.y = y;
@@ -220,6 +221,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
         decoratePage();
         y = doc.y;
         drawHeader();
+        firstRowOnPage = true;
       }
 
       doc.rect(x, y, width, rowHeight).fill(rowIndex % 2 ? colors.panelAlt : colors.white);
@@ -233,7 +235,10 @@ export function createDailyFlashPdf(data, date, options = {}) {
         doc.fillColor(fill).font(font).text(safeText(text), cursor + 7, y + 7, { width: colWidths[index] - 12, align, lineBreak: false });
         cursor += colWidths[index];
       });
-      doc.strokeColor(colors.line).lineWidth(0.25).moveTo(x, y + rowHeight).lineTo(x + width, y + rowHeight).stroke();
+      if (!firstRowOnPage) {
+        doc.strokeColor(colors.line).lineWidth(0.25).moveTo(x, y).lineTo(x + width, y).stroke();
+      }
+      firstRowOnPage = false;
       y += rowHeight;
     });
 
