@@ -54,10 +54,6 @@ export default function DashboardPage({ data, date, authToken }) {
 
   return (
     <>
-      <PageTitle
-        title="Dashboard"
-        subtitle="Group performance charts — toggle Today vs a chosen week"
-      />
       <DashboardCharts
         data={data}
         period={weekPeriod}

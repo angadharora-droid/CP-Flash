@@ -250,6 +250,7 @@ export default function App() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('Loading...');
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoaderVisible, setInitialLoaderVisible] = useState(false);
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('dailyflashToken') || '');
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const [period, setPeriod] = useState(null);
@@ -278,18 +279,19 @@ export default function App() {
     const startedAt = Date.now();
     setRefreshing(true);
     let snapshot = null;
+    let showInitialLoader = false;
     if (!silent) {
-      setData((prev) => { snapshot = prev; return prev; });
+      setData((prev) => {
+        snapshot = prev;
+        showInitialLoader = prev == null;
+        return prev;
+      });
+      setInitialLoaderVisible(showInitialLoader);
       setStatus('Loading...');
     }
     try {
       const { seed, saved } = await getSeed(currentDate, token);
       if (requestId !== loadRequestRef.current) return;
-      if (!silent && snapshot == null) {
-        const remaining = MIN_INITIAL_LOADER_MS - (Date.now() - startedAt);
-        if (remaining > 0) await wait(remaining);
-        if (requestId !== loadRequestRef.current) return;
-      }
       const sameDateSnapshot = loadedDateRef.current === currentDate ? snapshot : null;
       setData(mergeWithSeed(seed, saved, sameDateSnapshot));
       loadedDateRef.current = currentDate;
@@ -297,6 +299,11 @@ export default function App() {
         setStatus(`Auto refreshed ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
       } else {
         setStatus(saved ? `Loaded saved data for ${currentDate}` : `Loaded seed data for ${currentDate}`);
+      }
+      if (!silent && showInitialLoader) {
+        const remaining = MIN_INITIAL_LOADER_MS - (Date.now() - startedAt);
+        if (remaining > 0) await wait(remaining);
+        if (requestId !== loadRequestRef.current) return;
       }
     } catch (err) {
       if (requestId !== loadRequestRef.current) return;
@@ -308,7 +315,10 @@ export default function App() {
       }
       setStatus(err.message);
     } finally {
-      if (requestId === loadRequestRef.current) setRefreshing(false);
+      if (requestId === loadRequestRef.current) {
+        setRefreshing(false);
+        setInitialLoaderVisible(false);
+      }
     }
   }, []);
 
@@ -694,6 +704,12 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {initialLoaderVisible ? (
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-surface-container-lowest/92 px-6 text-center backdrop-blur-sm">
+          <BrandLoader size={72} label="Loading dashboard data..." />
+        </div>
+      ) : null}
 
       {/* ---- Floating bottom nav (mobile only) with center FAB ---- */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex h-[68px] items-center justify-around border-t border-outline-variant/70 bg-surface-container-lowest/92 px-4 pb-safe shadow-2xl backdrop-blur-2xl sm:h-20 sm:px-6 md:hidden">

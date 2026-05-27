@@ -1,11 +1,15 @@
 export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbit', "Micky's", 'Purosoul'];
 
+// Pablo, Dali and Rabbit are not allocated a daily fixed cost — their estimated
+// net profit equals gross profit (no fixed-cost deduction).
+export const UNITS_WITHOUT_FIXED_COST = ['Pablo', 'Dali', 'Rabbit'];
+
 export const fixedCostDefaults = {
   'CP Nagpur': 185000,
   'CP NM': 135000,
-  Pablo: 42000,
-  Dali: 36000,
-  Rabbit: 9000,
+  Pablo: 0,
+  Dali: 0,
+  Rabbit: 0,
   "Micky's": 12000,
   Purosoul: 8000
 };
