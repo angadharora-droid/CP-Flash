@@ -35,6 +35,7 @@ function buildSuccessTotals(rows) {
   const totals = {
     cash: 0,
     card: 0,
+    due: 0,
     other: 0,
     upi: 0,
     online: 0,
@@ -48,13 +49,15 @@ function buildSuccessTotals(rows) {
 
     const cash = num(row[9]);
     const card = num(row[10]);
+    const due = num(row[11]);
     const other = num(row[12]);
     const upi = num(row[14]);
     const online = num(row[15]);
-    const amount = cash + card + other + upi + online;
+    const amount = cash + card + due + other + upi + online;
 
     totals.cash += cash;
     totals.card += card;
+    totals.due += due;
     totals.other += other;
     totals.upi += upi;
     totals.online += online;
@@ -111,6 +114,7 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
   const successTotals = buildSuccessTotals(rows);
   const cash   = successTotals.cash;
   const card   = successTotals.card;
+  const due    = successTotals.due; // unpaid bills booked against the customer
   const other  = successTotals.other; // Zomato Gold, Swiggy Dineout (aggregator dine-in)
   const upi    = successTotals.upi;
   const online = successTotals.online; // Zomato/Swiggy delivery
@@ -121,6 +125,7 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
   data.settlement['Cash'] = { ...(data.settlement['Cash'] ?? {}), [outlet]: String(cash) };
   data.settlement['Credit Card'] = { ...(data.settlement['Credit Card'] ?? {}), [outlet]: String(card) };
   data.settlement['UPI'] = { ...(data.settlement['UPI'] ?? {}), [outlet]: String(upi) };
+  data.settlement['Due Payment'] = { ...(data.settlement['Due Payment'] ?? {}), [outlet]: String(due) };
   data.settlement['Zomato/Swiggy'] = {
     ...(data.settlement['Zomato/Swiggy'] ?? {}),
     [outlet]: String(other + online)
@@ -179,7 +184,7 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
 
   return {
     ok: true, date: outDate, outlet,
-    mapped: { cash, card, upi, aggregatorDineIn: other, aggregatorDelivery: online, zomatoSwiggyTotal: other + online, rabbitSplit }
+    mapped: { cash, card, due, upi, aggregatorDineIn: other, aggregatorDelivery: online, zomatoSwiggyTotal: other + online, rabbitSplit }
   };
 }
 
