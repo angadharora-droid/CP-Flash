@@ -124,13 +124,12 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
       const status = await runEmailImport(authToken, { force: true });
       setEmailImport(status);
       load(true);
-      window.setTimeout(() => onRefreshData?.(), 0);
     } catch (err) {
       setError(err.message);
     } finally {
       setRunningImport(false);
     }
-  }, [authToken, load, onRefreshData]);
+  }, [authToken, load]);
 
   useEffect(() => { load(); loadEmailImportStatus(); }, [load, loadEmailImportStatus]);
 
@@ -146,14 +145,26 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
     const timer = setInterval(() => {
       loadEmailImportStatus();
       load(true);
-      onRefreshData?.();
     }, 5000);
     return () => clearInterval(timer);
-  }, [emailImport?.running, load, loadEmailImportStatus, onRefreshData]);
+  }, [emailImport?.running, load, loadEmailImportStatus]);
+
+  // When the background import transitions from running -> finished, do one final
+  // pull of sources + main data so the UI reflects the import without waiting for
+  // the 2-minute auto-refresh tick.
+  const wasRunningRef = React.useRef(false);
+  useEffect(() => {
+    const isRunning = Boolean(emailImport?.running);
+    if (wasRunningRef.current && !isRunning) {
+      load(true);
+      onRefreshData?.();
+    }
+    wasRunningRef.current = isRunning;
+  }, [emailImport?.running, load, onRefreshData]);
 
   const sources = sourceStatus?.sources ?? [];
-  const importRunning = runningImport;
   const backgroundImportRunning = Boolean(emailImport?.running);
+  const importRunning = runningImport || backgroundImportRunning;
   const reportLabel = (report, index) => report?.label || `Report ${index + 1}`;
   const reportFile = (report) => typeof report === 'string' ? report : report?.file;
   const sourceReports = (source) => {
@@ -213,7 +224,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
           disabled={importRunning}
           className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-4 py-2 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
         >
-          {importRunning ? 'Starting...' : 'Refresh Sources'}
+          {runningImport ? 'Starting...' : backgroundImportRunning ? 'Importing...' : 'Refresh Sources'}
         </button>
       </div>
 
