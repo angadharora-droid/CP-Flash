@@ -1,19 +1,16 @@
 import React from 'react';
-import { calcFlag } from '../lib/calculations';
+import { calcFlag, formatIndianNumber } from '../lib/calculations';
 import FlagBadge from './FlagBadge';
 
 function Cell({ value, highlight }) {
   const empty = value === '' || value == null;
-  if (highlight) {
-    return (
-      <span className={`num block min-w-16 rounded-md px-2 py-1.5 text-sm font-semibold transition-colors sm:min-w-20 sm:px-2.5 md:min-w-24 ${empty ? 'bg-surface-container-low/40 text-on-surface-variant/35' : 'bg-primary/10 text-primary ring-1 ring-primary/15'}`}>
-        {empty ? '—' : value}
-      </span>
-    );
-  }
+  const display = empty ? '—' : formatIndianNumber(value);
+  const tone = empty
+    ? 'text-on-surface-variant/35'
+    : highlight ? 'text-primary font-semibold' : 'text-on-surface';
   return (
-    <span className={`num block min-w-16 rounded-md px-2 py-1.5 text-sm sm:min-w-20 sm:px-2.5 md:min-w-24 ${empty ? 'text-on-surface-variant/35' : 'bg-surface-container-low text-on-surface ring-1 ring-outline-variant/35'}`}>
-      {empty ? '—' : value}
+    <span className={`num block min-w-16 px-2 py-1.5 text-sm sm:min-w-20 sm:px-2.5 md:min-w-24 ${tone}`}>
+      {display}
     </span>
   );
 }

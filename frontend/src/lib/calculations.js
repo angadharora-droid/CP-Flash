@@ -22,6 +22,20 @@ export function numberValue(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+// Indian-style grouped number (e.g. 100700 → 1,00,700; 12345.6 → 12,345.60).
+// Returns the original value unchanged if it isn't a finite number.
+export function formatIndianNumber(value) {
+  const text = String(value ?? '').trim();
+  if (text === '') return value;
+  const num = Number(text.replace(/,/g, ''));
+  if (!Number.isFinite(num)) return value;
+  const hasFraction = num % 1 !== 0;
+  return num.toLocaleString('en-IN', {
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: 2
+  });
+}
+
 export function money(value) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(numberValue(value));
 }
