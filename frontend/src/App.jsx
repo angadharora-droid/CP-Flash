@@ -22,7 +22,7 @@ import AopTargetsPage from './pages/AopTargetsPage';
 import cpLogo from './cp-logo.png';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
-const MIN_INITIAL_LOADER_MS = 5000;
+const MIN_INITIAL_LOADER_MS = 1200;
 const d = new Date(); d.setDate(d.getDate() - 1);
 const today = d.toISOString().slice(0, 10);
 
@@ -484,16 +484,16 @@ export default function App() {
         title={label}
         aria-label={label}
         aria-current={isActive ? 'page' : undefined}
-        className={`group relative flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-all duration-200 active:scale-[0.98] ${
+        className={`group relative flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-colors duration-100 active:scale-[0.98] ${
           isActive
             ? 'sidebar-item-active'
             : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55'
         }`}
       >
-        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
+        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-100 ${
           isActive
-            ? 'bg-gradient-to-br from-primary to-primary/85 text-on-primary shadow-primary'
-            : 'bg-transparent text-on-surface-variant group-hover:bg-primary/8 group-hover:text-primary'
+            ? 'bg-primary text-on-primary shadow-primary'
+            : 'bg-transparent text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary'
         }`}>
           <MIcon name={icon} filled={isActive} className="text-[20px]" />
         </span>
@@ -611,16 +611,16 @@ export default function App() {
                         key={key}
                         type="button"
                         onClick={() => setActive(key)}
-                        className={`group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-all ${
+                        className={`group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-colors duration-100 ${
                           isActive
                             ? 'sidebar-item-active'
                             : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55'
                         }`}
                       >
-                        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-all ${
+                        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-100 ${
                           isActive
-                            ? 'bg-gradient-to-br from-primary to-primary/85 text-on-primary shadow-primary'
-                            : 'bg-transparent text-on-surface-variant group-hover:bg-primary/8 group-hover:text-primary'
+                            ? 'bg-primary text-on-primary shadow-primary'
+                            : 'bg-transparent text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary'
                         }`}>
                           <MIcon name={icon} filled={isActive} className="text-[20px]" />
                         </span>
