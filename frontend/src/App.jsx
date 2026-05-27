@@ -484,10 +484,10 @@ export default function App() {
         title={label}
         aria-label={label}
         aria-current={isActive ? 'page' : undefined}
-        className={`relative flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[14px] font-semibold transition-all duration-200 active:scale-[0.98] ${
+        className={`relative flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-all duration-200 active:scale-[0.98] ${
           isActive
             ? 'sidebar-item-active'
-            : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm'
+            : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55'
         }`}
       >
         <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
@@ -510,25 +510,25 @@ export default function App() {
       {/* ---- Expanded desktop sidebar ---- */}
       <aside className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-4rem)] w-72 flex-col border-r border-outline-variant/70 bg-surface-container-low transition-all duration-300 md:flex">
         {/* Nav */}
-        <nav className="flex flex-grow flex-col overflow-y-auto px-3 py-3">
+        <nav className="flex flex-grow flex-col overflow-y-auto px-3 py-3.5">
           {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="mb-4 last:mb-0">
-              <div className="mb-1.5 px-2.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/55">
+            <div key={group.label} className="mb-3.5 last:mb-0">
+              <div className="mb-1.5 px-2.5 text-[10.5px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/55">
                 {group.label}
               </div>
-              <div className="space-y-1 rounded-2xl">
+              <div className="space-y-1 rounded-2xl border border-outline-variant/45 bg-white/55 p-1 shadow-[0_1px_2px_rgba(23,32,38,0.03)]">
                 {group.items.map(renderSidebarButton)}
               </div>
             </div>
           ))}
         </nav>
         {/* Footer */}
-        <div className="space-y-1.5 border-t border-outline-variant/70 bg-white/45 p-3">
+        <div className="space-y-1.5 border-t border-outline-variant/70 bg-white/65 p-3">
           <button
             type="button"
             onClick={() => setActive('ai')}
             title="AI Notes"
-            className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-white hover:text-on-surface hover:shadow-sm"
+            className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-all hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55"
           >
             <span className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant">
               <MIcon name="help_outline" className="text-[20px]" />
@@ -539,7 +539,7 @@ export default function App() {
             type="button"
             onClick={lockApp}
             title="Lock"
-            className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
+            className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
           >
             <span className="flex size-8 items-center justify-center rounded-lg">
               <MIcon name="logout" className="text-[20px]" />
@@ -580,11 +580,11 @@ export default function App() {
               <MIcon name="close" />
             </button>
           </div>
-          <nav className="flex-1 overflow-y-auto px-3 py-3">
+          <nav className="flex-1 overflow-y-auto px-3 py-3.5">
             {NAV_GROUPS.map((group) => (
-              <div key={group.label} className="mb-4">
-                <div className="mb-1.5 px-2.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/55">{group.label}</div>
-                <div className="space-y-1">
+              <div key={group.label} className="mb-3.5">
+                <div className="mb-1.5 px-2.5 text-[10.5px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/55">{group.label}</div>
+                <div className="space-y-1 rounded-2xl border border-outline-variant/45 bg-white/55 p-1 shadow-[0_1px_2px_rgba(23,32,38,0.03)]">
                   {group.items.map(({ key, label, icon }) => {
                     const isActive = active === key;
                     const hasBadge = key === 'flags' && riskCount > 0;
@@ -593,10 +593,10 @@ export default function App() {
                         key={key}
                         type="button"
                         onClick={() => setActive(key)}
-                        className={`flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[14px] font-semibold transition-all ${
+                        className={`flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-all ${
                           isActive
                             ? 'sidebar-item-active'
-                            : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm'
+                            : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55'
                         }`}
                       >
                         <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
@@ -615,11 +615,11 @@ export default function App() {
               </div>
             ))}
           </nav>
-          <div className="border-t border-outline-variant/70 bg-white/45 p-3">
+          <div className="border-t border-outline-variant/70 bg-white/65 p-3">
             <button
               type="button"
               onClick={lockApp}
-              className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
+              className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
             >
               <span className="flex size-8 items-center justify-center rounded-lg">
                 <MIcon name="logout" />
