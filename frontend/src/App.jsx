@@ -442,6 +442,7 @@ export default function App() {
 
   const riskCount = data ? withFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length : 0;
   const activePage = pages.find(([key]) => key === canonicalPageKey(active)) ?? pages[0];
+  const activeNavItem = NAV_ITEM_BY_KEY[canonicalPageKey(active)];
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
 
@@ -631,6 +632,7 @@ export default function App() {
 
       <AppHeader
         title={activePage[2]}
+        icon={activeNavItem?.icon}
         date={date}
         latestDate={today}
         onDateChange={setDate}
