@@ -194,7 +194,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const bills = get(values, 'no. of bills', 'number of bills', 'covers', 'total bills', 'no of bills');
   const avgBill = get(values, 'avg bill', 'average bill', 'avg. bill')
     ?? (grossSales && bills ? grossSales / bills : null);
-  const key = outlet.toLowerCase();
+  const key = outlet === 'Rabbit' ? 'rabbits' : outlet.toLowerCase();
   const hasPaymentImport = Boolean(data.importSource?.[`${key}PaymentImportedAt`]);
 
   if (outlet === 'Rabbit') {
