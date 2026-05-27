@@ -75,9 +75,10 @@ function derivePnlRows(data) {
     Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['RM Cost Today'])
   };
   return (data.pnl ?? []).map((row) => {
-    const revenueToday = String(row.revenueToday ?? '').trim() || revenueByUnit[row.unit]?.() || '';
-    const purchasesToday = String(row.purchasesToday ?? '').trim() || purchasesByUnit[row.unit]?.() || '';
-    return { ...row, revenueToday, purchasesToday };
+    const unit = canonicalUnit(row.unit);
+    const revenueToday = String(row.revenueToday ?? '').trim() || revenueByUnit[unit]?.() || '';
+    const purchasesToday = String(row.purchasesToday ?? '').trim() || purchasesByUnit[unit]?.() || '';
+    return { ...row, unit, revenueToday, purchasesToday };
   });
 }
 
@@ -190,6 +191,7 @@ function mergeWithSeed(seed, saved, previous = null) {
   };
   merged.hotels = mergeSeedKpiRows(seed.hotels, merged.hotels);
   merged.rabbits = normalizeRabbitCategoryBreakdown(seed.rabbits, merged.rabbits);
+  merged.rabbits = (merged.rabbits ?? []).map((row) => ({ ...row, unit: canonicalUnit(row.unit) }));
   merged.pnl = mergePnlRows(seed.pnl, saved.pnl, previous?.pnl);
   merged.pnl = derivePnlRows(merged);
   return merged;
