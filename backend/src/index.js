@@ -806,9 +806,8 @@ app.post('/api/aop-targets', wrap(async (req, res) => {
 
 app.get('/api/source-status', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
-  const seed = buildSeedData();
   const saved = await readDailyData(date);
-  res.json(buildSourceStatus({ ...mergeDailyData(seed, saved), date }));
+  res.json(buildSourceStatus({ ...(saved ?? {}), date }));
 }));
 
 app.get('/api/pnl-period', wrap(async (req, res) => {
