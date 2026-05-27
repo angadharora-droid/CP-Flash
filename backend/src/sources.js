@@ -221,14 +221,15 @@ export function buildSourceStatus(data = {}) {
   const importSource = data.importSource ?? {};
   const sources = dailySources.map((source) => {
     const meta = pickMeta(importSource, source);
-    const hasImport = isFilled(meta.importedAt);
     const hasData = source.paths.some((key) => hasEnteredValue(data[key]));
+    const hasRabbitKpis = source.id === 'rabbits-sales' && hasEnteredValue(data.rabbits);
+    const hasImport = isFilled(meta.importedAt) || hasRabbitKpis;
     const status = hasImport ? 'Imported' : hasData ? 'Entered' : 'Pending';
 
     return {
       ...source,
       status,
-      importedAt: meta.importedAt,
+      importedAt: meta.importedAt || (hasRabbitKpis ? data.date : ''),
       file: meta.file,
       reportFiles: meta.reportFiles ?? [],
       reports: meta.reports ?? [],

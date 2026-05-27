@@ -141,7 +141,25 @@ function mergeSeedKpiRows(seedRows = [], savedRows = []) {
 function normalizeRabbitData(data) {
   if (!data) return data;
   const next = { ...data };
-  next.rabbits = (next.rabbits ?? []).map((row) => ({ ...row, unit: canonicalUnit(row.unit) }));
+  const rabbitRowsByKpi = new Map();
+  for (const rawRow of next.rabbits ?? []) {
+    const row = { ...rawRow, unit: canonicalUnit(rawRow.unit) };
+    const key = `${row.section ?? ''}::${row.name ?? ''}`;
+    const existing = rabbitRowsByKpi.get(key);
+    if (!existing) {
+      rabbitRowsByKpi.set(key, row);
+      continue;
+    }
+    rabbitRowsByKpi.set(key, {
+      ...existing,
+      ...row,
+      id: existing.id,
+      actual: String(row.actual ?? '').trim() ? row.actual : existing.actual,
+      mtd: String(row.mtd ?? '').trim() ? row.mtd : existing.mtd,
+      ytd: String(row.ytd ?? '').trim() ? row.ytd : existing.ytd
+    });
+  }
+  next.rabbits = [...rabbitRowsByKpi.values()];
   next.pnl = (next.pnl ?? []).map((row) => ({ ...row, unit: canonicalUnit(row.unit) }));
   next.settlement = Object.fromEntries(
     Object.entries(next.settlement ?? {}).map(([mode, values]) => {
