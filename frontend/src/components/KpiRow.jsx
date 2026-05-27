@@ -9,7 +9,7 @@ function Cell({ value, highlight }) {
     ? 'text-on-surface-variant/35'
     : highlight ? 'text-primary font-semibold' : 'text-on-surface';
   return (
-    <span className={`num block min-w-16 px-2 py-1.5 text-[15px] sm:min-w-20 sm:px-2.5 md:min-w-24 ${tone}`}>
+    <span className={`num block min-w-16 px-2 py-1.5 text-base sm:min-w-20 sm:px-2.5 md:min-w-24 ${tone}`}>
       {display}
     </span>
   );
