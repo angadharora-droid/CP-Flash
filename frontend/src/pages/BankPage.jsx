@@ -109,11 +109,11 @@ export default function BankPage({ data, date }) {
                     <span className="font-semibold text-app-text">{unit}</span>
                   </div>
                 ),
-                <span className="num font-semibold tabular-nums">{money(unitTotals.actual)}</span>,
-                <span className="num font-semibold tabular-nums">{money(unitTotals.fd)}</span>,
-                <span className="num font-semibold tabular-nums">{money(unitTotals.issued)}</span>,
-                <span className="num font-semibold tabular-nums">{money(unitTotals.hand)}</span>,
-                <span className={`num font-bold tabular-nums ${unitTotals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(unitTotals.net)}</span>
+                <span className="num text-[15px] font-semibold tabular-nums">{money(unitTotals.actual)}</span>,
+                <span className="num text-[15px] font-semibold tabular-nums">{money(unitTotals.fd)}</span>,
+                <span className="num text-[15px] font-semibold tabular-nums">{money(unitTotals.issued)}</span>,
+                <span className="num text-[15px] font-semibold tabular-nums">{money(unitTotals.hand)}</span>,
+                <span className={`num text-[15px] font-bold tabular-nums ${unitTotals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(unitTotals.net)}</span>
               ]
             });
             if (hasMulti && expanded) {
@@ -127,11 +127,11 @@ export default function BankPage({ data, date }) {
                       <span className="absolute left-2 top-1/2 h-px w-2.5 bg-app-border" aria-hidden />
                       <span className="text-app-muted">{row.account || unit}</span>
                     </div>,
-                    <span className="num text-[13px] text-app-muted tabular-nums"><ReportValue value={row.actualBalance} numeric /></span>,
-                    <span className="num text-[13px] text-app-muted tabular-nums"><ReportValue value={row.fdTotal ?? ''} numeric /></span>,
-                    <span className="num text-[13px] text-app-muted tabular-nums"><ReportValue value={row.chequesIssued} numeric /></span>,
-                    <span className="num text-[13px] text-app-muted tabular-nums"><ReportValue value={row.chequesInHand} numeric /></span>,
-                    <span className={`num text-[13px] font-semibold tabular-nums ${net(row) >= 0 ? 'text-emerald-700/90' : 'text-rose-700/90'}`}>{money(net(row))}</span>
+                    <span className="num text-[15px] text-app-muted tabular-nums"><ReportValue value={row.actualBalance} numeric /></span>,
+                    <span className="num text-[15px] text-app-muted tabular-nums"><ReportValue value={row.fdTotal ?? ''} numeric /></span>,
+                    <span className="num text-[15px] text-app-muted tabular-nums"><ReportValue value={row.chequesIssued} numeric /></span>,
+                    <span className="num text-[15px] text-app-muted tabular-nums"><ReportValue value={row.chequesInHand} numeric /></span>,
+                    <span className={`num text-[15px] font-semibold tabular-nums ${net(row) >= 0 ? 'text-emerald-700/90' : 'text-rose-700/90'}`}>{money(net(row))}</span>
                   ]
                 });
               });
@@ -142,11 +142,11 @@ export default function BankPage({ data, date }) {
         footer={
           <tr>
             <td className="px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-app-subtle">Group Total</td>
-            <td className="num px-4 py-3.5 text-right tabular-nums">{money(totals.actual)}</td>
-            <td className="num px-4 py-3.5 text-right tabular-nums">{money(totals.fd)}</td>
-            <td className="num px-4 py-3.5 text-right tabular-nums">{money(totals.issued)}</td>
-            <td className="num px-4 py-3.5 text-right tabular-nums">{money(totals.hand)}</td>
-            <td className={`num px-4 py-3.5 text-right font-extrabold tabular-nums ${netTotal >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(netTotal)}</td>
+            <td className="num px-4 py-3.5 text-right text-[15px] tabular-nums">{money(totals.actual)}</td>
+            <td className="num px-4 py-3.5 text-right text-[15px] tabular-nums">{money(totals.fd)}</td>
+            <td className="num px-4 py-3.5 text-right text-[15px] tabular-nums">{money(totals.issued)}</td>
+            <td className="num px-4 py-3.5 text-right text-[15px] tabular-nums">{money(totals.hand)}</td>
+            <td className={`num px-4 py-3.5 text-right text-[15px] font-extrabold tabular-nums ${netTotal >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(netTotal)}</td>
           </tr>
         }
       />

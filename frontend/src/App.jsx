@@ -470,7 +470,7 @@ export default function App() {
         title={label}
         aria-label={label}
         aria-current={isActive ? 'page' : undefined}
-        className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
+        className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-semibold transition-all duration-200 active:scale-[0.98] ${
           isActive
             ? 'sidebar-item-active'
             : 'text-on-surface-variant/70 hover:bg-primary/10 hover:text-primary'
@@ -587,7 +587,7 @@ export default function App() {
                         key={key}
                         type="button"
                         onClick={() => setActive(key)}
-                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all ${
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] font-semibold transition-all ${
                           isActive
                             ? 'sidebar-item-active'
                             : 'text-on-surface-variant/80 hover:bg-primary/10 hover:text-primary'
