@@ -164,7 +164,7 @@ export function normalizeRabbitCategoryBreakdown(data) {
     nextRows.push({ ...row, unit: row.unit === 'Rabbit' + 's' ? 'Rabbit' : row.unit });
   }
 
-  data.rabbits = inserted ? nextRows : [...data.rabbits, ...normalizedCategoryRows];
+  data.rabbits = inserted ? nextRows : [...nextRows, ...normalizedCategoryRows];
 
   return data;
 }

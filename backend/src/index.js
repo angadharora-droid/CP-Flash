@@ -338,12 +338,21 @@ function mergePnlRows(seedRows = [], savedRows = []) {
 
 function mergeSeedKpiRows(seedRows = [], savedRows = []) {
   if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
+  const keyOf = (row) => `${canonicalUnit(row.unit) ?? ''}::${row.name ?? ''}`;
   const savedById = new Map(savedRows.map((row) => [row.id, row]));
-  const savedByUnitAndName = new Map(savedRows.map((row) => [`${canonicalUnit(row.unit) ?? ''}::${row.name ?? ''}`, row]));
+  const savedByKey = new Map();
+  for (const row of savedRows) {
+    const k = keyOf(row);
+    if (!savedByKey.has(k)) savedByKey.set(k, []);
+    savedByKey.get(k).push(row);
+  }
   const seen = new Set();
   const mergedSeedRows = seedRows.map((seedRow) => {
-    const savedRow = savedById.get(seedRow.id) ?? savedByUnitAndName.get(`${canonicalUnit(seedRow.unit) ?? ''}::${seedRow.name ?? ''}`);
-    if (savedRow?.id) seen.add(savedRow.id);
+    const directMatch = savedById.get(seedRow.id);
+    const keyMatches = savedByKey.get(keyOf(seedRow)) ?? [];
+    const savedRow = directMatch ?? keyMatches[0];
+    if (directMatch?.id) seen.add(directMatch.id);
+    for (const m of keyMatches) if (m?.id) seen.add(m.id);
     return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id, unit: seedRow.unit, section: seedRow.section } : seedRow;
   });
   const extraRows = savedRows.filter((row) => !seen.has(row.id));
@@ -356,6 +365,7 @@ function mergeDailyData(seed, saved) {
     ...seed,
     ...saved,
     hotels: mergeSeedKpiRows(seed.hotels, saved.hotels),
+    rabbits: mergeSeedKpiRows(seed.rabbits, saved.rabbits),
     fnb: {
       ...(saved.fnb ?? {}),
       Pablo: mergeSeedKpiRows(seed.fnb?.Pablo, saved.fnb?.Pablo),
