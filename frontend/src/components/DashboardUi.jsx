@@ -84,7 +84,7 @@ export function ReportValue({ value, className = '', numeric = false }) {
   const empty = value === '' || value == null;
   const display = empty ? '—' : (numeric ? formatIndianNumber(value) : value);
   return (
-    <span className={`num block min-w-24 px-2.5 py-1.5 text-[15px] ${numeric ? 'text-right tabular-nums' : ''} ${empty ? 'text-on-surface-variant/35' : 'text-on-surface'} ${className}`}>
+    <span className={`num block min-w-24 px-2.5 py-1.5 text-[16px] ${numeric ? 'text-right tabular-nums' : ''} ${empty ? 'text-on-surface-variant/35' : 'text-on-surface'} ${className}`}>
       {display}
     </span>
   );
@@ -132,8 +132,8 @@ export function TopItemsList({ items = [] }) {
             {index + 1}
           </span>
           <span className="min-w-0 truncate text-[13px] font-bold text-on-surface sm:text-sm">{item.name}</span>
-          <span className="num text-right text-[15px] font-bold tabular-nums text-secondary">{item.sales ? money(item.sales) : '-'}</span>
-          <span className="num text-right text-[15px] font-bold tabular-nums text-on-surface-variant">{item.qty || '-'}</span>
+          <span className="num text-right text-[16px] font-bold tabular-nums text-secondary">{item.sales ? money(item.sales) : '-'}</span>
+          <span className="num text-right text-[16px] font-bold tabular-nums text-on-surface-variant">{item.qty || '-'}</span>
         </div>
       ))}
     </div>
@@ -152,7 +152,7 @@ export function PageTitle({ title, subtitle, badge, actions }) {
           {badge ? <FreshnessBadge {...badge} /> : null}
         </div>
         {subtitle ? (
-          <p className="mt-1.5 max-w-2xl text-sm text-on-surface-variant md:text-[15px]">{subtitle}</p>
+          <p className="mt-1.5 max-w-2xl text-sm text-on-surface-variant md:text-[16px]">{subtitle}</p>
         ) : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div> : null}
@@ -164,7 +164,7 @@ export function KpiTable({ rows }) {
   const headers = ['KPI Name', 'AOP Target', 'Today Actual', 'MTD', 'YTD', 'Status'];
   return (
     <div className="scroll-touch glass-card max-w-full overflow-auto">
-      <table className="min-w-[640px] text-[15px] md:min-w-full">
+      <table className="min-w-[640px] text-[16px] md:min-w-full">
         <thead>
           <tr className="bg-surface-container text-left">
             {headers.map((h, i) => (
