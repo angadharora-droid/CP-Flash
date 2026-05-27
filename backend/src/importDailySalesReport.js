@@ -1,7 +1,7 @@
 import path from 'node:path';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 function num(v) {
   if (v == null || v === '') return 0;
@@ -73,7 +73,7 @@ function parseVisibleDate(cell) {
 }
 
 async function readData(date) {
-  return (await readDailyJson(date)) ?? buildSeedData();
+  return (await readDaily(date)) ?? buildSeedData();
 }
 
 function setKpi(rows, name, actual, mtd) {
@@ -145,11 +145,49 @@ function getInvoiceRows(wb, preferredSheetNames, reportName) {
   throw new Error(`No invoice sheet found in ${reportName}. Tried: ${errors.join('; ')}`);
 }
 
-function pickSalesDate(byDate, targetDate, reportName) {
-  if (!targetDate) return Object.keys(byDate).sort().at(-1);
-  if (Object.hasOwn(byDate, targetDate)) return targetDate;
-  const available = Object.keys(byDate).sort().join(', ');
-  throw new Error(`${reportName} has no sales rows for ${targetDate}. Available dates: ${available}`);
+function buildMtdByDate(byDate) {
+  // Running cumulative sum within each calendar month, keyed by date.
+  // A multi-day Tally report that straddles a month boundary should reset MTD at month start.
+  const dates = Object.keys(byDate).sort();
+  const runningByMonth = {};
+  const mtdByDate = {};
+  for (const date of dates) {
+    const month = date.slice(0, 7);
+    runningByMonth[month] = (runningByMonth[month] ?? 0) + byDate[date];
+    mtdByDate[date] = runningByMonth[month];
+  }
+  return mtdByDate;
+}
+
+async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiRevenueName, pnlUnit, sourceKeyPrefix }) {
+  const mtdByDate = buildMtdByDate(byDate);
+  const importedAt = new Date().toISOString();
+  const written = [];
+
+  for (const date of Object.keys(byDate).sort()) {
+    const revenue = byDate[date];
+    const mtdForDate = mtdByDate[date];
+    const data = await readData(date);
+
+    setKpi(data[kpiBucket], kpiRevenueName, round(revenue), round(mtdForDate));
+    setKpi(data[kpiBucket], 'Revenue MTD',  round(mtdForDate), '');
+
+    data.pnl = (data.pnl ?? []).map((r) =>
+      r.unit === pnlUnit ? { ...r, revenueToday: round(revenue) } : r
+    );
+    data.importSource = {
+      ...(data.importSource ?? {}),
+      [`${sourceKeyPrefix}SalesFile`]: fileName,
+      [`${sourceKeyPrefix}SalesSheet`]: sheetName,
+      [`${sourceKeyPrefix}SalesDate`]: date,
+      [`${sourceKeyPrefix}SalesImportedAt`]: importedAt,
+    };
+
+    await writeDaily(date, data);
+    written.push({ date, revenueToday: revenue, mtd: mtdForDate });
+  }
+
+  return written;
 }
 
 // ─── Purosoul ────────────────────────────────────────────────────────────────
@@ -158,31 +196,19 @@ export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate)
   const wb = XLSX.read(xlsBuffer, { type: 'buffer', cellDates: true });
 
   const { rows, sheetName } = getInvoiceRows(wb, ['Sales'], 'Purosoul report');
-  const { latestDate, mtd, byDate } = parseInvoiceSheet(rows);
+  const { latestDate, mtd: grandTotal, byDate } = parseInvoiceSheet(rows);
   if (!latestDate) throw new Error('No dated invoice rows found in Purosoul report');
 
-  const salesDate = pickSalesDate(byDate, targetDate, 'Purosoul report');
-  const revenueToday = byDate[salesDate];
-  const fileDate = targetDate ?? salesDate;
-  const data = await readData(fileDate);
+  const written = await writeInvoiceReport({
+    byDate, fileName, sheetName,
+    kpiBucket: 'purosoul',
+    kpiRevenueName: 'Total Revenue Today',
+    pnlUnit: 'Purosoul',
+    sourceKeyPrefix: 'purosoul'
+  });
 
-  setKpi(data.purosoul, 'Total Revenue Today', round(revenueToday), round(mtd));
-  setKpi(data.purosoul, 'Revenue MTD',         round(mtd),          '');
-
-  data.pnl = (data.pnl ?? []).map((r) =>
-    r.unit === 'Purosoul' ? { ...r, revenueToday: round(revenueToday) } : r
-  );
-  data.importSource = {
-    ...(data.importSource ?? {}),
-    purosoulSalesFile: fileName,
-    purosoulSalesSheet: sheetName,
-    purosoulSalesDate: salesDate,
-    purosoulSalesImportedAt: new Date().toISOString(),
-  };
-
-  await writeDailyJson(fileDate, data);
-
-  return { ok: true, date: fileDate, sheetName, salesDate, revenueToday, mtd };
+  const focusDate = targetDate && Object.hasOwn(byDate, targetDate) ? targetDate : latestDate;
+  return { ok: true, date: focusDate, sheetName, dates: written, grandTotal };
 }
 
 // ─── Micky's ─────────────────────────────────────────────────────────────────
@@ -191,29 +217,17 @@ export async function importMickysSalesReport(xlsBuffer, fileName, targetDate) {
   const wb = XLSX.read(xlsBuffer, { type: 'buffer', cellDates: true });
 
   const { rows, sheetName } = getInvoiceRows(wb, ['Sheet1'], 'Micky\'s report');
-  const { latestDate, mtd, byDate } = parseInvoiceSheet(rows);
+  const { latestDate, mtd: grandTotal, byDate } = parseInvoiceSheet(rows);
   if (!latestDate) throw new Error('No dated invoice rows found in Micky\'s report');
 
-  const salesDate = pickSalesDate(byDate, targetDate, 'Micky\'s report');
-  const revenueToday = byDate[salesDate];
-  const fileDate = targetDate ?? salesDate;
-  const data = await readData(fileDate);
+  const written = await writeInvoiceReport({
+    byDate, fileName, sheetName,
+    kpiBucket: 'mickys',
+    kpiRevenueName: 'Order Revenue Today',
+    pnlUnit: "Micky's",
+    sourceKeyPrefix: 'mickys'
+  });
 
-  setKpi(data.mickys, 'Order Revenue Today', round(revenueToday), round(mtd));
-  setKpi(data.mickys, 'Revenue MTD',         round(mtd),          '');
-
-  data.pnl = (data.pnl ?? []).map((r) =>
-    r.unit === "Micky's" ? { ...r, revenueToday: round(revenueToday) } : r
-  );
-  data.importSource = {
-    ...(data.importSource ?? {}),
-    mickysSalesFile: fileName,
-    mickysSalesSheet: sheetName,
-    mickysSalesDate: salesDate,
-    mickysSalesImportedAt: new Date().toISOString(),
-  };
-
-  await writeDailyJson(fileDate, data);
-
-  return { ok: true, date: fileDate, sheetName, salesDate, revenueToday, mtd };
+  const focusDate = targetDate && Object.hasOwn(byDate, targetDate) ? targetDate : latestDate;
+  return { ok: true, date: focusDate, sheetName, dates: written, grandTotal };
 }
