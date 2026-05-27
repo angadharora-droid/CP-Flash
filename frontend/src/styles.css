@@ -160,18 +160,19 @@ input[type='date'] {
   /* Active state used by the navigation rail. */
   .sidebar-item-active {
     position: relative;
-    background: rgba(8, 120, 108, 0.11);
+    background: #ffffff;
     color: #075e55 !important;
+    box-shadow: 0 1px 2px rgba(23, 32, 38, 0.06), 0 10px 24px -20px rgba(8, 120, 108, 0.6);
   }
   .sidebar-item-active::before {
     content: '';
     position: absolute;
-    left: 0;
-    top: 25%;
-    height: 50%;
-    width: 4px;
+    left: 0.25rem;
+    top: 28%;
+    height: 44%;
+    width: 3px;
     background: #08786c;
-    border-radius: 0 4px 4px 0;
+    border-radius: 999px;
   }
 
   .num {
