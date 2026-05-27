@@ -372,7 +372,7 @@ export default function App() {
   }, [date, authToken]);
 
   const handleRefresh = React.useCallback(() => {
-    if (authToken) loadData(date, authToken);
+    if (authToken) loadData(date, authToken, true);
   }, [authToken, date, loadData]);
 
   const enrichedData = useMemo(() => applyPeriodToData(data, period), [data, period]);

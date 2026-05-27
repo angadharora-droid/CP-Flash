@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { statusTone } from '../components/DashboardUi';
-import { getEmailImportStatus, getSourceStatus, runEmailImport } from '../lib/api';
+import { getEmailImportStatus, getSourceStatus } from '../lib/api';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
 
@@ -117,19 +117,18 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
     } catch { /* silent */ }
   }, [authToken]);
 
-  const handleRunEmailImport = React.useCallback(async () => {
+  const handleRefreshSources = React.useCallback(async () => {
     setRunningImport(true);
     setError('');
     try {
-      const status = await runEmailImport(authToken, { force: true });
-      setEmailImport(status);
-      window.setTimeout(() => { load(true); onRefreshData?.(); }, 1500);
+      await Promise.all([load(true), loadEmailImportStatus()]);
+      onRefreshData?.();
     } catch (err) {
       setError(err.message);
     } finally {
       setRunningImport(false);
     }
-  }, [authToken, load, onRefreshData]);
+  }, [load, loadEmailImportStatus, onRefreshData]);
 
   useEffect(() => { load(); loadEmailImportStatus(); }, [load, loadEmailImportStatus]);
 
@@ -201,7 +200,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
       <div className="mb-4 flex justify-end">
         <button
           type="button"
-          onClick={handleRunEmailImport}
+          onClick={handleRefreshSources}
           disabled={importRunning}
           className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-4 py-2 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
         >
