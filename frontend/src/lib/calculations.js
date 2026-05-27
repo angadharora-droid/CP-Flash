@@ -9,6 +9,7 @@ export const settlementModes = [
   'Credit Card',
   'UPI',
   'City Ledger/Credit',
+  'Due Payment',
   'Zomato/Swiggy',
   'NEFT/Bank Transfer',
   'OTA Credit (MMT/Booking.com)',
