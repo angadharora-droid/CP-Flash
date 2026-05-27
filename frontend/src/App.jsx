@@ -643,7 +643,7 @@ export default function App() {
             <MIcon name="menu" />
           </button>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-extrabold tracking-normal text-on-surface sm:text-lg md:text-xl lg:text-2xl">{activePage[2]}</h1>
+            <h1 className="truncate text-sm font-extrabold tracking-normal text-on-surface sm:text-base md:text-lg lg:text-xl">{activePage[2]}</h1>
           </div>
         </div>
 
