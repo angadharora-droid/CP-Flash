@@ -152,7 +152,8 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
   }, [emailImport?.running, load, loadEmailImportStatus, onRefreshData]);
 
   const sources = sourceStatus?.sources ?? [];
-  const importRunning = runningImport || emailImport?.running;
+  const importRunning = runningImport;
+  const backgroundImportRunning = Boolean(emailImport?.running);
   const reportLabel = (report, index) => report?.label || `Report ${index + 1}`;
   const reportFile = (report) => typeof report === 'string' ? report : report?.file;
   const sourceReports = (source) => {
@@ -199,14 +200,20 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+        {backgroundImportRunning ? (
+          <div className="flex items-center gap-2 rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 text-xs font-bold text-primary">
+            <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+            Importing emails in background
+          </div>
+        ) : null}
         <button
           type="button"
           onClick={handleRefreshSources}
           disabled={importRunning}
           className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-4 py-2 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
         >
-          {importRunning ? 'Refreshing...' : 'Refresh Sources'}
+          {importRunning ? 'Starting...' : 'Refresh Sources'}
         </button>
       </div>
 
@@ -269,7 +276,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
 
                 <div className="min-w-0">
                   <div className="flex items-center justify-between gap-3">
-                    <StatusPill status={aggStatus} animated={aggStatus === 'Partial' || (aggStatus === 'Imported' && importRunning)} />
+                    <StatusPill status={aggStatus} animated={aggStatus === 'Partial' || (aggStatus === 'Imported' && backgroundImportRunning)} />
                     <span className="num text-xs font-bold text-on-surface-variant">{importedPct}%</span>
                   </div>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-container-high">
