@@ -121,8 +121,9 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
     setRunningImport(true);
     setError('');
     try {
-      await Promise.all([load(true), loadEmailImportStatus()]);
-      onRefreshData?.();
+      await load(true);
+      loadEmailImportStatus();
+      window.setTimeout(() => onRefreshData?.(), 0);
     } catch (err) {
       setError(err.message);
     } finally {
