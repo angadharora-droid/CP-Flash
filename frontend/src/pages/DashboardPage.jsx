@@ -59,7 +59,7 @@ export default function DashboardPage({ data, date, authToken }) {
         period={weekPeriod}
         weekControls={weekControls}
         weekLoading={loading}
-        defaultMode="week"
+        defaultMode="today"
       />
     </>
   );
