@@ -46,6 +46,10 @@ function canonicalUnit(unit) {
   return unit === 'Rabbit' + 's' ? 'Rabbit' : unit;
 }
 
+function canonicalPageKey(key) {
+  return key === 'rabbit' + 's' ? 'rabbit' : key;
+}
+
 function firstKpiValue(rows = [], unit, names = []) {
   const match = rows.find((row) => canonicalUnit(row.unit) === unit && names.some((name) => row.name === name));
   return match?.actual;
@@ -134,6 +138,23 @@ function mergeSeedKpiRows(seedRows = [], savedRows = []) {
   return [...mergedSeedRows, ...extraRows];
 }
 
+function normalizeRabbitData(data) {
+  if (!data) return data;
+  const next = { ...data };
+  next.rabbits = (next.rabbits ?? []).map((row) => ({ ...row, unit: canonicalUnit(row.unit) }));
+  next.pnl = (next.pnl ?? []).map((row) => ({ ...row, unit: canonicalUnit(row.unit) }));
+  next.settlement = Object.fromEntries(
+    Object.entries(next.settlement ?? {}).map(([mode, values]) => {
+      if (!values || typeof values !== 'object') return [mode, values];
+      const row = { ...values };
+      if (row.Rabbit == null && row['Rabbit' + 's'] != null) row.Rabbit = row['Rabbit' + 's'];
+      delete row['Rabbit' + 's'];
+      return [mode, row];
+    })
+  );
+  return next;
+}
+
 function formatKpiAggregate(value) {
   const rounded = Math.round(value * 100) / 100;
   return String(rounded);
@@ -172,7 +193,7 @@ function applyPeriodToData(data, period) {
 }
 
 function mergeWithSeed(seed, saved, previous = null) {
-  if (!saved) return seed;
+  if (!saved) return normalizeRabbitData(seed);
   const merged = { ...seed, ...saved };
   for (const key of SEED_FALLBACK_KEYS) {
     const savedVal = saved[key];
@@ -194,7 +215,7 @@ function mergeWithSeed(seed, saved, previous = null) {
   merged.rabbits = (merged.rabbits ?? []).map((row) => ({ ...row, unit: canonicalUnit(row.unit) }));
   merged.pnl = mergePnlRows(seed.pnl, saved.pnl, previous?.pnl);
   merged.pnl = derivePnlRows(merged);
-  return merged;
+  return normalizeRabbitData(merged);
 }
 
 // Material Symbol shortcut.
@@ -341,17 +362,18 @@ export default function App() {
   const page = useMemo(() => {
     if (!enrichedData) return null;
     const common = { data: enrichedData, setData, date, authToken };
-    if (active === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
-    if (active === 'bank') return <BankPage {...common} />;
-    if (active === 'pnl') return <PnlPage {...common} period={period} />;
-    if (active === 'flags') return <FlagsPage data={enrichedData} />;
-    if (active === 'hotels') return <HotelsPage {...common} />;
-    if (active === 'fnb') return <FnbPage {...common} />;
-    if (active === 'rabbit') return <RabbitPage data={enrichedData} date={date} />;
-    if (active === 'mickys') return <MickysPage data={enrichedData} date={date} />;
-    if (active === 'purosoul') return <PurosoulPage {...common} />;
-    if (active === 'settlement') return <SettlementPage {...common} />;
-    if (active === 'aop') return <AopTargetsPage authToken={authToken} />;
+    const activeKey = canonicalPageKey(active);
+    if (activeKey === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
+    if (activeKey === 'bank') return <BankPage {...common} />;
+    if (activeKey === 'pnl') return <PnlPage {...common} period={period} />;
+    if (activeKey === 'flags') return <FlagsPage data={enrichedData} />;
+    if (activeKey === 'hotels') return <HotelsPage {...common} />;
+    if (activeKey === 'fnb') return <FnbPage {...common} />;
+    if (activeKey === 'rabbit') return <RabbitPage data={enrichedData} date={date} />;
+    if (activeKey === 'mickys') return <MickysPage data={enrichedData} date={date} />;
+    if (activeKey === 'purosoul') return <PurosoulPage {...common} />;
+    if (activeKey === 'settlement') return <SettlementPage {...common} />;
+    if (activeKey === 'aop') return <AopTargetsPage authToken={authToken} />;
     return <AiPage data={enrichedData} authToken={authToken} />;
   }, [active, enrichedData, date, authToken, period, openSourceReportPreview, handleRefresh]);
 
@@ -388,7 +410,7 @@ export default function App() {
   }, [authToken, handleRefresh]);
 
   const riskCount = data ? withFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length : 0;
-  const activePage = pages.find(([key]) => key === active) ?? pages[0];
+  const activePage = pages.find(([key]) => key === canonicalPageKey(active)) ?? pages[0];
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
 
@@ -407,7 +429,7 @@ export default function App() {
     );
   }
 
-  if (active === 'pdf') {
+  if (canonicalPageKey(active) === 'pdf') {
     return (
       <PdfPreviewPage
         date={date}
