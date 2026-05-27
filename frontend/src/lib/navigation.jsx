@@ -14,7 +14,7 @@ export const pages = [
   ['flags', '03', 'Flag Summary'],
   ['hotels', '04', 'Hotels'],
   ['fnb', '05', 'F&B Outlets'],
-  ['rabbits', '06', 'Rabbit'],
+  ['rabbit', '06', 'Rabbit'],
   ['mickys', '07', "Micky's"],
   ['purosoul', '08', 'Purosoul'],
   ['settlement', '09', 'Settlement'],
@@ -39,7 +39,7 @@ export const NAV_GROUPS = [
     items: [
       { key: 'hotels',   label: 'Hotels',      icon: 'hotel' },
       { key: 'fnb',      label: 'F&B Outlets', icon: 'restaurant' },
-      { key: 'rabbits',  label: 'Rabbit',      icon: 'delivery_dining' },
+      { key: 'rabbit',   label: 'Rabbit',      icon: 'delivery_dining' },
       { key: 'mickys',   label: "Micky's",     icon: 'inventory_2' },
       { key: 'purosoul', label: 'Purosoul',    icon: 'factory' }
     ]
