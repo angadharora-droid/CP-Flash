@@ -5,7 +5,7 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
 
   return (
     <div className={`scroll-touch glass-card mb-6 max-w-full overflow-auto ${className}`}>
-      <table className="min-w-[680px] border-collapse text-[15px] md:min-w-full">
+      <table className="min-w-[680px] border-collapse text-[16px] md:min-w-full">
         <thead>
           <tr className="bg-surface-container text-left">
             {columns.map((col, i) => (
@@ -54,7 +54,7 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
           )}
         </tbody>
         {footer ? (
-          <tfoot className="border-t-2 border-outline-variant/70 bg-surface-container text-[15px] font-bold text-on-surface">
+          <tfoot className="border-t-2 border-outline-variant/70 bg-surface-container text-[16px] font-bold text-on-surface">
             {footer}
           </tfoot>
         ) : null}
