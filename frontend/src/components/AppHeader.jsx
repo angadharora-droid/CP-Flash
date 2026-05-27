@@ -21,12 +21,12 @@ export default function AppHeader({
   onHome
 }) {
   return (
-    <header className="fixed top-0 z-50 flex h-14 w-full border-b border-outline-variant/70 bg-surface-container-lowest/88 shadow-sm backdrop-blur-xl md:h-16 md:shadow-none">
-      <div className="hidden h-full w-72 shrink-0 items-center gap-3 border-r border-outline-variant/70 px-4 md:flex">
+    <header className="fixed top-0 z-50 flex h-14 w-full border-b border-outline-variant/70 bg-surface-container-lowest/92 shadow-sm backdrop-blur-xl md:h-16 md:shadow-none">
+      <div className="hidden h-full w-72 shrink-0 items-center gap-3 border-r border-outline-variant/70 bg-surface-container-low px-4 md:flex">
         <button
           type="button"
           onClick={onHome}
-          className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
+          className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-white p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:bg-surface-container-lowest hover:ring-primary/40"
           title="DailyFlash"
           aria-label="Home"
         >
@@ -34,7 +34,7 @@ export default function AppHeader({
         </button>
         <div className="min-w-0 leading-tight">
           <div className="truncate text-base font-extrabold tracking-normal text-on-surface">DailyFlash</div>
-          <div className="mt-0.5 truncate text-xs font-semibold text-on-surface-variant/75">Centre Point</div>
+          <div className="mt-0.5 truncate text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Centre Point</div>
         </div>
       </div>
 
@@ -48,30 +48,34 @@ export default function AppHeader({
           >
             <MIcon name="menu" />
           </button>
-          <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <span className="hidden size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary md:flex">
+              <MIcon name="space_dashboard" filled className="text-[19px]" />
+            </span>
+            <div className="min-w-0">
             <h1 className="truncate text-sm font-extrabold tracking-normal text-on-surface sm:text-base md:text-lg lg:text-xl">{title}</h1>
+            </div>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 md:gap-3 lg:gap-4">
           <DateControl value={date} onChange={onDateChange} latest={latestDate} />
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="hidden items-center rounded-lg border border-outline-variant/60 bg-surface-container-lowest p-1 shadow-sm md:flex">
             <button
               type="button"
               onClick={onRefresh}
               disabled={refreshing}
               title="Refresh"
-              className="rounded-lg p-2.5 text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-90 disabled:opacity-40"
+              className="flex size-9 items-center justify-center rounded-md text-on-surface-variant transition-all hover:bg-surface-container-high hover:text-on-surface active:scale-90 disabled:opacity-40"
             >
               {refreshing ? <MIcon name="sync" rotating /> : <MIcon name="sync" />}
             </button>
-            <div className="mx-1 h-6 w-px bg-outline-variant/30" />
           </div>
           <button
             type="button"
             onClick={onPreviewPdf}
             disabled={!canPreviewPdf}
-            className="hidden items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[12px] font-bold uppercase tracking-[0.05em] text-on-primary shadow-primary transition-all hover:bg-primary-container hover:shadow-lg active:scale-95 disabled:opacity-50 lg:flex"
+            className="hidden h-10 items-center gap-2 rounded-lg bg-primary px-4 text-[12px] font-bold uppercase tracking-[0.05em] text-on-primary shadow-primary transition-all hover:bg-primary-container hover:shadow-lg active:scale-95 disabled:opacity-50 lg:flex"
           >
             <MIcon name="picture_as_pdf" className="text-[18px]" />
             Preview PDF
