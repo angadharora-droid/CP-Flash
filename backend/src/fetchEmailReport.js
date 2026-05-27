@@ -18,7 +18,7 @@ import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import { readDailyJson } from './dailyStore.js';
+import { readDailyJson, closeDailyStore } from './dailyStore.js';
 import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
 import { importPetpoojaReport } from './importPetpoojaReport.js';
@@ -266,8 +266,7 @@ const HANDLERS = [
   }
 ];
 
-async function processMessage(msg, date, existingData) {
-  const parsed = await simpleParser(msg.source);
+async function processMessage(parsed, date, existingData) {
   const subject = parsed.subject || '';
   log(`Processing: "${subject}"`);
 
@@ -351,9 +350,17 @@ async function run() {
     if (!seqs.length) {
       log('No emails in the period — nothing to import.');
     } else {
-      for (const seq of [...seqs].reverse()) {
-        const msg = await client.fetchOne(String(seq), { source: true });
-        await processMessage(msg, date, existingData);
+      // Bulk-fetch all message sources in a single IMAP FETCH (vs. one round-trip per email).
+      const sources = [];
+      for await (const msg of client.fetch(seqs, { source: true })) {
+        sources.push(msg.source);
+      }
+      // Parse all MIME bodies in parallel — pure CPU work, no shared state.
+      const parsedAll = await Promise.all(sources.map((src) => simpleParser(src)));
+      // Handlers stay sequential: they share the daily JSON / Mongo doc; parallelising them
+      // would race on read-modify-write of the same record.
+      for (const parsed of parsedAll.reverse()) {
+        await processMessage(parsed, date, existingData);
       }
     }
 
@@ -508,8 +515,12 @@ function mergeReportData(existingData = {}, localData = {}) {
   return merged;
 }
 
-run().catch((err) => {
-  log(`FATAL: ${err.message}`);
-  if (err.response) log(`Server: ${err.response}`);
-  process.exit(1);
-});
+run()
+  .catch((err) => {
+    log(`FATAL: ${err.message}`);
+    if (err.response) log(`Server: ${err.response}`);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await closeDailyStore();
+  });

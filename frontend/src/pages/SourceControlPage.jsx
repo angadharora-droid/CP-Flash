@@ -121,7 +121,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
     setRunningImport(true);
     setError('');
     try {
-      const status = await runEmailImport(authToken, { force: true });
+      const status = await runEmailImport(authToken, { force: false });
       setEmailImport(status);
       load(true);
     } catch (err) {

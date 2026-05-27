@@ -30,18 +30,31 @@ export async function writeDailyJson(date, payload) {
   return record;
 }
 
+let _mongoClient = null;
 let _mongoDb = null;
 async function getMongoDb() {
   if (!process.env.MONGODB_URI) return null;
   if (_mongoDb) return _mongoDb;
   try {
-    const client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
-    await client.connect();
-    _mongoDb = client.db('dailyflash');
+    _mongoClient = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
+    await _mongoClient.connect();
+    _mongoDb = _mongoClient.db('dailyflash');
     return _mongoDb;
   } catch (err) {
     console.error('[dailyStore] MongoDB connection failed, using JSON files:', err.message);
+    _mongoClient = null;
     return null;
+  }
+}
+
+// Short-lived scripts (CLI importers, the email-fetch task) must call this before
+// exiting — otherwise the open Mongo connection keeps the event loop alive forever.
+// Long-running services (the API server) should NOT call this.
+export async function closeDailyStore() {
+  if (_mongoClient) {
+    await _mongoClient.close().catch(() => { /* swallow shutdown errors */ });
+    _mongoClient = null;
+    _mongoDb = null;
   }
 }
 
