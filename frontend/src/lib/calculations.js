@@ -114,11 +114,15 @@ export function pnlRows(data) {
     const revenue = numberValue(row.revenueToday);
     const purchases = numberValue(row.purchasesToday);
     const fixed = numberValue(row.fixedCost);
+    // Units without a purchases/COGS figure (e.g. hotels, Micky's) don't have a
+    // meaningful gross profit — their only modeled cost is the daily fixed cost.
+    const tracksCogs = String(row.purchasesToday ?? '').trim() !== '';
     const gp = revenue - purchases;
     const net = gp - fixed;
     return {
       ...row,
       unit: canonicalUnit(row.unit),
+      tracksCogs,
       grossProfit: gp,
       gpPercent: revenue ? (gp / revenue) * 100 : 0,
       estNetProfit: net,
