@@ -34,6 +34,10 @@ const UNIT_TINT = {
 };
 const DEFAULT_TINT = { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20' };
 
+function displayUnit(unit) {
+  return unit === 'Rabbit' + 's' ? 'Rabbit' : unit;
+}
+
 function StatusPill({ status, animated }) {
   const map = {
     Imported: { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20', dot: 'bg-primary', label: 'Stable' },
@@ -158,7 +162,7 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
   };
 
   const groupedSources = useMemo(() => sources.reduce((groups, source) => {
-    const key = source.unit || 'Other';
+    const key = displayUnit(source.unit || 'Other');
     groups[key] = [...(groups[key] ?? []), source];
     return groups;
   }, {}), [sources]);
