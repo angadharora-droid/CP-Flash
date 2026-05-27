@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { ActionButton, BrandLoader } from '../components/DashboardUi';
 import { reportPdfPreviewUrl, reportPdfUrl } from '../lib/api';
+import {
+  buildMonthOptions,
+  buildWeekOptions,
+  formatShortDate,
+  monthKeyFromDate,
+  weekEndFromStart,
+  weekStartContaining
+} from '../lib/weeks';
 
 const MIcon = ({ name, className = '', filled = false }) => (
   <span className={`material-symbols-outlined ${filled ? 'fill-1' : ''} ${className}`} aria-hidden>{name}</span>
@@ -23,73 +31,6 @@ const REPORT_TYPES = [
   { key: 'daily', label: 'Daily', icon: 'today' },
   { key: 'weekly', label: 'Weekly', icon: 'date_range' }
 ];
-
-const pad = (n) => String(n).padStart(2, '0');
-const isoFromUtc = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-
-function monthKeyFromDate(dateStr) {
-  return dateStr.slice(0, 7);
-}
-
-function buildMonthOptions(referenceDate, count = 12) {
-  const [refYear, refMonth] = referenceDate.slice(0, 7).split('-').map(Number);
-  const options = [];
-  for (let i = 0; i < count; i += 1) {
-    const d = new Date(Date.UTC(refYear, refMonth - 1 - i, 1));
-    const key = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
-    const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-    options.push({ key, label });
-  }
-  return options;
-}
-
-function buildWeekOptions(monthKey) {
-  const [year, month] = monthKey.split('-').map(Number);
-  const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
-  const lastOfMonth = new Date(Date.UTC(year, month, 0));
-  const day = firstOfMonth.getUTCDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const cursor = new Date(firstOfMonth);
-  cursor.setUTCDate(cursor.getUTCDate() + mondayOffset);
-  const weeks = [];
-  let weekNo = 1;
-  while (cursor <= lastOfMonth) {
-    const start = new Date(cursor);
-    const end = new Date(cursor);
-    end.setUTCDate(end.getUTCDate() + 6);
-    const fmt = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' });
-    weeks.push({
-      key: isoFromUtc(start),
-      end: isoFromUtc(end),
-      label: `W${weekNo}: ${fmt(start)} - ${fmt(end)}`
-    });
-    cursor.setUTCDate(cursor.getUTCDate() + 7);
-    weekNo += 1;
-  }
-  return weeks;
-}
-
-function weekStartContaining(dateStr) {
-  const d = new Date(`${dateStr}T00:00:00.000Z`);
-  const day = d.getUTCDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  d.setUTCDate(d.getUTCDate() + mondayOffset);
-  return isoFromUtc(d);
-}
-
-function weekEndFromStart(dateStr) {
-  const end = new Date(`${dateStr}T00:00:00.000Z`);
-  end.setUTCDate(end.getUTCDate() + 6);
-  return isoFromUtc(end);
-}
-
-function formatShortDate(dateStr) {
-  return new Date(`${dateStr}T00:00:00.000Z`).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    timeZone: 'UTC'
-  });
-}
 
 export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
   const [pdfKey, setPdfKey] = useState(0);

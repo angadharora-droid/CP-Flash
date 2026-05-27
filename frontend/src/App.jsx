@@ -3,6 +3,7 @@ import { getPnlPeriod, getSeed, getSourceReportPreview, saveData } from './lib/a
 import { numberValue, withFlags } from './lib/calculations';
 import { ActionButton, BrandLoader, DateControl, googleSheetPreviewUrl, PinGate } from './components/DashboardUi';
 import { BOTTOM_TABS, NAV_GROUPS, NAV_ITEM_BY_KEY, pages } from './lib/navigation';
+import DashboardPage from './pages/DashboardPage';
 import BankPage from './pages/BankPage';
 import PnlPage from './pages/PnlPage';
 import FlagsPage from './pages/FlagsPage';
@@ -244,7 +245,7 @@ const MIcon = ({ name, className = '', filled = false, rotating = false }) => (
 );
 
 export default function App() {
-  const [active, setActive] = useState('bank');
+  const [active, setActive] = useState('dashboard');
   const [date, setDate] = useState(today);
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('Loading...');
@@ -381,6 +382,7 @@ export default function App() {
     if (!enrichedData) return null;
     const common = { data: enrichedData, setData, date, authToken };
     const activeKey = canonicalPageKey(active);
+    if (activeKey === 'dashboard') return <DashboardPage {...common} />;
     if (activeKey === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
     if (activeKey === 'bank') return <BankPage {...common} />;
     if (activeKey === 'pnl') return <PnlPage {...common} period={period} />;
@@ -495,7 +497,7 @@ export default function App() {
         <div className="flex h-20 items-center gap-3 border-b border-outline-variant/70 px-4">
           <button
             type="button"
-            onClick={() => setActive('bank')}
+            onClick={() => setActive('dashboard')}
             className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
             title="DailyFlash"
             aria-label="Home"

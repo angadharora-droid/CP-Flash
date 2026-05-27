@@ -119,9 +119,9 @@ function PeriodToggle({ value, onChange, weeklyReady }) {
   );
 }
 
-export default function DashboardCharts({ data, period }) {
-  const weeklyReady = !!period?.week;
-  const [mode, setMode] = useState('today');
+export default function DashboardCharts({ data, period, weekControls = null, weekLoading = false, defaultMode = 'today' }) {
+  const weeklyReady = !!period?.week || weekLoading || !!weekControls;
+  const [mode, setMode] = useState(defaultMode);
   const isWeek = mode === 'week';
   const scopeLabel = isWeek ? 'this week' : 'today';
   const weekByUnit = period?.week ?? {};
@@ -149,7 +149,9 @@ export default function DashboardCharts({ data, period }) {
   const outletSales = (isWeek ? fnbOutletSalesWeekly(data, period) : fnbOutletSales(data))
     .filter((entry) => entry.value > 0);
 
-  const periodEmptyLabel = isWeek ? 'No saved data for this week yet.' : 'No data to chart yet.';
+  const periodEmptyLabel = isWeek
+    ? (weekLoading ? 'Loading week…' : 'No saved data for this week yet.')
+    : 'No data to chart yet.';
   const weekRangeNote = isWeek && period?.weekStart && period?.weekEnd
     ? ` (${period.weekStart} → ${period.weekEnd})`
     : '';
@@ -161,7 +163,12 @@ export default function DashboardCharts({ data, period }) {
       icon={SECTION_ICONS.kpi}
       tone="indigo"
       defaultOpen
-      actions={<PeriodToggle value={mode} onChange={setMode} weeklyReady={weeklyReady} />}
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          {isWeek && weekControls ? weekControls : null}
+          <PeriodToggle value={mode} onChange={setMode} weeklyReady={weeklyReady} />
+        </div>
+      }
     >
       <div className="grid gap-5 xl:grid-cols-2">
         <ChartBlock

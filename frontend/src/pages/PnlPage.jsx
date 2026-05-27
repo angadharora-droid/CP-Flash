@@ -15,9 +15,12 @@ function sumPeriod(period) {
   return UNITS.reduce((acc, unit) => {
     const entry = period?.[unit] ?? EMPTY_PERIOD_ENTRY;
     acc.revenue += entry.revenue || 0;
-    acc.purchases += entry.purchases || 0;
-    acc.gp += entry.gp || 0;
     acc.netProfit += entry.netProfit || 0;
+    // Gross profit only for units that actually booked purchases/COGS in the period.
+    if (entry.purchases) {
+      acc.purchases += entry.purchases || 0;
+      acc.gp += entry.gp || 0;
+    }
     return acc;
   }, { revenue: 0, purchases: 0, gp: 0, netProfit: 0 });
 }
@@ -31,12 +34,16 @@ export default function PnlPage({ data, period }) {
 
   const totals = rows.reduce((acc, row) => {
     acc.revenue += numberValue(row.revenueToday);
-    acc.purchases += numberValue(row.purchasesToday);
-    acc.gp += row.grossProfit;
     acc.fixed += numberValue(row.fixedCost);
     acc.net += row.estNetProfit;
+    // Gross profit only means something for units that track purchases/COGS.
+    if (row.tracksCogs) {
+      acc.purchases += numberValue(row.purchasesToday);
+      acc.gp += row.grossProfit;
+      acc.gpRevenue += numberValue(row.revenueToday);
+    }
     return acc;
-  }, { revenue: 0, purchases: 0, gp: 0, fixed: 0, net: 0 });
+  }, { revenue: 0, purchases: 0, gp: 0, fixed: 0, net: 0, gpRevenue: 0 });
   totals.mtd = mtdTotals.netProfit;
   totals.ytd = ytdTotals.netProfit;
 
@@ -69,7 +76,7 @@ export default function PnlPage({ data, period }) {
           label: 'Gross Profit',
           value: moneyCompact(totals.gp),
           tone: totals.gp >= 0 ? 'text-emerald-700' : 'text-red-700',
-          caption: totals.revenue ? `${percent(totals.gp / totals.revenue * 100)} of revenue` : null,
+          caption: totals.gpRevenue ? `${percent(totals.gp / totals.gpRevenue * 100)} of COGS-tracked revenue` : null,
           icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
         },
         {
@@ -99,9 +106,13 @@ export default function PnlPage({ data, period }) {
             cells: [
               <span className="font-semibold text-app-text">{row.unit}</span>,
               <ReportValue value={row.revenueToday} numeric />,
-              <ReportValue value={row.purchasesToday} numeric />,
-              <span className="num font-medium text-app-text">{money(row.grossProfit)}</span>,
-              <span className={`num font-semibold ${row.gpPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.gpPercent)}</span>,
+              <ReportValue value={row.tracksCogs ? row.purchasesToday : ''} numeric />,
+              row.tracksCogs
+                ? <span className="num font-medium text-app-text">{money(row.grossProfit)}</span>
+                : <span className="num text-on-surface-variant/35">—</span>,
+              row.tracksCogs
+                ? <span className={`num font-semibold ${row.gpPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.gpPercent)}</span>
+                : <span className="num text-on-surface-variant/35">—</span>,
               <ReportValue value={row.fixedCost} numeric />,
               <span className={`num font-semibold ${row.estNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(row.estNetProfit)}</span>,
               <span className={`num font-semibold ${row.netMargin >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.netMargin)}</span>,
@@ -116,7 +127,7 @@ export default function PnlPage({ data, period }) {
             <td className="num px-4 py-3 text-right">{money(totals.revenue)}</td>
             <td className="num px-4 py-3 text-right">{money(totals.purchases)}</td>
             <td className="num px-4 py-3 text-right">{money(totals.gp)}</td>
-            <td className="num px-4 py-3 text-right">{percent(totals.revenue ? (totals.gp / totals.revenue) * 100 : 0)}</td>
+            <td className="num px-4 py-3 text-right">{percent(totals.gpRevenue ? (totals.gp / totals.gpRevenue) * 100 : 0)}</td>
             <td className="num px-4 py-3 text-right">{money(totals.fixed)}</td>
             <td className={`num px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(totals.net)}</td>
             <td className={`num px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(totals.revenue ? (totals.net / totals.revenue) * 100 : 0)}</td>
@@ -154,8 +165,12 @@ function PeriodTotalsCard({ title, subtitle, period, totals }) {
             cells: [
               <span className="font-semibold text-app-text">{unit}</span>,
               <span className="num font-medium text-app-text">{money(entry.revenue)}</span>,
-              <span className="num font-medium text-app-text">{money(entry.purchases)}</span>,
-              <span className={`num font-semibold ${entry.gp >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(entry.gp)}</span>,
+              entry.purchases
+                ? <span className="num font-medium text-app-text">{money(entry.purchases)}</span>
+                : <span className="num text-on-surface-variant/35">—</span>,
+              entry.purchases
+                ? <span className={`num font-semibold ${entry.gp >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(entry.gp)}</span>
+                : <span className="num text-on-surface-variant/35">—</span>,
               <span className={`num font-semibold ${entry.netProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(entry.netProfit)}</span>,
               <span className="num text-app-text">{entry.days || 0}</span>
             ]
