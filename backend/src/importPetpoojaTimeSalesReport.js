@@ -275,7 +275,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     };
   }
 
-  const key = outlet.toLowerCase();
+  const key = outlet === 'Rabbit' ? 'rabbits' : outlet.toLowerCase();
   data.importSource = {
     ...(data.importSource ?? {}),
     [`${key}TimeSalesFile`]: path.basename(file),

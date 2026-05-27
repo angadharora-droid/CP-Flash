@@ -186,6 +186,16 @@ function hasEnteredValue(value) {
   });
 }
 
+function importSourceValue(importSource, key) {
+  if (!key) return undefined;
+  if (isFilled(importSource[key])) return importSource[key];
+  if (key.startsWith('rabbits')) {
+    const singularKey = `rabbit${key.slice('rabbits'.length)}`;
+    return importSource[singularKey];
+  }
+  return undefined;
+}
+
 function pickMeta(importSource, source) {
   if (!source.meta) return {};
 
@@ -194,7 +204,7 @@ function pickMeta(importSource, source) {
     ...(source.meta.files ?? [])
   ].filter(Boolean);
   const reports = fileKeys
-    .map((key) => ({ key, label: source.meta.reportLabels?.[key] ?? source.label, file: importSource[key] }))
+    .map((key) => ({ key, label: source.meta.reportLabels?.[key] ?? source.label, file: importSourceValue(importSource, key) }))
     .filter((report) => isFilled(report.file))
     .filter((report) => !source.meta.filePattern || source.meta.filePattern.test(String(report.file)));
   const reportFiles = reports
@@ -203,7 +213,7 @@ function pickMeta(importSource, source) {
   const importedFile = reports[0]?.file ?? '';
   const importedAtFields = source.meta.importedAtFields ?? [source.meta.importedAt];
   const importedAt = importedAtFields
-    .map((key) => importSource[key])
+    .map((key) => importSourceValue(importSource, key))
     .filter(isFilled)
     .sort()
     .at(-1) ?? '';

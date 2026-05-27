@@ -173,7 +173,7 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
     );
   }
 
-  const key = outlet.toLowerCase();
+  const key = outlet === 'Rabbit' ? 'rabbits' : outlet.toLowerCase();
   data.importSource = {
     ...(data.importSource ?? {}),
     [`${key}PaymentFile`]: path.basename(file),
