@@ -247,6 +247,12 @@ const MIcon = ({ name, className = '', filled = false, rotating = false }) => (
 
 export default function App() {
   const [active, setActive] = useState('dashboard');
+  // Deferred copy of `active` — the sidebar reads `active` (urgent, paints
+  // instantly on click), the heavy page render reads `renderedActive`
+  // (low-priority, runs after the urgent paint commits). This is what
+  // makes the active-icon recolor feel immediate even when the new page
+  // is slow to mount (Recharts pages, large tables).
+  const renderedActive = React.useDeferredValue(active);
   const [date, setDate] = useState(today);
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('Loading...');
@@ -392,7 +398,7 @@ export default function App() {
   const page = useMemo(() => {
     if (!enrichedData) return null;
     const common = { data: enrichedData, setData, date, authToken };
-    const activeKey = canonicalPageKey(active);
+    const activeKey = canonicalPageKey(renderedActive);
     if (activeKey === 'dashboard') return <DashboardPage {...common} />;
     if (activeKey === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
     if (activeKey === 'bank') return <BankPage {...common} />;
@@ -406,7 +412,7 @@ export default function App() {
     if (activeKey === 'settlement') return <SettlementPage {...common} />;
     if (activeKey === 'aop') return <AopTargetsPage authToken={authToken} />;
     return <AiPage data={enrichedData} authToken={authToken} />;
-  }, [active, enrichedData, date, authToken, period, openSourceReportPreview, handleRefresh]);
+  }, [renderedActive, enrichedData, date, authToken, period, openSourceReportPreview, handleRefresh]);
 
   const lockApp = React.useCallback(() => {
     localStorage.removeItem('dailyflashToken');
@@ -461,7 +467,7 @@ export default function App() {
     );
   }
 
-  if (canonicalPageKey(active) === 'pdf') {
+  if (canonicalPageKey(renderedActive) === 'pdf') {
     return (
       <PdfPreviewPage
         date={date}
@@ -683,7 +689,7 @@ export default function App() {
               </span>
             </div>
           ) : null}
-          <div key={active} className="space-y-5 animate-fade-in-up">
+          <div key={renderedActive} className="space-y-5 animate-fade-in-up">
             {page ?? (
               <div className="flex min-h-[38vh] flex-col items-center justify-center gap-4 py-16 text-center sm:py-20">
                 <BrandLoader size={72} label="Loading dashboard data..." />
