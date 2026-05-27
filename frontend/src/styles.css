@@ -158,12 +158,13 @@ input[type='date'] {
     border-radius: 0.75rem;
   }
 
-  /* Active state used by the navigation rail. Solid background (no gradient)
-     so the swap is instantaneous — gradients can't be interpolated by CSS
-     transitions and cause a visible stall on slower machines. */
+  /* Active state used by the navigation rail. Gradient is applied via
+     background-image, which `transition-colors` deliberately does not
+     animate — so the swap is still instantaneous on slower machines. */
   .sidebar-item-active {
     position: relative;
-    background: #ffffff;
+    background-image: linear-gradient(135deg, rgba(207, 238, 232, 0.55) 0%, rgba(255, 255, 255, 0.98) 65%);
+    background-color: #ffffff;
     color: #075e55 !important;
     box-shadow:
       0 1px 2px rgba(23, 32, 38, 0.06),
@@ -177,7 +178,8 @@ input[type='date'] {
     top: 22%;
     height: 56%;
     width: 3px;
-    background: #08786c;
+    background-image: linear-gradient(180deg, #08786c, #0a8a7b);
+    background-color: #08786c;
     border-radius: 999px;
     box-shadow: 0 0 8px rgba(8, 120, 108, 0.45);
   }

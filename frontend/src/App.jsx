@@ -492,7 +492,7 @@ export default function App() {
       >
         <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-100 ${
           isActive
-            ? 'bg-primary text-on-primary shadow-primary'
+            ? 'bg-gradient-to-br from-primary to-primary/85 text-on-primary shadow-primary'
             : 'bg-transparent text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary'
         }`}>
           <MIcon name={icon} filled={isActive} className="text-[20px]" />
@@ -619,7 +619,7 @@ export default function App() {
                       >
                         <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-100 ${
                           isActive
-                            ? 'bg-primary text-on-primary shadow-primary'
+                            ? 'bg-gradient-to-br from-primary to-primary/85 text-on-primary shadow-primary'
                             : 'bg-transparent text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary'
                         }`}>
                           <MIcon name={icon} filled={isActive} className="text-[20px]" />
