@@ -5,8 +5,32 @@
     <link rel="icon" type="image/png" href="/cp-logo.png" />
     <link rel="apple-touch-icon" href="/cp-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f6f8" />
     <title>CP Flash Report</title>
-    <!-- Hanken Grotesk (brand) + Material Symbols (icons). Both preconnected. -->
+
+    <!-- Critical inline CSS: paint the brand background immediately and gate
+         Material Symbols rendering until the icon font is ready so ligature
+         text ("menu", "sync", "dashboard"...) never flashes as words. -->
+    <style>
+      html, body {
+        margin: 0;
+        background: #f4f6f8;
+        font-family: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+      .material-symbols-outlined {
+        font-family: 'Material Symbols Outlined';
+        visibility: hidden;
+      }
+      html.fonts-ready .material-symbols-outlined,
+      html.fonts-fallback .material-symbols-outlined {
+        visibility: visible;
+      }
+    </style>
+
+    <!-- Hanken Grotesk (brand) + Material Symbols (icons). Both preconnected.
+         Material Symbols uses display=block + trimmed axes (we only need
+         FILL 0/1 and weight 400-500) so the payload is smaller and the
+         ligature text never paints as fallback letters. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,8 +39,25 @@
     />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,400..500,0..1&display=block"
     />
+
+    <script>
+      (function () {
+        var html = document.documentElement;
+        if (!document.fonts || !document.fonts.ready) {
+          html.classList.add('fonts-ready');
+          return;
+        }
+        var fallback = setTimeout(function () {
+          html.classList.add('fonts-fallback');
+        }, 2500);
+        document.fonts.ready.then(function () {
+          clearTimeout(fallback);
+          html.classList.add('fonts-ready');
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
