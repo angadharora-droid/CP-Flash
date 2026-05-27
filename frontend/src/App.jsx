@@ -484,14 +484,16 @@ export default function App() {
         title={label}
         aria-label={label}
         aria-current={isActive ? 'page' : undefined}
-        className={`relative flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-all duration-200 active:scale-[0.98] ${
+        className={`group relative flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-all duration-200 active:scale-[0.98] ${
           isActive
             ? 'sidebar-item-active'
             : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55'
         }`}
       >
-        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-          isActive ? 'bg-primary text-on-primary' : 'bg-transparent text-on-surface-variant'
+        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
+          isActive
+            ? 'bg-gradient-to-br from-primary to-primary/85 text-on-primary shadow-primary'
+            : 'bg-transparent text-on-surface-variant group-hover:bg-primary/8 group-hover:text-primary'
         }`}>
           <MIcon name={icon} filled={isActive} className="text-[20px]" />
         </span>
@@ -505,32 +507,45 @@ export default function App() {
     );
   };
 
+  const renderGroupLabel = (label) => (
+    <div className="mb-1.5 flex items-center gap-2 px-2.5">
+      <span className="size-1.5 rounded-full bg-primary/55" aria-hidden />
+      <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/65">{label}</span>
+      <span className="h-px flex-1 bg-gradient-to-r from-outline-variant/45 to-transparent" aria-hidden />
+    </div>
+  );
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-surface text-on-surface">
       {/* ---- Expanded desktop sidebar ---- */}
-      <aside className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-4rem)] w-72 flex-col border-r border-outline-variant/70 bg-surface-container-low transition-all duration-300 md:flex">
+      <aside className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-4rem)] w-72 flex-col border-r border-outline-variant/55 bg-gradient-to-b from-surface-container-lowest via-surface-container-low to-surface-container-low transition-all duration-300 md:flex">
         {/* Nav */}
-        <nav className="flex flex-grow flex-col overflow-y-auto px-3 py-3.5">
+        <nav className="flex flex-grow flex-col overflow-y-auto px-3 py-4">
           {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="mb-3.5 last:mb-0">
-              <div className="mb-1.5 px-2.5 text-[10.5px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/55">
-                {group.label}
-              </div>
-              <div className="space-y-1 rounded-2xl border border-outline-variant/45 bg-white/55 p-1 shadow-[0_1px_2px_rgba(23,32,38,0.03)]">
+            <div key={group.label} className="mb-4 last:mb-0">
+              {renderGroupLabel(group.label)}
+              <div className="space-y-0.5 rounded-2xl border border-outline-variant/30 bg-white/55 p-1.5 shadow-[0_1px_2px_rgba(23,32,38,0.025)]">
                 {group.items.map(renderSidebarButton)}
               </div>
             </div>
           ))}
         </nav>
         {/* Footer */}
-        <div className="space-y-1.5 border-t border-outline-variant/70 bg-white/65 p-3">
+        <div className="space-y-1.5 border-t border-outline-variant/55 bg-white/70 p-3">
+          <div className="flex items-center justify-between px-2.5 pb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant/55">
+            <span className="flex items-center gap-1.5">
+              <span className={`size-1.5 rounded-full ${refreshing ? 'bg-primary animate-pulse' : 'bg-emerald-500'}`} aria-hidden />
+              {refreshing ? 'Syncing' : 'Live'}
+            </span>
+            <span>v1.0</span>
+          </div>
           <button
             type="button"
             onClick={() => setActive('ai')}
             title="AI Notes"
-            className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-all hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55"
+            className="group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-all hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55"
           >
-            <span className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant">
+            <span className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant transition-colors group-hover:bg-primary/8 group-hover:text-primary">
               <MIcon name="help_outline" className="text-[20px]" />
             </span>
             Help & AI Notes
@@ -539,9 +554,9 @@ export default function App() {
             type="button"
             onClick={lockApp}
             title="Lock"
-            className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
+            className="group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
           >
-            <span className="flex size-8 items-center justify-center rounded-lg">
+            <span className="flex size-8 items-center justify-center rounded-lg transition-colors group-hover:bg-error/10 group-hover:text-error">
               <MIcon name="logout" className="text-[20px]" />
             </span>
             Lock dashboard
@@ -559,32 +574,35 @@ export default function App() {
           className={`absolute inset-0 bg-on-surface/30 backdrop-blur-sm transition-opacity duration-200 ${navDrawerOpen ? 'opacity-100' : 'opacity-0'}`}
         />
         <aside
-          className={`absolute inset-y-0 left-0 flex w-72 flex-col border-r border-outline-variant/70 bg-surface-container-low shadow-2xl transition-transform duration-300 ease-out ${navDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          className={`absolute inset-y-0 left-0 flex w-72 flex-col border-r border-outline-variant/55 bg-gradient-to-b from-surface-container-lowest to-surface-container-low shadow-2xl transition-transform duration-300 ease-out ${navDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
         >
-          <div className="flex h-16 items-center justify-between border-b border-outline-variant/70 bg-white px-5">
+          <div className="flex h-16 items-center justify-between border-b border-outline-variant/55 bg-gradient-to-br from-white to-surface-container-lowest px-5">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-lg bg-white p-1.5 ring-1 ring-outline-variant/70">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-white p-1.5 ring-1 ring-outline-variant/55 shadow-sm">
                 <img src={cpLogo} alt="" className="h-full w-full object-contain" />
               </div>
-              <div>
-                <div className="text-sm font-extrabold text-on-surface">DailyFlash</div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Centre Point</div>
+              <div className="leading-tight">
+                <div className="text-[15px] font-extrabold tracking-tight text-on-surface">DailyFlash</div>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-primary/85">
+                  <span className="size-1 rounded-full bg-primary/70" aria-hidden />
+                  Centre Point
+                </div>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setNavDrawerOpen(false)}
-              className="flex size-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high"
+              className="flex size-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
               aria-label="Close menu"
             >
               <MIcon name="close" />
             </button>
           </div>
-          <nav className="flex-1 overflow-y-auto px-3 py-3.5">
+          <nav className="flex-1 overflow-y-auto px-3 py-4">
             {NAV_GROUPS.map((group) => (
-              <div key={group.label} className="mb-3.5">
-                <div className="mb-1.5 px-2.5 text-[10.5px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/55">{group.label}</div>
-                <div className="space-y-1 rounded-2xl border border-outline-variant/45 bg-white/55 p-1 shadow-[0_1px_2px_rgba(23,32,38,0.03)]">
+              <div key={group.label} className="mb-4 last:mb-0">
+                {renderGroupLabel(group.label)}
+                <div className="space-y-0.5 rounded-2xl border border-outline-variant/30 bg-white/55 p-1.5 shadow-[0_1px_2px_rgba(23,32,38,0.025)]">
                   {group.items.map(({ key, label, icon }) => {
                     const isActive = active === key;
                     const hasBadge = key === 'flags' && riskCount > 0;
@@ -593,14 +611,16 @@ export default function App() {
                         key={key}
                         type="button"
                         onClick={() => setActive(key)}
-                        className={`flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-all ${
+                        className={`group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-all ${
                           isActive
                             ? 'sidebar-item-active'
                             : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55'
                         }`}
                       >
-                        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                          isActive ? 'bg-primary text-on-primary' : 'bg-transparent text-on-surface-variant'
+                        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-all ${
+                          isActive
+                            ? 'bg-gradient-to-br from-primary to-primary/85 text-on-primary shadow-primary'
+                            : 'bg-transparent text-on-surface-variant group-hover:bg-primary/8 group-hover:text-primary'
                         }`}>
                           <MIcon name={icon} filled={isActive} className="text-[20px]" />
                         </span>
@@ -615,13 +635,20 @@ export default function App() {
               </div>
             ))}
           </nav>
-          <div className="border-t border-outline-variant/70 bg-white/65 p-3">
+          <div className="border-t border-outline-variant/55 bg-white/70 p-3">
+            <div className="flex items-center justify-between px-2.5 pb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant/55">
+              <span className="flex items-center gap-1.5">
+                <span className={`size-1.5 rounded-full ${refreshing ? 'bg-primary animate-pulse' : 'bg-emerald-500'}`} aria-hidden />
+                {refreshing ? 'Syncing' : 'Live'}
+              </span>
+              <span>v1.0</span>
+            </div>
             <button
               type="button"
               onClick={lockApp}
-              className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
+              className="group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
             >
-              <span className="flex size-8 items-center justify-center rounded-lg">
+              <span className="flex size-8 items-center justify-center rounded-lg transition-colors group-hover:bg-error/10 group-hover:text-error">
                 <MIcon name="logout" />
               </span>
               Lock dashboard
