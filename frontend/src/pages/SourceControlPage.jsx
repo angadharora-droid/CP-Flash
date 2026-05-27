@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { statusTone } from '../components/DashboardUi';
-import { getEmailImportStatus, getSourceStatus } from '../lib/api';
+import { getEmailImportStatus, getSourceStatus, runEmailImport } from '../lib/api';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
 
@@ -121,15 +121,16 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
     setRunningImport(true);
     setError('');
     try {
-      await load(true);
-      loadEmailImportStatus();
+      const status = await runEmailImport(authToken, { force: true });
+      setEmailImport(status);
+      load(true);
       window.setTimeout(() => onRefreshData?.(), 0);
     } catch (err) {
       setError(err.message);
     } finally {
       setRunningImport(false);
     }
-  }, [load, loadEmailImportStatus, onRefreshData]);
+  }, [authToken, load, onRefreshData]);
 
   useEffect(() => { load(); loadEmailImportStatus(); }, [load, loadEmailImportStatus]);
 
