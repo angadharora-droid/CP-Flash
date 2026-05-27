@@ -503,23 +503,7 @@ export default function App() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-surface text-on-surface">
       {/* ---- Expanded desktop sidebar ---- */}
-      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 flex-col border-r border-outline-variant/70 bg-surface-container-lowest transition-all duration-300 md:flex">
-        {/* Brand logo */}
-        <div className="flex h-20 items-center gap-3 border-b border-outline-variant/70 bg-surface-container-lowest/88 px-4 backdrop-blur-xl">
-          <button
-            type="button"
-            onClick={() => setActive('dashboard')}
-            className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-surface-container-lowest p-1.5 text-on-primary ring-1 ring-outline-variant/70 transition-all hover:ring-primary/40"
-            title="DailyFlash"
-            aria-label="Home"
-          >
-            <img src={cpLogo} alt="" className="h-full w-full object-contain" />
-          </button>
-          <div className="min-w-0 leading-tight">
-            <div className="truncate text-lg font-extrabold tracking-normal text-on-surface">DailyFlash</div>
-            <div className="mt-0.5 truncate text-xs font-semibold text-on-surface-variant/75">Centre Point</div>
-          </div>
-        </div>
+      <aside className="fixed left-0 top-20 z-40 hidden h-[calc(100vh-5rem)] w-72 flex-col border-r border-outline-variant/70 bg-surface-container-lowest transition-all duration-300 md:flex">
         {/* Nav */}
         <nav className="flex flex-grow flex-col overflow-y-auto px-3 py-4">
           {NAV_GROUPS.map((group) => (
@@ -641,6 +625,7 @@ export default function App() {
         refreshing={refreshing}
         onPreviewPdf={() => { setPdfReturnTo(active); setActive('pdf'); }}
         canPreviewPdf={!!data}
+        onHome={() => setActive('dashboard')}
       />
 
       {/* ---- Main content ---- */}
