@@ -483,13 +483,17 @@ export default function App() {
         title={label}
         aria-label={label}
         aria-current={isActive ? 'page' : undefined}
-        className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[16px] font-semibold transition-all duration-200 active:scale-[0.98] ${
+        className={`relative flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[14px] font-semibold transition-all duration-200 active:scale-[0.98] ${
           isActive
             ? 'sidebar-item-active'
-            : 'text-on-surface-variant/70 hover:bg-primary/10 hover:text-primary'
+            : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm'
         }`}
       >
-        <MIcon name={icon} filled={isActive} className={`shrink-0 text-[22px] ${isActive ? 'text-primary' : ''}`} />
+        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+          isActive ? 'bg-primary text-on-primary' : 'bg-transparent text-on-surface-variant'
+        }`}>
+          <MIcon name={icon} filled={isActive} className="text-[20px]" />
+        </span>
         <span className="min-w-0 flex-1 truncate">{label}</span>
         {hasBadge ? (
           <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-error text-[10px] font-bold text-on-error ring-2 ring-surface-container-lowest">
@@ -503,38 +507,42 @@ export default function App() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-surface text-on-surface">
       {/* ---- Expanded desktop sidebar ---- */}
-      <aside className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-4rem)] w-72 flex-col border-r border-outline-variant/70 bg-surface-container-lowest transition-all duration-300 md:flex">
+      <aside className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-4rem)] w-72 flex-col border-r border-outline-variant/70 bg-surface-container-low transition-all duration-300 md:flex">
         {/* Nav */}
-        <nav className="flex flex-grow flex-col overflow-y-auto px-3 py-4">
+        <nav className="flex flex-grow flex-col overflow-y-auto px-3 py-3">
           {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="mb-5 last:mb-0">
-              <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/60">
+            <div key={group.label} className="mb-4 last:mb-0">
+              <div className="mb-1.5 px-2.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/55">
                 {group.label}
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 rounded-2xl">
                 {group.items.map(renderSidebarButton)}
               </div>
             </div>
           ))}
         </nav>
         {/* Footer */}
-        <div className="space-y-2 border-t border-outline-variant/70 p-3">
+        <div className="space-y-1.5 border-t border-outline-variant/70 bg-white/45 p-3">
           <button
             type="button"
             onClick={() => setActive('ai')}
             title="AI Notes"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+            className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-white hover:text-on-surface hover:shadow-sm"
           >
-            <MIcon name="help_outline" className="text-[20px]" />
+            <span className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant">
+              <MIcon name="help_outline" className="text-[20px]" />
+            </span>
             Help & AI Notes
           </button>
           <button
             type="button"
             onClick={lockApp}
             title="Lock"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-error-container/30 hover:text-error"
+            className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
           >
-            <MIcon name="logout" className="text-[20px]" />
+            <span className="flex size-8 items-center justify-center rounded-lg">
+              <MIcon name="logout" className="text-[20px]" />
+            </span>
             Lock dashboard
           </button>
         </div>
@@ -550,16 +558,16 @@ export default function App() {
           className={`absolute inset-0 bg-on-surface/30 backdrop-blur-sm transition-opacity duration-200 ${navDrawerOpen ? 'opacity-100' : 'opacity-0'}`}
         />
         <aside
-          className={`absolute inset-y-0 left-0 flex w-72 flex-col border-r border-outline-variant/70 bg-surface-container-lowest shadow-2xl transition-transform duration-300 ease-out ${navDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          className={`absolute inset-y-0 left-0 flex w-72 flex-col border-r border-outline-variant/70 bg-surface-container-low shadow-2xl transition-transform duration-300 ease-out ${navDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
         >
-          <div className="flex h-16 items-center justify-between border-b border-outline-variant/70 px-5">
+          <div className="flex h-16 items-center justify-between border-b border-outline-variant/70 bg-white px-5">
             <div className="flex items-center gap-3">
               <div className="flex size-9 items-center justify-center rounded-lg bg-white p-1.5 ring-1 ring-outline-variant/70">
                 <img src={cpLogo} alt="" className="h-full w-full object-contain" />
               </div>
               <div>
-                <div className="text-xs font-bold uppercase tracking-[0.18em] text-primary">DailyFlash</div>
-                <div className="text-[11px] text-on-surface-variant">Centre Point</div>
+                <div className="text-sm font-extrabold text-on-surface">DailyFlash</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Centre Point</div>
               </div>
             </div>
             <button
@@ -571,10 +579,10 @@ export default function App() {
               <MIcon name="close" />
             </button>
           </div>
-          <nav className="flex-1 overflow-y-auto px-3 py-4">
+          <nav className="flex-1 overflow-y-auto px-3 py-3">
             {NAV_GROUPS.map((group) => (
-              <div key={group.label} className="mb-5">
-                <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant/60">{group.label}</div>
+              <div key={group.label} className="mb-4">
+                <div className="mb-1.5 px-2.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/55">{group.label}</div>
                 <div className="space-y-1">
                   {group.items.map(({ key, label, icon }) => {
                     const isActive = active === key;
@@ -584,13 +592,17 @@ export default function App() {
                         key={key}
                         type="button"
                         onClick={() => setActive(key)}
-                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[16px] font-semibold transition-all ${
+                        className={`flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[14px] font-semibold transition-all ${
                           isActive
                             ? 'sidebar-item-active'
-                            : 'text-on-surface-variant/80 hover:bg-primary/10 hover:text-primary'
+                            : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm'
                         }`}
                       >
-                        <MIcon name={icon} filled={isActive} className={isActive ? 'text-primary' : ''} />
+                        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          isActive ? 'bg-primary text-on-primary' : 'bg-transparent text-on-surface-variant'
+                        }`}>
+                          <MIcon name={icon} filled={isActive} className="text-[20px]" />
+                        </span>
                         <span className="flex-1 truncate">{label}</span>
                         {hasBadge ? (
                           <span className="flex size-5 items-center justify-center rounded-full bg-error text-[10px] font-bold text-on-error">{riskCount}</span>
@@ -602,13 +614,15 @@ export default function App() {
               </div>
             ))}
           </nav>
-          <div className="border-t border-outline-variant/70 p-3">
+          <div className="border-t border-outline-variant/70 bg-white/45 p-3">
             <button
               type="button"
               onClick={lockApp}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-error-container/20 hover:text-error"
+              className="flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
             >
-              <MIcon name="logout" />
+              <span className="flex size-8 items-center justify-center rounded-lg">
+                <MIcon name="logout" />
+              </span>
               Lock dashboard
             </button>
           </div>
