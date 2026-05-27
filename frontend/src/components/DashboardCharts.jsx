@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ResponsiveContainer,
   PieChart,
@@ -14,7 +14,7 @@ import {
 } from 'recharts';
 import SectionCard from './SectionCard';
 import { SECTION_ICONS } from './DashboardUi';
-import { money, moneyCompact, numberValue, pnlRows } from '../lib/calculations';
+import { money, moneyCompact, numberValue, pnlRows, UNITS } from '../lib/calculations';
 
 // Theme-aligned categorical palette (M3 tokens from tailwind.config.js, plus two fillers).
 const PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a', '#3f6fb5', '#b5447a'];
@@ -23,21 +23,41 @@ const NET_COLOR = '#9a5a00';
 const axisTick = { fontSize: 11, fill: '#5b6b73' };
 const gridStroke = '#e2e8ec';
 
-// F&B outlet sales pulled from the hotel KPI rows (Freakk / Meeting Point / High Steaks)
-// and the standalone F&B tabs (Pablo / Dali "Gross Sales").
+// Outlet -> KPI lookup used for both today and weekly. `source` selects the data bucket.
+const FNB_OUTLETS = [
+  { name: 'Freakk', source: 'hotels', kpi: 'Freakk Revenue' },
+  { name: 'Pablo', source: 'fnbPablo', kpi: 'Gross Sales' },
+  { name: 'Dali', source: 'fnbDali', kpi: 'Gross Sales' },
+  { name: 'Meeting Point', source: 'hotels', kpi: 'Meeting Point Revenue' },
+  { name: 'High Steaks', source: 'hotels', kpi: 'High Steaks Revenue' }
+];
+
+function outletRows(data, source) {
+  if (source === 'hotels') return data?.hotels ?? [];
+  if (source === 'fnbPablo') return data?.fnb?.Pablo ?? [];
+  if (source === 'fnbDali') return data?.fnb?.Dali ?? [];
+  return [];
+}
+
+// Today's F&B outlet sales from the live KPI rows' `actual` values.
 export function fnbOutletSales(data) {
-  const hotels = data?.hotels ?? [];
-  const sumHotelKpi = (kpiName) =>
-    hotels.filter((row) => row.name === kpiName).reduce((sum, row) => sum + numberValue(row.actual), 0);
-  const fnbGross = (tab) =>
-    numberValue((data?.fnb?.[tab] ?? []).find((row) => row.name === 'Gross Sales')?.actual);
-  return [
-    { name: 'Freakk', value: sumHotelKpi('Freakk Revenue') },
-    { name: 'Pablo', value: fnbGross('Pablo') },
-    { name: 'Dali', value: fnbGross('Dali') },
-    { name: 'Meeting Point', value: sumHotelKpi('Meeting Point Revenue') },
-    { name: 'High Steaks', value: sumHotelKpi('High Steaks Revenue') }
-  ];
+  return FNB_OUTLETS.map((outlet) => ({
+    name: outlet.name,
+    value: outletRows(data, outlet.source)
+      .filter((row) => row.name === outlet.kpi)
+      .reduce((sum, row) => sum + numberValue(row.actual), 0)
+  }));
+}
+
+// Weekly F&B outlet sales: sum each matching KPI row's weekly aggregate (keyed by row id).
+export function fnbOutletSalesWeekly(data, period) {
+  const weekKpis = period?.kpis?.week ?? {};
+  return FNB_OUTLETS.map((outlet) => ({
+    name: outlet.name,
+    value: outletRows(data, outlet.source)
+      .filter((row) => row.name === outlet.kpi)
+      .reduce((sum, row) => sum + numberValue(weekKpis[row.id] ?? 0), 0)
+  }));
 }
 
 function ChartTooltip({ active, payload, label }) {
@@ -58,7 +78,7 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
-function ChartBlock({ title, subtitle, className = '', children, empty }) {
+function ChartBlock({ title, subtitle, className = '', children, empty, emptyLabel = 'No data to chart yet.' }) {
   return (
     <div className={`rounded-xl border border-outline-variant/60 bg-surface-container-lowest p-4 ${className}`}>
       <div className="mb-3">
@@ -67,7 +87,7 @@ function ChartBlock({ title, subtitle, className = '', children, empty }) {
       </div>
       {empty ? (
         <div className="grid h-[260px] place-items-center text-sm font-medium text-on-surface-variant/60">
-          No data to chart yet.
+          {emptyLabel}
         </div>
       ) : (
         children
@@ -76,36 +96,79 @@ function ChartBlock({ title, subtitle, className = '', children, empty }) {
   );
 }
 
-export default function DashboardCharts({ data }) {
+function PeriodToggle({ value, onChange, weeklyReady }) {
+  const options = [{ key: 'today', label: 'Today' }, { key: 'week', label: 'This Week' }];
+  return (
+    <div className="inline-flex gap-1 rounded-lg border border-outline-variant/70 bg-surface-container-low p-1">
+      {options.map((option) => (
+        <button
+          key={option.key}
+          type="button"
+          disabled={option.key === 'week' && !weeklyReady}
+          onClick={() => onChange(option.key)}
+          className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+            value === option.key
+              ? 'bg-primary text-on-primary shadow-primary'
+              : 'text-on-surface-variant hover:bg-surface-container-high'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function DashboardCharts({ data, period }) {
+  const weeklyReady = !!period?.week;
+  const [mode, setMode] = useState('today');
+  const isWeek = mode === 'week';
+  const scopeLabel = isWeek ? 'this week' : 'today';
+  const weekByUnit = period?.week ?? {};
+
   const rows = pnlRows(data);
 
-  const outletSales = fnbOutletSales(data).filter((entry) => entry.value > 0);
+  const revenueShare = (isWeek
+    ? UNITS.map((unit) => ({ name: unit, value: numberValue(weekByUnit[unit]?.revenue) }))
+    : rows.map((row) => ({ name: row.unit, value: numberValue(row.revenueToday) }))
+  ).filter((entry) => entry.value > 0);
 
-  const revenueShare = rows
-    .map((row) => ({ name: row.unit, value: numberValue(row.revenueToday) }))
+  const revenueVsNet = (isWeek
+    ? UNITS.map((unit) => ({
+        unit,
+        Revenue: numberValue(weekByUnit[unit]?.revenue),
+        'Est. Net Profit': numberValue(weekByUnit[unit]?.netProfit)
+      }))
+    : rows.map((row) => ({
+        unit: row.unit,
+        Revenue: numberValue(row.revenueToday),
+        'Est. Net Profit': row.estNetProfit
+      }))
+  ).filter((entry) => entry.Revenue || entry['Est. Net Profit']);
+
+  const outletSales = (isWeek ? fnbOutletSalesWeekly(data, period) : fnbOutletSales(data))
     .filter((entry) => entry.value > 0);
 
-  const revenueVsNet = rows
-    .map((row) => ({
-      unit: row.unit,
-      Revenue: numberValue(row.revenueToday),
-      'Est. Net Profit': row.estNetProfit
-    }))
-    .filter((entry) => entry.Revenue || entry['Est. Net Profit']);
+  const periodEmptyLabel = isWeek ? 'No saved data for this week yet.' : 'No data to chart yet.';
+  const weekRangeNote = isWeek && period?.weekStart && period?.weekEnd
+    ? ` (${period.weekStart} → ${period.weekEnd})`
+    : '';
 
   return (
     <SectionCard
       title="Performance Charts"
-      subtitle="Visual snapshot of today's revenue, profitability, and outlet sales"
+      subtitle={`Visual snapshot of ${scopeLabel}'s revenue, profitability, and outlet sales${weekRangeNote}`}
       icon={SECTION_ICONS.kpi}
       tone="indigo"
       defaultOpen
+      actions={<PeriodToggle value={mode} onChange={setMode} weeklyReady={weeklyReady} />}
     >
       <div className="grid gap-5 xl:grid-cols-2">
         <ChartBlock
           title="Unit-wise Revenue Share"
-          subtitle="P&L revenue contribution by unit (today)"
+          subtitle={`P&L revenue contribution by unit (${scopeLabel})`}
           empty={!revenueShare.length}
+          emptyLabel={periodEmptyLabel}
         >
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
@@ -133,8 +196,9 @@ export default function DashboardCharts({ data }) {
 
         <ChartBlock
           title="Revenue vs Est. Net Profit"
-          subtitle="Per unit (today)"
+          subtitle={`Per unit (${scopeLabel})`}
           empty={!revenueVsNet.length}
+          emptyLabel={periodEmptyLabel}
         >
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={revenueVsNet} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
@@ -151,9 +215,10 @@ export default function DashboardCharts({ data }) {
 
         <ChartBlock
           title="F&B Outlet Sales"
-          subtitle="Freakk, Pablo, Dali, Meeting Point, High Steaks (today)"
+          subtitle={`Freakk, Pablo, Dali, Meeting Point, High Steaks (${scopeLabel})`}
           className="xl:col-span-2"
           empty={!outletSales.length}
+          emptyLabel={periodEmptyLabel}
         >
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={outletSales} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
