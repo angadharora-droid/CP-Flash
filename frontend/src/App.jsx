@@ -530,7 +530,7 @@ export default function App() {
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="mb-4 last:mb-0">
               {renderGroupLabel(group.label)}
-              <div className="space-y-0.5 rounded-2xl border border-outline-variant/30 bg-white/55 p-1.5 shadow-[0_1px_2px_rgba(23,32,38,0.025)]">
+              <div className="space-y-0.5">
                 {group.items.map(renderSidebarButton)}
               </div>
             </div>
@@ -608,7 +608,7 @@ export default function App() {
             {NAV_GROUPS.map((group) => (
               <div key={group.label} className="mb-4 last:mb-0">
                 {renderGroupLabel(group.label)}
-                <div className="space-y-0.5 rounded-2xl border border-outline-variant/30 bg-white/55 p-1.5 shadow-[0_1px_2px_rgba(23,32,38,0.025)]">
+                <div className="space-y-0.5">
                   {group.items.map(({ key, label, icon }) => {
                     const isActive = active === key;
                     const hasBadge = key === 'flags' && riskCount > 0;
