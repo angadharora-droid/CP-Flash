@@ -21,8 +21,8 @@ export default function AppHeader({
   onHome
 }) {
   return (
-    <header className="fixed top-0 z-50 flex h-14 w-full border-b border-primary/20 bg-primary-fixed shadow-sm backdrop-blur-xl md:h-16 md:shadow-none">
-      <div className="hidden h-full w-72 shrink-0 items-center gap-3 border-r border-primary/20 px-4 md:flex">
+    <header className="fixed top-0 z-50 flex h-14 w-full border-b border-outline-variant/70 bg-white shadow-sm backdrop-blur-xl md:h-16 md:shadow-none">
+      <div className="hidden h-full w-72 shrink-0 items-center gap-3 border-r border-outline-variant/70 px-4 md:flex">
         <button
           type="button"
           onClick={onHome}
