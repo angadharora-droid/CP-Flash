@@ -347,7 +347,7 @@ export default function App() {
     if (active === 'flags') return <FlagsPage data={enrichedData} />;
     if (active === 'hotels') return <HotelsPage {...common} />;
     if (active === 'fnb') return <FnbPage {...common} />;
-    if (active === 'rabbits') return <RabbitPage data={enrichedData} date={date} />;
+    if (active === 'rabbit') return <RabbitPage data={enrichedData} date={date} />;
     if (active === 'mickys') return <MickysPage data={enrichedData} date={date} />;
     if (active === 'purosoul') return <PurosoulPage {...common} />;
     if (active === 'settlement') return <SettlementPage {...common} />;
