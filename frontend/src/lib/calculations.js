@@ -1,5 +1,9 @@
 export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbit', "Micky's", 'Purosoul'];
 
+function canonicalUnit(unit) {
+  return unit === 'Rabbit' + 's' ? 'Rabbit' : unit;
+}
+
 export const settlementModes = [
   'Cash',
   'Credit Card',
@@ -80,7 +84,7 @@ export function withFlags(data) {
   return flattenKpis(data).map((kpi) => {
     const flag = calcFlag(kpi.actual, kpi.target, kpi.direction);
     return {
-      unit: kpi.unit,
+      unit: canonicalUnit(kpi.unit),
       kpiName: kpi.name,
       aopTarget: kpi.target,
       todayActual: kpi.actual,
@@ -99,6 +103,7 @@ export function pnlRows(data) {
     const net = gp - fixed;
     return {
       ...row,
+      unit: canonicalUnit(row.unit),
       grossProfit: gp,
       gpPercent: revenue ? (gp / revenue) * 100 : 0,
       estNetProfit: net,
@@ -113,11 +118,16 @@ export function groupRevenue(data) {
 
 export function settlementTotals(data) {
   const matrix = data.settlement ?? {};
+  const valueForUnit = (mode, unit) => {
+    const row = matrix[mode] ?? {};
+    if (unit !== 'Rabbit') return numberValue(row[unit]);
+    return numberValue(row.Rabbit ?? row['Rabbit' + 's']);
+  };
   const rowTotals = Object.fromEntries(
-    settlementModes.map((mode) => [mode, UNITS.reduce((sum, unit) => sum + numberValue(matrix[mode]?.[unit]), 0)])
+    settlementModes.map((mode) => [mode, UNITS.reduce((sum, unit) => sum + valueForUnit(mode, unit), 0)])
   );
   const unitTotals = Object.fromEntries(
-    UNITS.map((unit) => [unit, settlementModes.reduce((sum, mode) => sum + numberValue(matrix[mode]?.[unit]), 0)])
+    UNITS.map((unit) => [unit, settlementModes.reduce((sum, mode) => sum + valueForUnit(mode, unit), 0)])
   );
   const groupTotal = Object.values(rowTotals).reduce((sum, value) => sum + value, 0);
   return { rowTotals, unitTotals, groupTotal };
