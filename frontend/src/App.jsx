@@ -490,7 +490,7 @@ export default function App() {
         title={label}
         aria-label={label}
         aria-current={isActive ? 'page' : undefined}
-        className={`group relative flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-colors duration-100 active:scale-[0.98] ${
+        className={`group relative flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[16px] font-semibold transition-colors duration-100 active:scale-[0.98] ${
           isActive
             ? 'sidebar-item-active'
             : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55'
@@ -549,7 +549,7 @@ export default function App() {
             type="button"
             onClick={() => setActive('ai')}
             title="AI Notes"
-            className="group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-all hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55"
+            className="group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[16px] font-semibold text-on-surface-variant transition-all hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55"
           >
             <span className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant transition-colors group-hover:bg-primary/8 group-hover:text-primary">
               <MIcon name="help_outline" className="text-[20px]" />
@@ -560,7 +560,7 @@ export default function App() {
             type="button"
             onClick={lockApp}
             title="Lock"
-            className="group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
+            className="group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[16px] font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
           >
             <span className="flex size-8 items-center justify-center rounded-lg transition-colors group-hover:bg-error/10 group-hover:text-error">
               <MIcon name="logout" className="text-[20px]" />
@@ -617,7 +617,7 @@ export default function App() {
                         key={key}
                         type="button"
                         onClick={() => setActive(key)}
-                        className={`group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[15px] font-semibold transition-colors duration-100 ${
+                        className={`group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[16px] font-semibold transition-colors duration-100 ${
                           isActive
                             ? 'sidebar-item-active'
                             : 'text-on-surface-variant hover:bg-white hover:text-on-surface hover:shadow-sm hover:ring-1 hover:ring-outline-variant/55'
@@ -652,7 +652,7 @@ export default function App() {
             <button
               type="button"
               onClick={lockApp}
-              className="group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[15px] font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
+              className="group flex h-10 w-full items-center gap-3 rounded-xl px-2.5 text-[16px] font-semibold text-on-surface-variant transition-colors hover:bg-error-container/35 hover:text-error"
             >
               <span className="flex size-8 items-center justify-center rounded-lg transition-colors group-hover:bg-error/10 group-hover:text-error">
                 <MIcon name="logout" />
