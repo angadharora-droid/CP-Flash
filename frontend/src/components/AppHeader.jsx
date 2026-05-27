@@ -10,6 +10,7 @@ const MIcon = ({ name, className = '', filled = false, rotating = false }) => (
 
 export default function AppHeader({
   title,
+  icon = 'dashboard',
   date,
   latestDate,
   onDateChange,
@@ -50,10 +51,10 @@ export default function AppHeader({
           </button>
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <span className="hidden size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15 md:flex">
-              <MIcon name="space_dashboard" filled className="text-[19px]" />
+              <MIcon name={icon} filled className="text-[19px]" />
             </span>
             <div className="min-w-0">
-              <h1 className="truncate text-sm font-extrabold tracking-normal text-on-surface sm:text-base md:text-lg">{title}</h1>
+              <h1 className="truncate text-base font-extrabold tracking-normal text-on-surface sm:text-lg md:text-xl">{title}</h1>
             </div>
           </div>
         </div>
