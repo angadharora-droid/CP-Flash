@@ -132,8 +132,8 @@ export function TopItemsList({ items = [] }) {
             {index + 1}
           </span>
           <span className="min-w-0 truncate text-[13px] font-bold text-on-surface sm:text-sm">{item.name}</span>
-          <span className="num text-right text-[13px] font-bold tabular-nums text-secondary sm:text-sm">{item.sales ? money(item.sales) : '-'}</span>
-          <span className="num text-right text-[13px] font-bold tabular-nums text-on-surface-variant sm:text-sm">{item.qty || '-'}</span>
+          <span className="num text-right text-base font-bold tabular-nums text-secondary">{item.sales ? money(item.sales) : '-'}</span>
+          <span className="num text-right text-base font-bold tabular-nums text-on-surface-variant">{item.qty || '-'}</span>
         </div>
       ))}
     </div>
