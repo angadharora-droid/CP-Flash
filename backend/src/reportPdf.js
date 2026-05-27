@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit';
-import { UNITS, settlementModes } from './schema.js';
+import { UNITS, settlementModes, UNITS_WITHOUT_FIXED_COST } from './schema.js';
 import { collectFlags } from './flags.js';
 
 const SHEET_URLS = {
@@ -77,7 +77,7 @@ function pnlRows(data) {
   return (data.pnl ?? []).map((row) => {
     const revenue = numberValue(row.revenueToday);
     const purchases = numberValue(row.purchasesToday);
-    const fixed = numberValue(row.fixedCost);
+    const fixed = UNITS_WITHOUT_FIXED_COST.includes(row.unit) ? 0 : numberValue(row.fixedCost);
     const grossProfit = revenue - purchases;
     const netProfit = grossProfit - fixed;
     return {

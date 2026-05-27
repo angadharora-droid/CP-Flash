@@ -34,7 +34,7 @@ export default function PnlPage({ data, period }) {
 
   const totals = rows.reduce((acc, row) => {
     acc.revenue += numberValue(row.revenueToday);
-    acc.fixed += numberValue(row.fixedCost);
+    acc.fixed += row.hasFixedCost ? numberValue(row.fixedCost) : 0;
     acc.net += row.estNetProfit;
     // Gross profit only means something for units that track purchases/COGS.
     if (row.tracksCogs) {
@@ -57,7 +57,7 @@ export default function PnlPage({ data, period }) {
         defaultOpen={false}
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {rows.map((row) => (
+          {rows.filter((row) => row.hasFixedCost).map((row) => (
             <div key={row.unit} className="flex items-center justify-between gap-3 rounded-xl border border-app-border bg-white/80 px-3.5 py-2.5">
               <span className="text-xs font-bold uppercase tracking-wider text-app-muted">{row.unit}</span>
               <span className="num text-sm font-bold text-app-text">{money(row.fixedCost)}</span>
@@ -113,7 +113,9 @@ export default function PnlPage({ data, period }) {
               row.tracksCogs
                 ? <span className={`num font-semibold ${row.gpPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.gpPercent)}</span>
                 : <span className="num text-on-surface-variant/35">—</span>,
-              <ReportValue value={row.fixedCost} numeric />,
+              row.hasFixedCost
+                ? <ReportValue value={row.fixedCost} numeric />
+                : <span className="num text-on-surface-variant/35">—</span>,
               <span className={`num font-semibold ${row.estNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(row.estNetProfit)}</span>,
               <span className={`num font-semibold ${row.netMargin >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.netMargin)}</span>,
               <span className={`num font-semibold ${(mtdNet ?? 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{period ? money(mtdNet ?? 0) : '—'}</span>,

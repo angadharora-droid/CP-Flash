@@ -1,7 +1,14 @@
 export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbit', "Micky's", 'Purosoul'];
 
+// Pablo, Dali and Rabbit carry no daily fixed cost — net profit = gross profit.
+export const UNITS_WITHOUT_FIXED_COST = ['Pablo', 'Dali', 'Rabbit'];
+
 function canonicalUnit(unit) {
   return unit === 'Rabbit' + 's' ? 'Rabbit' : unit;
+}
+
+export function hasFixedCost(unit) {
+  return !UNITS_WITHOUT_FIXED_COST.includes(canonicalUnit(unit));
 }
 
 export const settlementModes = [
@@ -111,9 +118,12 @@ export function withFlags(data) {
 
 export function pnlRows(data) {
   return (data.pnl ?? []).map((row) => {
+    const unit = canonicalUnit(row.unit);
     const revenue = numberValue(row.revenueToday);
     const purchases = numberValue(row.purchasesToday);
-    const fixed = numberValue(row.fixedCost);
+    // Pablo, Dali and Rabbit are not allocated a daily fixed cost.
+    const unitHasFixedCost = hasFixedCost(unit);
+    const fixed = unitHasFixedCost ? numberValue(row.fixedCost) : 0;
     // Units without a purchases/COGS figure (e.g. hotels, Micky's) don't have a
     // meaningful gross profit — their only modeled cost is the daily fixed cost.
     const tracksCogs = String(row.purchasesToday ?? '').trim() !== '';
@@ -121,8 +131,9 @@ export function pnlRows(data) {
     const net = gp - fixed;
     return {
       ...row,
-      unit: canonicalUnit(row.unit),
+      unit,
       tracksCogs,
+      hasFixedCost: unitHasFixedCost,
       grossProfit: gp,
       gpPercent: revenue ? (gp / revenue) * 100 : 0,
       estNetProfit: net,
