@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { loginWithPin } from '../lib/api';
-import { money } from '../lib/calculations';
+import { money, formatIndianNumber } from '../lib/calculations';
 import KpiRow from './KpiRow';
 import cpLogo from '../cp-logo.png';
 
@@ -82,9 +82,10 @@ export function BrandLoader({ className = '', label = '', size = 64 }) {
 
 export function ReportValue({ value, className = '', numeric = false }) {
   const empty = value === '' || value == null;
+  const display = empty ? '—' : (numeric ? formatIndianNumber(value) : value);
   return (
-    <span className={`num block min-w-24 rounded-md px-2.5 py-1.5 text-sm ${numeric ? 'text-right tabular-nums' : ''} ${empty ? 'text-on-surface-variant/35' : 'bg-surface-container-low text-on-surface ring-1 ring-outline-variant/35'} ${className}`}>
-      {empty ? '—' : value}
+    <span className={`num block min-w-24 px-2.5 py-1.5 text-sm ${numeric ? 'text-right tabular-nums' : ''} ${empty ? 'text-on-surface-variant/35' : 'text-on-surface'} ${className}`}>
+      {display}
     </span>
   );
 }
