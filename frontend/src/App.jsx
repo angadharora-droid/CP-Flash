@@ -502,9 +502,9 @@ export default function App() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-surface text-on-surface">
       {/* ---- Expanded desktop sidebar ---- */}
-      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 flex-col border-r border-outline-variant/70 bg-surface-container-lowest shadow-[6px_0_24px_-28px_rgba(23,32,38,0.9)] transition-all duration-300 md:flex">
+      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 flex-col border-r border-outline-variant/70 bg-surface-container-lowest transition-all duration-300 md:flex">
         {/* Brand logo */}
-        <div className="flex h-20 items-center gap-3 border-b border-outline-variant/70 px-4">
+        <div className="flex h-20 items-center gap-3 border-b border-outline-variant/70 bg-surface-container-lowest/88 px-4 backdrop-blur-xl">
           <button
             type="button"
             onClick={() => setActive('dashboard')}
@@ -631,7 +631,7 @@ export default function App() {
       </div>
 
       {/* ---- Top App Bar ---- */}
-      <header className="fixed top-0 z-40 flex h-16 w-full items-center justify-between gap-2 border-b border-outline-variant/70 bg-surface-container-lowest/88 px-3 shadow-sm backdrop-blur-xl sm:gap-3 sm:px-4 md:left-72 md:h-20 md:w-[calc(100%-18rem)] md:px-5 lg:px-6 xl:px-8">
+      <header className="fixed top-0 z-40 flex h-16 w-full items-center justify-between gap-2 border-b border-outline-variant/70 bg-surface-container-lowest/88 px-3 shadow-sm backdrop-blur-xl sm:gap-3 sm:px-4 md:left-72 md:h-20 md:w-[calc(100%-18rem)] md:px-5 md:shadow-none lg:px-6 xl:px-8">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 md:gap-4">
           {/* Mobile menu button */}
           <button
