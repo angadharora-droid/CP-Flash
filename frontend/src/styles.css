@@ -8,6 +8,11 @@
   box-sizing: border-box;
 }
 
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 html {
   background: #f4f6f8;
 }

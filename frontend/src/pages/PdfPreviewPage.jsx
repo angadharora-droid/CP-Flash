@@ -148,7 +148,15 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
 
     fetch(previewUrl, { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error(`PDF request failed (${response.status})`);
+        if (!response.ok) {
+          let detail = '';
+          try {
+            const body = await response.text();
+            const parsed = body ? JSON.parse(body) : null;
+            detail = parsed?.error || body || '';
+          } catch { /* ignore */ }
+          throw new Error(`PDF request failed (${response.status})${detail ? `: ${detail.slice(0, 200)}` : ''}`);
+        }
         const contentType = response.headers.get('content-type') ?? '';
         if (!contentType.includes('application/pdf')) throw new Error('The server did not return a PDF.');
         return response.blob();
