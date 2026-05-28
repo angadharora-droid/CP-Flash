@@ -170,14 +170,14 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
         </div>
       }
     >
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <ChartBlock
           title="Unit-wise Revenue Share"
           subtitle={`P&L revenue contribution by unit (${scopeLabel})`}
           empty={!revenueShare.length}
           emptyLabel={periodEmptyLabel}
         >
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={210}>
             <PieChart>
               <Pie
                 data={revenueShare}
@@ -207,7 +207,7 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
           empty={!revenueVsNet.length}
           emptyLabel={periodEmptyLabel}
         >
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={210}>
             <BarChart data={revenueVsNet} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
               <XAxis dataKey="unit" tick={axisTick} interval={0} angle={-20} textAnchor="end" height={56} />
@@ -223,11 +223,11 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
         <ChartBlock
           title="F&B Outlet Sales"
           subtitle={`Freakk, Pablo, Dali, Meeting Point, High Steaks (${scopeLabel})`}
-          className="xl:col-span-2"
+          className="lg:col-span-2"
           empty={!outletSales.length}
           emptyLabel={periodEmptyLabel}
         >
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={outletSales} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
               <XAxis dataKey="name" tick={axisTick} interval={0} />
