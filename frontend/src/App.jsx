@@ -690,7 +690,7 @@ export default function App() {
               </span>
             </div>
           ) : null}
-          <div key={renderedActive} className="space-y-5 animate-fade-in-up">
+          <div key={renderedActive} className={`space-y-5 animate-fade-in-up ${isDashboard ? '[&_section]:mb-0' : ''}`}>
             {page ?? (
               <div className="flex min-h-[38vh] flex-col items-center justify-center gap-4 py-16 text-center sm:py-20">
                 <BrandLoader size={72} label="Loading dashboard data..." />
