@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').replace(/\/+$/, '');
 const REQUEST_TIMEOUT_MS = 30000;
 const RETRY_DELAY_MS = 1200;
 
