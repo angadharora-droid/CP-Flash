@@ -449,7 +449,6 @@ export default function App() {
   const riskCount = data ? withFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length : 0;
   const activePage = pages.find(([key]) => key === canonicalPageKey(active)) ?? pages[0];
   const activeNavItem = NAV_ITEM_BY_KEY[canonicalPageKey(active)];
-  const isDashboard = canonicalPageKey(active) === 'dashboard';
 
   if (!authToken) return <PinGate onUnlock={setAuthToken} />;
 
@@ -679,7 +678,7 @@ export default function App() {
       />
 
       {/* ---- Main content ---- */}
-      <main className={`min-h-screen ${isDashboard ? 'md:h-screen md:min-h-0 md:overflow-hidden md:pb-0' : 'md:pb-12'} px-3 pb-28 pt-16 transition-all duration-300 sm:px-4 md:ml-72 md:pt-20 md:px-6 lg:px-8 xl:px-10 2xl:px-12`}>
+      <main className="min-h-screen px-3 pb-28 pt-16 transition-all duration-300 sm:px-4 md:ml-72 md:pb-12 md:pt-20 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <div className="mx-auto max-w-[110rem] 2xl:max-w-[120rem]">
           {data && !Object.values(data.importSource ?? {}).some((v) => v) ? (
             <div className="glass-card mb-6 flex items-start gap-3 border border-tertiary/30 bg-tertiary-container/60 px-5 py-4 text-sm text-on-tertiary-container animate-fade-in-up">
@@ -690,7 +689,7 @@ export default function App() {
               </span>
             </div>
           ) : null}
-          <div key={renderedActive} className={`space-y-5 animate-fade-in-up ${isDashboard ? '[&_section]:mb-0' : ''}`}>
+          <div key={renderedActive} className="space-y-5 animate-fade-in-up">
             {page ?? (
               <div className="flex min-h-[38vh] flex-col items-center justify-center gap-4 py-16 text-center sm:py-20">
                 <BrandLoader size={72} label="Loading dashboard data..." />
