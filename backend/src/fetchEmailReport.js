@@ -24,6 +24,8 @@ import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
 import { importOccupancyMix } from './importOccupancyMix.js';
 import { importPosSales } from './importPosSales.js';
+import { importForecast } from './importForecast.js';
+import { importEvents } from './importEvents.js';
 import { importPetpoojaReport } from './importPetpoojaReport.js';
 import { importPetpoojaPaymentSummary } from './importPetpoojaPaymentSummary.js';
 import { importPetpoojaTimeSalesReport } from './importPetpoojaTimeSalesReport.js';
@@ -182,6 +184,37 @@ const HANDLERS = [
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'hcp-pos-nagpur', date);
       return importPosSales(filePath, date, 'CP Nagpur');
+    }
+  },
+  {
+    // HCP_FORE — next-day occupancy forecast, bundled in the same "HCP REPORT" email.
+    // Feeds the hotels "Forecast" KPIs (Tomorrow Occupancy %, Arrivals, Departures);
+    // the forecast row is dated `date + 1` and lands in the report-date JSON.
+    name: 'HCP Forecast (CP Nagpur)',
+    importSourceKey: 'forecastImportedAt',
+    bundled: true,
+    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?FORE/i),
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /HCP[_-]?FORE/i);
+      if (!att) { logAttachments(parsed); throw new Error('No HCP_FORE attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'hcp-fore-nagpur', date);
+      return importForecast(filePath, date, 'CP Nagpur');
+    }
+  },
+  {
+    // HCP_EVENT — confirmed banquet bookings for the report day + next day, bundled in
+    // the same "HCP REPORT" email. Feeds banquetToday / banquetTomorrow function lists.
+    name: 'HCP Banquet Events (CP Nagpur)',
+    importSourceKey: 'eventsImportedAt',
+    bundled: true,
+    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?EVENT/i),
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /HCP[_-]?EVENT/i);
+      if (!att) { logAttachments(parsed); throw new Error('No HCP_EVENT attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'hcp-event-nagpur', date);
+      return importEvents(filePath, date, 'CP Nagpur');
     }
   },
   {

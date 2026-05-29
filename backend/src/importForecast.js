@@ -1,0 +1,139 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import XLSX from 'xlsx';
+import { buildSeedData } from './excel.js';
+import { pageSchemas, schemaRowsToKpis } from './schema.js';
+import { readDailyJson, writeDailyJson } from './dailyStore.js';
+
+const SECTION_TITLE = 'Forecast';
+
+const clean = (value) => String(value ?? '').trim();
+
+function num(value) {
+  if (typeof value === 'number') return value;
+  const parsed = Number(clean(value).replace(/[,%]/g, ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** "30/05/2026" (DD/MM/YYYY) → "2026-05-30". Returns '' if not a date. */
+function toISO(value) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(clean(value));
+  if (!m) return '';
+  const [, d, mo, y] = m;
+  return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+
+function addDays(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Resolve the forecast columns. The HCP_FORE header spans two rows (group labels then
+ * sub-headers); we key off the unique sub-headers we need. "Arr" (Expected Arrivals)
+ * appears before the "ARR" rate column, so the first match wins.
+ */
+function resolveColumns(rows) {
+  for (let r = 0; r < rows.length; r += 1) {
+    const row = rows[r];
+    if (!row) continue;
+    const idx = {};
+    row.forEach((cell, c) => {
+      const label = clean(cell).toLowerCase();
+      if (label === 'date' && idx.date == null) idx.date = c;
+      else if (label === 'arr' && idx.arr == null) idx.arr = c;
+      else if (label === 'dep' && idx.dep == null) idx.dep = c;
+      else if (label === '%' && idx.occPct == null) idx.occPct = c;
+    });
+    if (idx.date != null && idx.arr != null && idx.dep != null && idx.occPct != null) {
+      return { headerRow: r, ...idx };
+    }
+  }
+  return null;
+}
+
+/** Makes sure the Forecast KPI rows exist for `unit` (older daily files predate them). */
+function ensureSectionRows(data, unit) {
+  const section = pageSchemas.hotels.find((s) => s.title === SECTION_TITLE);
+  if (!section) return;
+  data.hotels = data.hotels ?? [];
+  const existingIds = new Set(data.hotels.map((r) => r.id));
+  for (const row of schemaRowsToKpis(unit, 'hotels', [section])) {
+    if (!existingIds.has(row.id)) data.hotels.push(row);
+  }
+}
+
+/**
+ * Parses the HCP_FORE occupancy forecast and fills the hotels "Forecast" KPI table.
+ *
+ * Date note: HCP_FORE forecasts the day AFTER the report date — e.g. a report run for
+ * the 29th carries a forecast row for the 30th. That maps cleanly onto the existing
+ * "Tomorrow …" rows, so the values are written into the SAME daily JSON (`outDate`)
+ * and describe `outDate + 1`. A guardrail warns if the file's date isn't outDate + 1.
+ */
+export async function importForecast(file, outDate, unit = 'CP Nagpur') {
+  const wb = XLSX.readFile(file, { cellDates: true });
+
+  let rows = null;
+  let cols = null;
+  for (const sheetName of wb.SheetNames) {
+    const r = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, blankrows: false, defval: '' });
+    const resolved = resolveColumns(r);
+    if (resolved) { rows = r; cols = resolved; break; }
+  }
+  if (!cols) throw new Error(`No forecast header (Date/Arr/Dep/%) found. Sheets: ${wb.SheetNames.join(', ')}`);
+
+  // First data row carrying a real date in the Date column (the "Total" row has none).
+  let forecastDate = '';
+  let arrivals = 0;
+  let departures = 0;
+  let occPct = 0;
+  for (let r = cols.headerRow + 1; r < rows.length; r += 1) {
+    const iso = toISO(rows[r]?.[cols.date]);
+    if (!iso) continue;
+    forecastDate = iso;
+    arrivals = Math.round(num(rows[r][cols.arr]));
+    departures = Math.round(num(rows[r][cols.dep]));
+    occPct = Math.round(num(rows[r][cols.occPct]) * 100) / 100;
+    break;
+  }
+  if (!forecastDate) throw new Error('No forecast data row with a date found.');
+
+  const expected = addDays(outDate, 1);
+  if (expected && forecastDate !== expected) {
+    console.warn(`[importForecast] Forecast is for ${forecastDate} but expected tomorrow (${expected}) of report date ${outDate}.`);
+  }
+
+  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  ensureSectionRows(data, unit);
+
+  const setActual = (name, value) => {
+    const row = data.hotels.find((r) => r.unit === unit && r.section === SECTION_TITLE && r.name === name);
+    if (row) row.actual = String(value);
+  };
+  setActual('Tomorrow Occupancy Forecast %', occPct);
+  setActual('Arrivals', arrivals);
+  setActual('Departures', departures);
+
+  data.importSource = {
+    ...(data.importSource ?? {}),
+    forecastFile: path.basename(file),
+    forecastImportedAt: new Date().toISOString()
+  };
+
+  await writeDailyJson(outDate, data);
+
+  return { ok: true, date: outDate, unit, forecastFor: forecastDate, mapped: { occPct, arrivals, departures } };
+}
+
+const isMain = process.argv[1] === fileURLToPath(import.meta.url);
+if (isMain) {
+  const [, , file, outDate = new Date().toISOString().slice(0, 10), unit = 'CP Nagpur'] = process.argv;
+  if (!file) { console.error('Usage: node importForecast.js <file> [YYYY-MM-DD] [unit]'); process.exit(1); }
+  const { closeDailyStore } = await import('./dailyStore.js');
+  importForecast(file, outDate, unit)
+    .then((r) => console.log(JSON.stringify(r, null, 2)))
+    .finally(() => closeDailyStore());
+}

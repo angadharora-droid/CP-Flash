@@ -66,6 +66,32 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
+    id: 'cpn-forecast',
+    label: 'CP Nagpur Forecast',
+    unit: 'CP Nagpur',
+    type: 'Mail / Excel',
+    paths: ['hotels'],
+    meta: {
+      file: 'forecastFile',
+      importedAt: 'forecastImportedAt',
+      reportLabels: { forecastFile: 'Occupancy Forecast Report' }
+    },
+    cadence: 'Daily'
+  },
+  {
+    id: 'cpn-banquet-events',
+    label: 'CP Nagpur Banquet Events',
+    unit: 'CP Nagpur',
+    type: 'Mail / Excel',
+    paths: ['banquetToday', 'banquetTomorrow'],
+    meta: {
+      file: 'eventsFile',
+      importedAt: 'eventsImportedAt',
+      reportLabels: { eventsFile: 'Banquet Function List' }
+    },
+    cadence: 'Daily'
+  },
+  {
     id: 'pablo-cost',
     label: 'Pablo Cost Sheet',
     unit: 'Pablo',
