@@ -5,6 +5,7 @@
  * Email → Handler mapping:
  *   "Night Audit Report of HCP Nagpur"           → importHotelReport       (XLS attachment)
  *   "Occupency Analysis report of HCP Nagpur"     → importOccupancyReport   (XLS attachment)
+ *   "HCP REPORT" (HCP_OCC.xlsx attachment)        → importOccupancyMix      (XLS attachment)
  *   "Report Notification: PABLO …"               → importPetpoojaReport    (HTML body, no attachment)
  *   "Report Notification: DALI …"                → importPetpoojaReport    (HTML body, no attachment)
  *   "Payment Wise Summary : PABLO …"             → importPetpoojaPaymentSummary (XLS attachment)
@@ -21,6 +22,7 @@ import { simpleParser } from 'mailparser';
 import { readDailyJson, closeDailyStore } from './dailyStore.js';
 import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
+import { importOccupancyMix } from './importOccupancyMix.js';
 import { importPetpoojaReport } from './importPetpoojaReport.js';
 import { importPetpoojaPaymentSummary } from './importPetpoojaPaymentSummary.js';
 import { importPetpoojaTimeSalesReport } from './importPetpoojaTimeSalesReport.js';
@@ -87,6 +89,11 @@ function findSpreadsheet(parsed) {
   return parsed.attachments?.find((a) => /\.(xlsx|xls|csv)$/i.test(a.filename ?? ''));
 }
 
+/** Picks a specific attachment by filename — the "HCP REPORT" email bundles several. */
+function findAttachmentByName(parsed, pattern) {
+  return parsed.attachments?.find((a) => pattern.test(a.filename ?? ''));
+}
+
 function logAttachments(parsed) {
   const all = parsed.attachments ?? [];
   if (!all.length) {
@@ -140,6 +147,23 @@ const HANDLERS = [
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'occupancy-nagpur', date);
       return importOccupancyReport(filePath, date, 'CP Nagpur');
+    }
+  },
+  {
+    // HCP_OCC is the guest-level in-house report (Mar.Seg + S.O.B) bundled in the
+    // "HCP REPORT" email alongside HCP_EVENT/HCP_FORE/HCP_POS. Matched by filename so
+    // it's independent of the subject line. NOTE: processMessage runs only the FIRST
+    // matching handler per email — the sibling HCP_* attachments need their own pass
+    // (and a multi-handler tweak) when they're added later.
+    name: 'HCP Occupancy Mix (CP Nagpur)',
+    importSourceKey: 'occupancyMixImportedAt',
+    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?OCC/i),
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /HCP[_-]?OCC/i);
+      if (!att) { logAttachments(parsed); throw new Error('No HCP_OCC attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'hcp-occ-nagpur', date);
+      return importOccupancyMix(filePath, date, 'CP Nagpur');
     }
   },
   {

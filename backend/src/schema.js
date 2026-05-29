@@ -64,6 +64,11 @@ export const pageSchemas = {
     },
     { title: 'Banquets', rows: [['Revenue Today', 220000], ['No. of Functions', 2], ['Covers', 180]] },
     {
+      // Fed daily (rooms) by importOccupancyMix.js from HCP_OCC:
+      //   Corporate←CORPORATE, FIT/Leisure←FIT       (Mar.Seg)
+      //   OTA (MMT/Booking.com)←ONLINE TR, Walk-ins←WALK-IN  (S.O.B)
+      // Group Bookings / Cancellations have no report match → blank (manual entry).
+      // Other S.O.B channels (Sales Office, CRO, etc.) are dropped (no "Other" row).
       title: 'Market Segments',
       rows: [
         ['Corporate', 45],
