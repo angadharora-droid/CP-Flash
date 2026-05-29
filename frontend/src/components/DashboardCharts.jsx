@@ -182,7 +182,7 @@ function DonutChart({ data, total }) {
               onMouseEnter={(_, i) => setActive(i)}
               onMouseLeave={() => setActive(-1)}
               animationBegin={80}
-              animationDuration={700}
+              animationDuration={1200}
               animationEasing="ease-out"
             >
               {data.map((entry, i) => (
@@ -568,15 +568,15 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
                 radius={[5, 5, 0, 0]}
                 maxBarSize={36}
                 animationBegin={0}
-                animationDuration={600}
+                animationDuration={1200}
                 animationEasing="ease-out"
               />
               <Bar
                 dataKey="Est. Net Profit"
                 radius={[5, 5, 0, 0]}
                 maxBarSize={36}
-                animationBegin={120}
-                animationDuration={600}
+                animationBegin={200}
+                animationDuration={1200}
                 animationEasing="ease-out"
               >
                 {revenueVsNet.map((entry) => (
@@ -620,8 +620,8 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
                 name="Sales"
                 radius={[6, 6, 0, 0]}
                 maxBarSize={180}
-                animationBegin={80}
-                animationDuration={700}
+                animationBegin={120}
+                animationDuration={1400}
                 animationEasing="ease-out"
               >
                 {outletSales.map((entry, i) => (
