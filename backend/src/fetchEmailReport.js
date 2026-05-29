@@ -23,6 +23,7 @@ import { readDailyJson, closeDailyStore } from './dailyStore.js';
 import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
 import { importOccupancyMix } from './importOccupancyMix.js';
+import { importPosSales } from './importPosSales.js';
 import { importPetpoojaReport } from './importPetpoojaReport.js';
 import { importPetpoojaPaymentSummary } from './importPetpoojaPaymentSummary.js';
 import { importPetpoojaTimeSalesReport } from './importPetpoojaTimeSalesReport.js';
@@ -151,12 +152,12 @@ const HANDLERS = [
   },
   {
     // HCP_OCC is the guest-level in-house report (Mar.Seg + S.O.B) bundled in the
-    // "HCP REPORT" email alongside HCP_EVENT/HCP_FORE/HCP_POS. Matched by filename so
-    // it's independent of the subject line. NOTE: processMessage runs only the FIRST
-    // matching handler per email — the sibling HCP_* attachments need their own pass
-    // (and a multi-handler tweak) when they're added later.
+    // "HCP REPORT" email alongside HCP_EVENT/HCP_FORE/HCP_POS_SALE. Matched by filename
+    // so it's independent of the subject line. `bundled: true` lets the sibling HCP_*
+    // handlers (e.g. HCP_POS_SALE below) also run on the same email — see processMessage.
     name: 'HCP Occupancy Mix (CP Nagpur)',
     importSourceKey: 'occupancyMixImportedAt',
+    bundled: true,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?OCC/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[_-]?OCC/i);
@@ -164,6 +165,23 @@ const HANDLERS = [
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'hcp-occ-nagpur', date);
       return importOccupancyMix(filePath, date, 'CP Nagpur');
+    }
+  },
+  {
+    // HCP_POS_SALE is the outlet-wise bill register bundled in the same "HCP REPORT"
+    // email. It feeds deduped daily covers for Meeting Point / Freakk / High Steak
+    // into the hotels "F&B Outlets" table. `bundled: true` so it runs alongside
+    // HCP Occupancy Mix above (both match the one email by attachment name).
+    name: 'HCP POS Sales / Covers (CP Nagpur)',
+    importSourceKey: 'posSalesImportedAt',
+    bundled: true,
+    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?POS/i),
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /HCP[_-]?POS/i);
+      if (!att) { logAttachments(parsed); throw new Error('No HCP_POS_SALE attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'hcp-pos-nagpur', date);
+      return importPosSales(filePath, date, 'CP Nagpur');
     }
   },
   {
@@ -294,12 +312,22 @@ async function processMessage(parsed, date, existingData) {
   const subject = parsed.subject || '';
   log(`Processing: "${subject}"`);
 
-  const handler = HANDLERS.find((h) => h.matches(subject, parsed));
-  if (!handler) {
+  const primary = HANDLERS.find((h) => h.matches(subject, parsed));
+  if (!primary) {
     log('  No handler — skipping.');
     return;
   }
 
+  // The "HCP REPORT" email bundles several attachments, each for a different importer.
+  // Beyond the first match, also run any handlers flagged `bundled` that match the same
+  // email so sibling attachments (HCP_OCC, HCP_POS_SALE, …) are all processed.
+  const handlers = [primary, ...HANDLERS.filter((h) => h !== primary && h.bundled && h.matches(subject, parsed))];
+  for (const handler of handlers) {
+    await runHandler(handler, parsed, date, existingData);
+  }
+}
+
+async function runHandler(handler, parsed, date, existingData) {
   log(`  → Handler: ${handler.name}`);
 
   if (handler.importSourceKey && existingData?.importSource?.[handler.importSourceKey]) {

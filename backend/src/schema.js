@@ -57,6 +57,7 @@ export const pageSchemas = {
         ['Freakk Covers', 72],
         ['Bougainvillea Revenue', 125000],
         ['High Steaks Revenue', 115000],
+        ['High Steaks Covers', 80],
         ['In-Room Dining Revenue', 45000],
         ['Food Cost %', 38],
         ['Liquor Cost %', 42]

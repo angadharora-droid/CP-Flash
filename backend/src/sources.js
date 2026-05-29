@@ -53,6 +53,19 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
+    id: 'cpn-pos-sales',
+    label: 'CP Nagpur F&B Covers',
+    unit: 'CP Nagpur',
+    type: 'Mail / Excel',
+    paths: ['hotels'],
+    meta: {
+      file: 'posSalesFile',
+      importedAt: 'posSalesImportedAt',
+      reportLabels: { posSalesFile: 'POS Sales / Covers Report' }
+    },
+    cadence: 'Daily'
+  },
+  {
     id: 'pablo-cost',
     label: 'Pablo Cost Sheet',
     unit: 'Pablo',
