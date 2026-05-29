@@ -62,6 +62,7 @@ export default function AopTargetsPage({ authToken }) {
   const [saving, setSaving]                 = useState(false);
   const [savedAt, setSavedAt]               = useState('');
   const [filter, setFilter]                 = useState('');
+  const [activeGroupKey, setActiveGroupKey] = useState('all');
 
   useEffect(() => {
     let cancelled = false;
@@ -91,15 +92,25 @@ export default function AopTargetsPage({ authToken }) {
     return ids.size;
   }, [dailyOverrides, weeklyOverrides]);
 
+  const groupPills = useMemo(() => groupKpisByPageUnit(kpis), [kpis]);
+
+  useEffect(() => {
+    if (activeGroupKey === 'all') return;
+    if (!groupPills.some((group) => group.key === activeGroupKey)) setActiveGroupKey('all');
+  }, [activeGroupKey, groupPills]);
+
   const filteredKpis = useMemo(() => {
-    if (!filter.trim()) return kpis;
+    const scopedKpis = activeGroupKey === 'all'
+      ? kpis
+      : kpis.filter((kpi) => `${kpi.page}__${kpi.unit}` === activeGroupKey);
+    if (!filter.trim()) return scopedKpis;
     const needle = filter.trim().toLowerCase();
-    return kpis.filter((kpi) =>
+    return scopedKpis.filter((kpi) =>
       kpi.name.toLowerCase().includes(needle)
       || kpi.unit.toLowerCase().includes(needle)
       || kpi.section.toLowerCase().includes(needle)
     );
-  }, [kpis, filter]);
+  }, [kpis, filter, activeGroupKey]);
 
   const groups = useMemo(() => groupKpisByPageUnit(filteredKpis), [filteredKpis]);
 
@@ -156,6 +167,8 @@ export default function AopTargetsPage({ authToken }) {
   const weeklyOverrideCount = Object.keys(weeklyOverrides).length;
   const totalCount = kpis.length;
   const visibleCount = filteredKpis.length;
+  const activeGroup = activeGroupKey === 'all' ? null : groupPills.find((group) => group.key === activeGroupKey);
+  const selectedLabel = activeGroup ? activeGroup.unit : 'All outlets & branches';
 
   return (
     <div className="space-y-5">
@@ -218,9 +231,59 @@ export default function AopTargetsPage({ authToken }) {
         </div>
       </div>
 
+      <div className="rounded-xl border border-outline-variant/70 bg-surface-container-lowest px-3 py-3 shadow-card">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveGroupKey('all')}
+            className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-extrabold transition-all ${
+              activeGroupKey === 'all'
+                ? 'border-primary bg-primary text-on-primary shadow-primary'
+                : 'border-outline-variant/70 bg-surface-container-low text-on-surface-variant hover:border-primary/40 hover:bg-primary/5 hover:text-primary'
+            }`}
+          >
+            <MIcon name="apps" className="text-[16px]" />
+            All
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+              activeGroupKey === 'all' ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container-high text-on-surface-variant'
+            }`}>
+              {totalCount}
+            </span>
+          </button>
+          {groupPills.map((group) => {
+            const meta = PAGE_META[group.page] ?? { label: group.page, icon: 'dataset', tone: 'indigo' };
+            const groupCustom = group.rows.filter((row) => dailyOverrides[row.id] !== undefined || weeklyOverrides[row.id] !== undefined).length;
+            const active = activeGroupKey === group.key;
+            return (
+              <button
+                key={group.key}
+                type="button"
+                onClick={() => setActiveGroupKey(group.key)}
+                className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-extrabold transition-all ${
+                  active
+                    ? 'border-primary bg-primary text-on-primary shadow-primary'
+                    : 'border-outline-variant/70 bg-surface-container-low text-on-surface-variant hover:border-primary/40 hover:bg-primary/5 hover:text-primary'
+                }`}
+                title={`${meta.label} · ${group.rows.length} KPIs`}
+              >
+                <MIcon name={meta.icon} className="text-[16px]" />
+                <span>{group.unit}</span>
+                {groupCustom ? (
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                    active ? 'bg-on-primary/20 text-on-primary' : 'bg-primary/10 text-primary'
+                  }`}>
+                    {groupCustom}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {filter.trim() ? (
         <div className="rounded-lg border border-outline-variant/60 bg-surface-container-low px-4 py-2 text-xs text-on-surface-variant">
-          Showing <span className="font-bold text-on-surface">{visibleCount}</span> of <span className="font-bold text-on-surface">{totalCount}</span> KPIs matching <span className="font-bold text-on-surface">"{filter.trim()}"</span>
+          Showing <span className="font-bold text-on-surface">{visibleCount}</span> KPIs in <span className="font-bold text-on-surface">{selectedLabel}</span> matching <span className="font-bold text-on-surface">"{filter.trim()}"</span>
         </div>
       ) : null}
 
