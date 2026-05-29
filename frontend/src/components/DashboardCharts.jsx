@@ -4,22 +4,24 @@ import {
   PieChart,
   Pie,
   Cell,
+  Sector,
   Tooltip,
-  Legend,
   BarChart,
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid
+  CartesianGrid,
+  LabelList
 } from 'recharts';
 import SectionCard from './SectionCard';
 import { SECTION_ICONS } from './DashboardUi';
-import { money, moneyCompact, numberValue, pnlRows, UNITS } from '../lib/calculations';
+import { money, moneyCompact, numberValue, percent, pnlRows, UNITS } from '../lib/calculations';
 
 // Theme-aligned categorical palette (M3 tokens from tailwind.config.js, plus two fillers).
 const PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a', '#3f6fb5', '#b5447a'];
 const REVENUE_COLOR = '#08786c';
 const NET_COLOR = '#9a5a00';
+const NEG_COLOR = '#ba1a1a';
 const axisTick = { fontSize: 11, fill: '#5b6b73' };
 const gridStroke = '#e2e8ec';
 
@@ -60,34 +62,169 @@ export function fnbOutletSalesWeekly(data, period) {
   }));
 }
 
-function ChartTooltip({ active, payload, label }) {
+const sumBy = (rows, key) => rows.reduce((total, row) => total + numberValue(row[key]), 0);
+
+function ChartTooltip({ active, payload, label, total }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 py-2 shadow-card">
       {label != null && label !== '' ? (
         <div className="mb-1 text-[11px] font-bold text-on-surface">{label}</div>
       ) : null}
-      {payload.map((entry) => (
-        <div key={entry.name} className="flex items-center gap-2 text-[12px]">
-          <span className="size-2.5 rounded-full" style={{ background: entry.color || entry.payload?.fill }} />
-          <span className="text-on-surface-variant">{entry.name}</span>
-          <span className="num ml-auto pl-3 font-bold text-on-surface">{money(entry.value)}</span>
+      {payload.map((entry) => {
+        const value = numberValue(entry.value);
+        const share = total ? (value / total) * 100 : null;
+        return (
+          <div key={entry.name} className="flex items-center gap-2 text-[12px]">
+            <span className="size-2.5 rounded-full" style={{ background: entry.color || entry.payload?.fill }} />
+            <span className="text-on-surface-variant">{entry.name}</span>
+            <span className={`num ml-auto pl-3 font-bold ${value < 0 ? 'text-error' : 'text-on-surface'}`}>
+              {money(value)}
+              {share != null ? <span className="ml-1.5 font-medium text-on-surface-variant">{share.toFixed(1)}%</span> : null}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Expanded slice + connector callout shown for the hovered/active donut segment.
+function ActiveSlice(props) {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent: pct } = props;
+  return (
+    <g>
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius + 6}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+        cornerRadius={3}
+      />
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={outerRadius + 9}
+        outerRadius={outerRadius + 11}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+        opacity={0.45}
+      />
+      <text x={cx} y={cy - 8} textAnchor="middle" className="fill-on-surface" style={{ fontSize: 13, fontWeight: 700 }}>
+        {payload.name}
+      </text>
+      <text x={cx} y={cy + 11} textAnchor="middle" className="fill-on-surface-variant" style={{ fontSize: 12, fontWeight: 600 }}>
+        {moneyCompact(payload.value)} · {Math.round((pct ?? 0) * 100)}%
+      </text>
+    </g>
+  );
+}
+
+// Interactive donut with a center total and an external value/percentage legend.
+function DonutChart({ data, total }) {
+  const [active, setActive] = useState(-1);
+  return (
+    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="relative">
+        <ResponsiveContainer width="100%" height={260}>
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              outerRadius={94}
+              innerRadius={62}
+              paddingAngle={2}
+              cornerRadius={3}
+              stroke="none"
+              activeIndex={active >= 0 ? active : undefined}
+              activeShape={ActiveSlice}
+              onMouseEnter={(_, index) => setActive(index)}
+              onMouseLeave={() => setActive(-1)}
+            >
+              {data.map((entry, index) => (
+                <Cell
+                  key={entry.name}
+                  fill={PALETTE[index % PALETTE.length]}
+                  opacity={active === -1 || active === index ? 1 : 0.4}
+                  style={{ transition: 'opacity 150ms ease' }}
+                />
+              ))}
+            </Pie>
+            <Tooltip content={<ChartTooltip total={total} />} />
+          </PieChart>
+        </ResponsiveContainer>
+        {active === -1 ? (
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">Total</span>
+            <span className="num text-base font-bold text-on-surface">{moneyCompact(total)}</span>
+          </div>
+        ) : null}
+      </div>
+      <ul className="flex flex-col gap-1.5 sm:min-w-[150px]">
+        {data.map((entry, index) => {
+          const share = total ? (entry.value / total) * 100 : 0;
+          return (
+            <li
+              key={entry.name}
+              onMouseEnter={() => setActive(index)}
+              onMouseLeave={() => setActive(-1)}
+              className={`flex items-center gap-2 rounded-md px-2 py-1 text-[12px] transition-colors ${
+                active === index ? 'bg-surface-container-high' : ''
+              }`}
+            >
+              <span className="size-2.5 shrink-0 rounded-full" style={{ background: PALETTE[index % PALETTE.length] }} />
+              <span className="min-w-0 flex-1 truncate font-medium text-on-surface-variant">{entry.name}</span>
+              <span className="num font-bold text-on-surface">{moneyCompact(entry.value)}</span>
+              <span className="num w-9 text-right text-[11px] font-medium text-on-surface-variant/80">{share.toFixed(0)}%</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function StatStrip({ items }) {
+  return (
+    <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      {items.map((item) => (
+        <div key={item.label} className="rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-3.5 py-2.5">
+          <div className="text-[10.5px] font-bold uppercase tracking-wider text-on-surface-variant/70">{item.label}</div>
+          <div className={`num mt-0.5 truncate text-[17px] font-bold ${item.tone ?? 'text-on-surface'}`}>{item.value}</div>
+          {item.hint ? <div className="mt-0.5 truncate text-[11px] font-medium text-on-surface-variant">{item.hint}</div> : null}
         </div>
       ))}
     </div>
   );
 }
 
-function ChartBlock({ title, subtitle, className = '', children, empty, emptyLabel = 'No data to chart yet.' }) {
+function ChartBlock({ title, subtitle, className = '', children, empty, loading, emptyLabel = 'No data to chart yet.' }) {
   return (
     <div className={`rounded-xl border border-outline-variant/60 bg-surface-container-lowest p-4 ${className}`}>
       <div className="mb-3">
         <h3 className="text-sm font-bold text-on-surface">{title}</h3>
         {subtitle ? <p className="mt-0.5 text-[11.5px] font-medium text-on-surface-variant">{subtitle}</p> : null}
       </div>
-      {empty ? (
-        <div className="grid h-[260px] place-items-center text-sm font-medium text-on-surface-variant/60">
-          {emptyLabel}
+      {loading ? (
+        <div className="grid h-[260px] place-items-center">
+          <div className="flex flex-col items-center gap-2 text-on-surface-variant/60">
+            <span className="material-symbols-outlined animate-spin text-[26px]">progress_activity</span>
+            <span className="text-xs font-semibold">Loading…</span>
+          </div>
+        </div>
+      ) : empty ? (
+        <div className="grid h-[260px] place-items-center">
+          <div className="flex flex-col items-center gap-2 text-center text-on-surface-variant/55">
+            <span className="material-symbols-outlined text-[30px]">bar_chart_4_bars</span>
+            <span className="max-w-[220px] text-sm font-medium">{emptyLabel}</span>
+          </div>
         </div>
       ) : (
         children
@@ -125,13 +262,16 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
   const isWeek = mode === 'week';
   const scopeLabel = isWeek ? 'this week' : 'today';
   const weekByUnit = period?.week ?? {};
+  const loading = isWeek && weekLoading;
 
   const rows = pnlRows(data);
 
   const revenueShare = (isWeek
     ? UNITS.map((unit) => ({ name: unit, value: numberValue(weekByUnit[unit]?.revenue) }))
     : rows.map((row) => ({ name: row.unit, value: numberValue(row.revenueToday) }))
-  ).filter((entry) => entry.value > 0);
+  )
+    .filter((entry) => entry.value > 0)
+    .sort((a, b) => b.value - a.value);
 
   const revenueVsNet = (isWeek
     ? UNITS.map((unit) => ({
@@ -144,10 +284,43 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
         Revenue: numberValue(row.revenueToday),
         'Est. Net Profit': row.estNetProfit
       }))
-  ).filter((entry) => entry.Revenue || entry['Est. Net Profit']);
+  )
+    .filter((entry) => entry.Revenue || entry['Est. Net Profit'])
+    .sort((a, b) => b.Revenue - a.Revenue);
 
   const outletSales = (isWeek ? fnbOutletSalesWeekly(data, period) : fnbOutletSales(data))
-    .filter((entry) => entry.value > 0);
+    .filter((entry) => entry.value > 0)
+    .sort((a, b) => b.value - a.value);
+
+  const revenueShareTotal = revenueShare.reduce((total, entry) => total + entry.value, 0);
+  const outletTotal = outletSales.reduce((total, entry) => total + entry.value, 0);
+
+  // Headline figures for the summary strip.
+  const totalRevenue = sumBy(revenueVsNet, 'Revenue');
+  const totalNet = sumBy(revenueVsNet, 'Est. Net Profit');
+  const margin = totalRevenue ? (totalNet / totalRevenue) * 100 : 0;
+  const topUnit = revenueShare[0] ?? null;
+  const hasData = revenueShare.length || revenueVsNet.length || outletSales.length;
+
+  const statItems = [
+    { label: 'Total Revenue', value: moneyCompact(totalRevenue), hint: `${revenueVsNet.length} units` },
+    {
+      label: 'Est. Net Profit',
+      value: moneyCompact(totalNet),
+      tone: totalNet < 0 ? 'text-error' : 'text-secondary',
+      hint: 'after est. costs'
+    },
+    {
+      label: 'Profit Margin',
+      value: totalRevenue ? percent(margin) : '—',
+      tone: margin < 0 ? 'text-error' : 'text-on-surface'
+    },
+    {
+      label: 'Top Unit',
+      value: topUnit ? topUnit.name : '—',
+      hint: topUnit ? moneyCompact(topUnit.value) : null
+    }
+  ];
 
   const periodEmptyLabel = isWeek
     ? (weekLoading ? 'Loading week…' : 'No saved data for this week yet.')
@@ -170,54 +343,45 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
         </div>
       }
     >
+      {hasData && !loading ? <StatStrip items={statItems} /> : null}
+
       <div className="grid gap-5 xl:grid-cols-2">
         <ChartBlock
           title="Unit-wise Revenue Share"
           subtitle={`P&L revenue contribution by unit (${scopeLabel})`}
           empty={!revenueShare.length}
+          loading={loading}
           emptyLabel={periodEmptyLabel}
         >
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={revenueShare}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={90}
-                innerRadius={48}
-                paddingAngle={2}
-                label={({ percent }) => (percent >= 0.04 ? `${Math.round(percent * 100)}%` : '')}
-                labelLine={false}
-              >
-                {revenueShare.map((entry, index) => (
-                  <Cell key={entry.name} fill={PALETTE[index % PALETTE.length]} />
-                ))}
-              </Pie>
-              <Tooltip content={<ChartTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-            </PieChart>
-          </ResponsiveContainer>
+          <DonutChart data={revenueShare} total={revenueShareTotal} />
         </ChartBlock>
 
         <ChartBlock
           title="Revenue vs Est. Net Profit"
           subtitle={`Per unit (${scopeLabel})`}
           empty={!revenueVsNet.length}
+          loading={loading}
           emptyLabel={periodEmptyLabel}
         >
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={revenueVsNet} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={revenueVsNet} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis dataKey="unit" tick={axisTick} interval={0} angle={-20} textAnchor="end" height={56} />
-              <YAxis tick={axisTick} tickFormatter={moneyCompact} width={64} />
+              <XAxis dataKey="unit" tick={axisTick} interval={0} angle={-20} textAnchor="end" height={56} tickLine={false} axisLine={{ stroke: gridStroke }} />
+              <YAxis tick={axisTick} tickFormatter={moneyCompact} width={64} tickLine={false} axisLine={false} />
               <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(8,120,108,0.06)' }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Revenue" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Est. Net Profit" fill={NET_COLOR} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Revenue" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} maxBarSize={42} />
+              <Bar dataKey="Est. Net Profit" radius={[4, 4, 0, 0]} maxBarSize={42}>
+                {revenueVsNet.map((entry) => (
+                  <Cell key={entry.unit} fill={entry['Est. Net Profit'] < 0 ? NEG_COLOR : NET_COLOR} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-medium text-on-surface-variant">
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: REVENUE_COLOR }} />Revenue</span>
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: NET_COLOR }} />Est. Net Profit</span>
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: NEG_COLOR }} />Net Loss</span>
+          </div>
         </ChartBlock>
 
         <ChartBlock
@@ -225,18 +389,20 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
           subtitle={`Freakk, Pablo, Dali, Meeting Point, High Steaks (${scopeLabel})`}
           className="xl:col-span-2"
           empty={!outletSales.length}
+          loading={loading}
           emptyLabel={periodEmptyLabel}
         >
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={outletSales} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+            <BarChart data={outletSales} margin={{ top: 24, right: 8, left: 8, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis dataKey="name" tick={axisTick} interval={0} />
-              <YAxis tick={axisTick} tickFormatter={moneyCompact} width={64} />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(8,120,108,0.06)' }} />
-              <Bar dataKey="value" name="Sales" radius={[4, 4, 0, 0]}>
+              <XAxis dataKey="name" tick={axisTick} interval={0} tickLine={false} axisLine={{ stroke: gridStroke }} />
+              <YAxis tick={axisTick} tickFormatter={moneyCompact} width={64} tickLine={false} axisLine={false} />
+              <Tooltip content={<ChartTooltip total={outletTotal} />} cursor={{ fill: 'rgba(8,120,108,0.06)' }} />
+              <Bar dataKey="value" name="Sales" radius={[4, 4, 0, 0]} maxBarSize={64}>
                 {outletSales.map((entry, index) => (
                   <Cell key={entry.name} fill={PALETTE[index % PALETTE.length]} />
                 ))}
+                <LabelList dataKey="value" position="top" formatter={moneyCompact} style={{ fontSize: 11, fontWeight: 700, fill: '#172026' }} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
