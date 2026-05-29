@@ -3,6 +3,7 @@ import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
+import OccupancyMixCard from '../components/OccupancyMixCard';
 import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
 import { SHEET_URLS } from '../lib/navigation';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
@@ -42,6 +43,7 @@ export default function HotelsPage({ data, date }) {
           <KpiTable rows={rows.filter((row) => row.section === section)} />
         </SectionCard>
       ))}
+      {hotelUnit === 'CP Nagpur' && <OccupancyMixCard data={data} />}
       {hotelUnit === 'CP Nagpur' && ['banquetToday', 'banquetTomorrow'].map((key) => (
         <SectionCard
           key={key}

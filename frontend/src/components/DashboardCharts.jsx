@@ -88,7 +88,7 @@ function BarGradients() {
 }
 
 // ─── Tooltip ─────────────────────────────────────────────────────────────────
-function ChartTooltip({ active, payload, label, total }) {
+export function ChartTooltip({ active, payload, label, total }) {
   if (!active || !payload?.length) return null;
   return (
     <div
@@ -141,7 +141,7 @@ function ActiveSlice(props) {
 }
 
 // ─── Donut ────────────────────────────────────────────────────────────────────
-function DonutChart({ data, total }) {
+export function DonutChart({ data, total }) {
   const [active, setActive] = useState(-1);
 
   return (
