@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   ResponsiveContainer,
   PieChart,
@@ -66,23 +66,6 @@ export function fnbOutletSalesWeekly(data, period) {
 }
 
 const sumBy = (rows, key) => rows.reduce((total, row) => total + numberValue(row[key]), 0);
-
-function downloadCsv(filename, rows) {
-  const escape = (cell) => {
-    const text = String(cell ?? '');
-    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
-  const csv = rows.map((row) => row.map(escape).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
 
 // ─── Gradient defs injected once into every BarChart ────────────────────────
 function BarGradients() {
@@ -393,7 +376,6 @@ function PeriodToggle({ value, onChange, weeklyReady }) {
 export default function DashboardCharts({ data, period, weekControls = null, weekLoading = false, defaultMode = 'today' }) {
   const weeklyReady = !!period?.week || weekLoading || !!weekControls;
   const [mode, setMode]           = useState(defaultMode);
-  const [freshExport, setFreshExport] = useState(false);
   const isWeek    = mode === 'week';
   const scopeLabel = isWeek ? 'this week' : 'today';
   const weekByUnit = period?.week ?? {};
@@ -433,11 +415,6 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
   const topUnit      = revenueShare[0] ?? null;
   const hasData      = revenueShare.length || revenueVsNet.length || outletSales.length;
 
-  // Flash export button when data refreshes
-  useEffect(() => {
-    if (hasData) { setFreshExport(true); const t = setTimeout(() => setFreshExport(false), 2400); return () => clearTimeout(t); }
-  }, [totalRevenue]);
-
   const statItems = [
     {
       label: 'Total Revenue',
@@ -469,21 +446,6 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
     }
   ];
 
-  const handleExport = () => {
-    const csvRows = [
-      ['Performance Charts', isWeek ? `Week ${period?.weekStart ?? ''} → ${period?.weekEnd ?? ''}` : 'Today'],
-      [],
-      ['Unit', 'Revenue', 'Est. Net Profit', 'Net Margin %'],
-      ...revenueVsNet.map((e) => [e.unit, e.Revenue, e['Est. Net Profit'], e.Margin.toFixed(1)]),
-      ['Total', totalRevenue, totalNet, totalRevenue ? margin.toFixed(1) : '0'],
-      [],
-      ['F&B Outlet', 'Sales'],
-      ...outletSales.map((e) => [e.name, e.value])
-    ];
-    const stamp = isWeek ? `week-${period?.weekStart ?? 'current'}` : 'today';
-    downloadCsv(`performance-${stamp}.csv`, csvRows);
-  };
-
   const periodEmptyLabel = isWeek
     ? (weekLoading ? 'Loading week data…' : 'No saved data for this week yet.')
     : 'No data to chart yet.';
@@ -502,23 +464,6 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
         <div className="flex flex-wrap items-center gap-2">
           {isWeek && weekControls ? weekControls : null}
           <PeriodToggle value={mode} onChange={setMode} weeklyReady={weeklyReady} />
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={!hasData || loading}
-            title="Export current view to CSV"
-            className={`relative inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all duration-200 hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40 ${
-              freshExport
-                ? 'border-[#08786c]/40 bg-[#08786c]/8 text-[#08786c]'
-                : 'border-outline-variant/60 bg-surface-container-low text-on-surface-variant'
-            }`}
-          >
-            {freshExport && (
-              <span className="absolute -right-1 -top-1 size-2 animate-ping rounded-full bg-[#08786c] opacity-70" />
-            )}
-            <span className="material-symbols-outlined text-[15px]">download</span>
-            <span className="hidden sm:inline">Export CSV</span>
-          </button>
         </div>
       }
     >
