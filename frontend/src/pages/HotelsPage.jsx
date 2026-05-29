@@ -53,7 +53,7 @@ export default function HotelsPage({ data, date }) {
           tone="amber"
         >
           <DataTable
-            columns={['Market Segment', 'Pax', 'Hall/Venue', 'Session', 'Revenue', 'Notes']}
+            columns={['Party / Client', 'Pax', 'Hall/Venue', 'Session', 'Revenue', 'Notes']}
             rows={(data[key] ?? []).map((row, index) => ({
               key: index,
               cells: ['marketSegment', 'pax', 'venue', 'session', 'revenue', 'notes'].map((field) => <ReportValue key={field} value={row[field]} />)
