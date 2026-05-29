@@ -23,13 +23,6 @@ function toISO(value) {
   return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
 
-function addDays(iso, days) {
-  const d = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return '';
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 /**
  * Resolve the forecast columns. The HCP_FORE header spans two rows (group labels then
  * sub-headers); we key off the unique sub-headers we need. "Arr" (Expected Arrivals)
@@ -68,10 +61,9 @@ function ensureSectionRows(data, unit) {
 /**
  * Parses the HCP_FORE occupancy forecast and fills the hotels "Forecast" KPI table.
  *
- * Date note: HCP_FORE forecasts the day AFTER the report date — e.g. a report run for
- * the 29th carries a forecast row for the 30th. That maps cleanly onto the existing
- * "Tomorrow …" rows, so the values are written into the SAME daily JSON (`outDate`)
- * and describe `outDate + 1`. A guardrail warns if the file's date isn't outDate + 1.
+ * Date note: HCP_FORE is forward-looking — its single row forecasts a day ahead of the
+ * business date (`outDate` = yesterday). It maps onto the existing "Tomorrow …" rows and
+ * is written into the report-date JSON; a guardrail just warns if the file date is stale.
  */
 export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   const wb = XLSX.readFile(file, { cellDates: true });
@@ -101,9 +93,10 @@ export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   }
   if (!forecastDate) throw new Error('No forecast data row with a date found.');
 
-  const expected = addDays(outDate, 1);
-  if (expected && forecastDate !== expected) {
-    console.warn(`[importForecast] Forecast is for ${forecastDate} but expected tomorrow (${expected}) of report date ${outDate}.`);
+  // The forecast looks ahead of the business date (outDate = yesterday); just
+  // sanity-check that it isn't stale rather than assuming an exact day offset.
+  if (forecastDate <= outDate) {
+    console.warn(`[importForecast] Forecast date ${forecastDate} is not after the report date ${outDate}.`);
   }
 
   const data = (await readDailyJson(outDate)) ?? buildSeedData();

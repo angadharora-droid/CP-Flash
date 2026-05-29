@@ -25,13 +25,6 @@ function toISO(value) {
   return mo ? `${m[3]}-${mo}-${m[1].padStart(2, '0')}` : '';
 }
 
-function addDays(iso, days) {
-  const d = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return '';
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 /** Pull the "HH:MM" half out of a "29-MAY-2026 / 07:00" timestamp cell. */
 function timePart(value) {
   const m = /(\d{1,2}:\d{2})\s*$/.exec(clean(value));
@@ -48,10 +41,10 @@ const isFunctionRow = (cell) => /^\d+\s*\/\s*\d+$/.test(clean(cell)); // "28978 
  * function is a main row (Res#/Party/Function/From/To/Pax/…/Net.Amt/Status) followed
  * by a "Room: <Hall>" detail row.
  *
- * Date note: events are placed by their actual date — functions on `outDate` go to
- * `banquetToday`, functions on `outDate + 1` go to `banquetTomorrow`. If the file's
- * dates don't line up with outDate (run-date drift), we fall back to treating the
- * earliest date in the file as "today" and the next as "tomorrow", and warn.
+ * Date note: the run's `outDate` is the business date (yesterday), but this file is
+ * forward-looking and carries the TWO days after it. We split by the file's own dates —
+ * earliest = "today" (banquetToday), latest = "tomorrow" (banquetTomorrow) — so the
+ * split is correct regardless of how `outDate` relates to the calendar run day.
  */
 export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   const wb = XLSX.readFile(file, { cellDates: true });
@@ -92,18 +85,13 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
 
   if (!events.length) throw new Error('No confirmed functions parsed.');
 
-  // Primary mapping: by actual date against the report date and the day after.
-  const tomorrow = addDays(outDate, 1);
-  let today = events.filter((e) => e.date === outDate);
-  let next = events.filter((e) => e.date === tomorrow);
-
-  // Fallback for run-date drift: earliest date in file = "today", next = "tomorrow".
-  if (!today.length && !next.length) {
-    const dates = [...new Set(events.map((e) => e.date))].sort();
-    console.warn(`[importEvents] No events on report date ${outDate}; using file dates ${dates.join(', ')} (earliest = today).`);
-    today = events.filter((e) => e.date === dates[0]);
-    next = dates[1] ? events.filter((e) => e.date === dates[1]) : [];
-  }
+  // The file carries the two days AFTER the business date (outDate = yesterday): the
+  // EARLIER date is "today" (the day the flash is read), the LATER is "tomorrow". So we
+  // key off the file's own dates, not outDate — e.g. an outDate of the 28th carries
+  // functions for the 29th (today) and 30th (tomorrow).
+  const dates = [...new Set(events.map((e) => e.date))].sort();
+  const today = events.filter((e) => e.date === dates[0]);
+  const next = dates[1] ? events.filter((e) => e.date === dates[1]) : [];
 
   const strip = (e) => ({ marketSegment: e.marketSegment, pax: e.pax, venue: e.venue, session: e.session, revenue: e.revenue, notes: e.notes });
 
