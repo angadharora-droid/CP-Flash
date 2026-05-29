@@ -14,6 +14,12 @@ const OUTLET_COVER_ROW = {
   'MEETING POINT': 'Meeting Point Covers'
 };
 
+// Outlets that also get an "Avg Bill" row = food+liquor sale ÷ deduped covers.
+// Only Meeting Point has an Avg Bill row in the F&B Outlets schema.
+const OUTLET_AVG_BILL_ROW = {
+  'MEETING POINT': 'Meeting Point Avg Bill'
+};
+
 // All outlet section headers in the report, used to switch context. Meal-period
 // sub-headers (LUNCH/DINNER/…) sit under an outlet and keep the current outlet.
 const OUTLET_HEADERS = new Set([...Object.keys(OUTLET_COVER_ROW), 'MINI BAR', 'ROOM SERVICE']);
@@ -53,19 +59,23 @@ function resolveColumns(rows) {
 
 /**
  * Counts covers (guests) for an outlet's bill rows, treating a food bill and a
- * liquor bill for the same party as ONE cover instead of two.
+ * liquor bill for the same party as ONE party instead of two.
  *
  * The POS splits a party that orders both food and liquor into two separate bills
  * that share the same table number (e.g. bills 24678/24679 both on table "G19").
- * The raw COVFX column counts each bill, double-counting the party — so we pair a
- * liquor-only bill with the most-recent unpaired food bill at the same table and
- * skip its covers. A table hosting several parties through the day is handled
- * because each food bill pairs at most once.
+ * The raw rows count each bill, double-counting the party — so we pair a liquor-only
+ * bill with the most-recent unpaired food bill at the same table and drop it. A table
+ * hosting several parties through the day is handled because each food bill pairs at
+ * most once.
+ *
+ * Returns deduped `covers` (sum of COVFX, paired liquor bills excluded) and deduped
+ * `bills` (party count = bills after merging each food+liquor pair into one).
  */
-function dedupCovers(bills) {
+function dedupParties(billList) {
   const openFoodByTable = new Map();
   let covers = 0;
-  for (const b of bills) {
+  let bills = 0;
+  for (const b of billList) {
     const isFood = b.fod > 0 && b.liq === 0;
     const isLiq = b.liq > 0 && b.fod === 0;
     if (isLiq) {
@@ -75,16 +85,18 @@ function dedupCovers(bills) {
         continue;
       }
       covers += b.cover; // liquor-only party (no matching food bill)
+      bills += 1;
       continue;
     }
     covers += b.cover; // food-only or mixed bill — count once
+    bills += 1;
     if (isFood) {
       const stack = openFoodByTable.get(b.table) ?? [];
       stack.push(b);
       openFoodByTable.set(b.table, stack);
     }
   }
-  return covers;
+  return { covers, bills };
 }
 
 /** Makes sure the F&B Outlets KPI rows exist for `unit` (older daily files predate new rows). */
@@ -100,7 +112,8 @@ function ensureSectionRows(data, unit) {
 
 /**
  * Parses the HCP_POS_SALE outlet-wise bill report and writes deduped daily covers
- * for Meeting Point, Freakk and High Steak into the hotels "F&B Outlets" KPI table.
+ * for Meeting Point, Freakk and High Steak into the hotels "F&B Outlets" KPI table,
+ * plus Meeting Point's avg bill (food+liquor sale ÷ deduped covers).
  */
 export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
   const wb = XLSX.readFile(file, { cellDates: true });
@@ -142,13 +155,25 @@ export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
   const data = (await readDailyJson(outDate)) ?? buildSeedData();
   ensureSectionRows(data, unit);
 
-  const covers = {};
-  for (const [outletName, rowName] of Object.entries(OUTLET_COVER_ROW)) {
-    const bills = billsByOutlet.get(outletName) ?? [];
-    const value = dedupCovers(bills);
-    covers[outletName] = value;
-    const kpiRow = data.hotels.find((r) => r.unit === unit && r.section === SECTION_TITLE && r.name === rowName);
-    if (kpiRow) kpiRow.actual = String(value);
+  const setActual = (name, value) => {
+    const row = data.hotels.find((r) => r.unit === unit && r.section === SECTION_TITLE && r.name === name);
+    if (row) row.actual = String(value);
+  };
+
+  const mapped = {};
+  for (const [outletName, coverRow] of Object.entries(OUTLET_COVER_ROW)) {
+    const outletBills = billsByOutlet.get(outletName) ?? [];
+    const { covers, bills } = dedupParties(outletBills);
+    const revenue = Math.round(outletBills.reduce((sum, b) => sum + b.fod + b.liq, 0));
+    setActual(coverRow, covers);
+
+    // Avg bill = food+liquor sale ÷ deduped bills, so a party split into a food bill
+    // and a liquor bill counts as one bill, not two.
+    const avgBillRow = OUTLET_AVG_BILL_ROW[outletName];
+    const avgBill = avgBillRow && bills ? Math.round(revenue / bills) : null;
+    if (avgBillRow && avgBill != null) setActual(avgBillRow, avgBill);
+
+    mapped[outletName] = { covers, bills, revenue, ...(avgBill != null ? { avgBill } : {}) };
   }
 
   data.importSource = {
@@ -164,7 +189,7 @@ export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
     date: outDate,
     unit,
     file: `${outDate}.json`,
-    mapped: covers
+    mapped
   };
 }
 
