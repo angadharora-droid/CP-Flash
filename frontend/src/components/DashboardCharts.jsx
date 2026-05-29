@@ -606,7 +606,7 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
           emptyLabel={periodEmptyLabel}
         >
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={outletSales} margin={{ top: 28, right: 8, left: 4, bottom: 8 }}>
+            <BarChart data={outletSales} margin={{ top: 28, right: 8, left: 4, bottom: 8 }} barCategoryGap="20%">
               <BarGradients />
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
               <XAxis dataKey="name" tick={axisTick} interval={0} tickLine={false} axisLine={{ stroke: gridStroke }} />
@@ -618,8 +618,8 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
               <Bar
                 dataKey="value"
                 name="Sales"
-                radius={[5, 5, 0, 0]}
-                maxBarSize={72}
+                radius={[6, 6, 0, 0]}
+                maxBarSize={120}
                 animationBegin={80}
                 animationDuration={700}
                 animationEasing="ease-out"
