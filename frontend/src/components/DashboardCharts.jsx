@@ -6,10 +6,8 @@ import {
   Cell,
   Sector,
   Tooltip,
-  ComposedChart,
   BarChart,
   Bar,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -24,7 +22,6 @@ const PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a', '#3f6fb5
 const REVENUE_COLOR = '#08786c';
 const NET_COLOR = '#9a5a00';
 const NEG_COLOR = '#ba1a1a';
-const MARGIN_COLOR = '#6f3d74';
 const axisTick = { fontSize: 11, fill: '#5b6b73' };
 const gridStroke = '#e2e8ec';
 
@@ -406,41 +403,29 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
 
         <ChartBlock
           title="Revenue vs Est. Net Profit"
-          subtitle={`Bars in ₹, line shows net margin % (${scopeLabel})`}
+          subtitle={`Per unit (${scopeLabel})`}
           empty={!revenueVsNet.length}
           loading={loading}
           emptyLabel={periodEmptyLabel}
         >
           <ResponsiveContainer width="100%" height={260}>
-            <ComposedChart data={revenueVsNet} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} barGap={4}>
+            <BarChart data={revenueVsNet} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
               <XAxis dataKey="unit" tick={axisTick} interval={0} angle={-20} textAnchor="end" height={56} tickLine={false} axisLine={{ stroke: gridStroke }} />
-              <YAxis yAxisId="money" tick={axisTick} tickFormatter={moneyCompact} width={64} tickLine={false} axisLine={false} />
-              <YAxis yAxisId="pct" orientation="right" tick={axisTick} tickFormatter={(v) => `${Math.round(v)}%`} width={42} tickLine={false} axisLine={false} />
+              <YAxis tick={axisTick} tickFormatter={moneyCompact} width={64} tickLine={false} axisLine={false} />
               <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(8,120,108,0.06)' }} />
-              <Bar yAxisId="money" dataKey="Revenue" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} maxBarSize={38} />
-              <Bar yAxisId="money" dataKey="Est. Net Profit" radius={[4, 4, 0, 0]} maxBarSize={38}>
+              <Bar dataKey="Revenue" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} maxBarSize={38} />
+              <Bar dataKey="Est. Net Profit" radius={[4, 4, 0, 0]} maxBarSize={38}>
                 {revenueVsNet.map((entry) => (
                   <Cell key={entry.unit} fill={entry['Est. Net Profit'] < 0 ? NEG_COLOR : NET_COLOR} />
                 ))}
               </Bar>
-              <Line
-                yAxisId="pct"
-                type="monotone"
-                dataKey="Margin"
-                name="Net Margin"
-                stroke={MARGIN_COLOR}
-                strokeWidth={2}
-                dot={{ r: 3, fill: MARGIN_COLOR, strokeWidth: 0 }}
-                activeDot={{ r: 5 }}
-              />
-            </ComposedChart>
+            </BarChart>
           </ResponsiveContainer>
           <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-medium text-on-surface-variant">
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: REVENUE_COLOR }} />Revenue</span>
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: NET_COLOR }} />Est. Net Profit</span>
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: NEG_COLOR }} />Net Loss</span>
-            <span className="flex items-center gap-1.5"><span className="h-0.5 w-3.5 rounded-full" style={{ background: MARGIN_COLOR }} />Net Margin %</span>
           </div>
         </ChartBlock>
 
