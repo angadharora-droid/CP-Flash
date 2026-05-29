@@ -25,7 +25,7 @@ import { importOccupancyReport } from './importOccupancyReport.js';
 import { importOccupancyMix } from './importOccupancyMix.js';
 import { importPosSales } from './importPosSales.js';
 import { importForecast } from './importForecast.js';
-import { importEvents } from './importEvents.js';
+import { importEvents, EVENTS_IMPORT_VERSION } from './importEvents.js';
 import { importPetpoojaReport } from './importPetpoojaReport.js';
 import { importPetpoojaPaymentSummary } from './importPetpoojaPaymentSummary.js';
 import { importPetpoojaTimeSalesReport } from './importPetpoojaTimeSalesReport.js';
@@ -207,6 +207,7 @@ const HANDLERS = [
     // the same "HCP REPORT" email. Feeds banquetToday / banquetTomorrow function lists.
     name: 'HCP Banquet Events (CP Nagpur)',
     importSourceKey: 'eventsImportedAt',
+    importVersion: EVENTS_IMPORT_VERSION,
     bundled: true,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?EVENT/i),
     run: async (parsed, date) => {

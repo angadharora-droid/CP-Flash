@@ -4,6 +4,10 @@ import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
 import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
+// Persisted in importSource as `eventsVersion`; the email handler's matching
+// `importVersion` triggers a one-time re-import when this changes.
+export const EVENTS_IMPORT_VERSION = 2;
+
 const clean = (value) => String(value ?? '').trim();
 
 function num(value) {
@@ -102,7 +106,11 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   data.importSource = {
     ...(data.importSource ?? {}),
     eventsFile: path.basename(file),
-    eventsImportedAt: new Date().toISOString()
+    eventsImportedAt: new Date().toISOString(),
+    // Bumped when the parse/placement logic changes so an already-imported day
+    // re-runs once. v2: split today/tomorrow by the file's own dates (earliest =
+    // today), fixing today's functions landing in the Tomorrow list.
+    eventsVersion: EVENTS_IMPORT_VERSION
   };
 
   await writeDailyJson(outDate, data);
