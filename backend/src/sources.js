@@ -40,6 +40,19 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
+    id: 'cpn-occupancy-mix',
+    label: 'CP Nagpur Occupancy Mix',
+    unit: 'CP Nagpur',
+    type: 'Mail / Excel',
+    paths: ['occupancyMix'],
+    meta: {
+      file: 'occupancyMixFile',
+      importedAt: 'occupancyMixImportedAt',
+      reportLabels: { occupancyMixFile: 'Occupancy Mix Report' }
+    },
+    cadence: 'Daily'
+  },
+  {
     id: 'pablo-cost',
     label: 'Pablo Cost Sheet',
     unit: 'Pablo',
