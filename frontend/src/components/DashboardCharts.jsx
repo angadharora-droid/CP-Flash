@@ -6,8 +6,10 @@ import {
   Cell,
   Sector,
   Tooltip,
+  ComposedChart,
   BarChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,6 +24,7 @@ const PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a', '#3f6fb5
 const REVENUE_COLOR = '#08786c';
 const NET_COLOR = '#9a5a00';
 const NEG_COLOR = '#ba1a1a';
+const MARGIN_COLOR = '#6f3d74';
 const axisTick = { fontSize: 11, fill: '#5b6b73' };
 const gridStroke = '#e2e8ec';
 
@@ -64,6 +67,24 @@ export function fnbOutletSalesWeekly(data, period) {
 
 const sumBy = (rows, key) => rows.reduce((total, row) => total + numberValue(row[key]), 0);
 
+// Build a CSV string from a header row + matrix and trigger a client-side download.
+function downloadCsv(filename, rows) {
+  const escape = (cell) => {
+    const text = String(cell ?? '');
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const csv = rows.map((row) => row.map(escape).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function ChartTooltip({ active, payload, label, total }) {
   if (!active || !payload?.length) return null;
   return (
@@ -73,13 +94,14 @@ function ChartTooltip({ active, payload, label, total }) {
       ) : null}
       {payload.map((entry) => {
         const value = numberValue(entry.value);
-        const share = total ? (value / total) * 100 : null;
+        const isPercent = /margin|%/i.test(entry.name);
+        const share = !isPercent && total ? (value / total) * 100 : null;
         return (
           <div key={entry.name} className="flex items-center gap-2 text-[12px]">
             <span className="size-2.5 rounded-full" style={{ background: entry.color || entry.payload?.fill }} />
             <span className="text-on-surface-variant">{entry.name}</span>
             <span className={`num ml-auto pl-3 font-bold ${value < 0 ? 'text-error' : 'text-on-surface'}`}>
-              {money(value)}
+              {isPercent ? percent(value) : money(value)}
               {share != null ? <span className="ml-1.5 font-medium text-on-surface-variant">{share.toFixed(1)}%</span> : null}
             </span>
           </div>
@@ -274,15 +296,16 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
     .sort((a, b) => b.value - a.value);
 
   const revenueVsNet = (isWeek
-    ? UNITS.map((unit) => ({
-        unit,
-        Revenue: numberValue(weekByUnit[unit]?.revenue),
-        'Est. Net Profit': numberValue(weekByUnit[unit]?.netProfit)
-      }))
+    ? UNITS.map((unit) => {
+        const revenue = numberValue(weekByUnit[unit]?.revenue);
+        const net = numberValue(weekByUnit[unit]?.netProfit);
+        return { unit, Revenue: revenue, 'Est. Net Profit': net, Margin: revenue ? (net / revenue) * 100 : 0 };
+      })
     : rows.map((row) => ({
         unit: row.unit,
         Revenue: numberValue(row.revenueToday),
-        'Est. Net Profit': row.estNetProfit
+        'Est. Net Profit': row.estNetProfit,
+        Margin: numberValue(row.netMargin)
       }))
   )
     .filter((entry) => entry.Revenue || entry['Est. Net Profit'])
@@ -322,6 +345,21 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
     }
   ];
 
+  const handleExport = () => {
+    const rows = [
+      ['Performance Charts', isWeek ? `Week ${period?.weekStart ?? ''} → ${period?.weekEnd ?? ''}` : 'Today'],
+      [],
+      ['Unit', 'Revenue', 'Est. Net Profit', 'Net Margin %'],
+      ...revenueVsNet.map((entry) => [entry.unit, entry.Revenue, entry['Est. Net Profit'], entry.Margin.toFixed(1)]),
+      ['Total', totalRevenue, totalNet, totalRevenue ? margin.toFixed(1) : '0'],
+      [],
+      ['F&B Outlet', 'Sales'],
+      ...outletSales.map((entry) => [entry.name, entry.value])
+    ];
+    const stamp = isWeek ? `week-${period?.weekStart ?? 'current'}` : 'today';
+    downloadCsv(`performance-${stamp}.csv`, rows);
+  };
+
   const periodEmptyLabel = isWeek
     ? (weekLoading ? 'Loading week…' : 'No saved data for this week yet.')
     : 'No data to chart yet.';
@@ -340,6 +378,16 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
         <div className="flex flex-wrap items-center gap-2">
           {isWeek && weekControls ? weekControls : null}
           <PeriodToggle value={mode} onChange={setMode} weeklyReady={weeklyReady} />
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={!hasData || loading}
+            title="Export current view to CSV"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant/70 bg-surface-container-low px-2.5 py-1.5 text-xs font-bold text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span className="material-symbols-outlined text-[16px]">download</span>
+            <span className="hidden sm:inline">CSV</span>
+          </button>
         </div>
       }
     >
@@ -358,29 +406,41 @@ export default function DashboardCharts({ data, period, weekControls = null, wee
 
         <ChartBlock
           title="Revenue vs Est. Net Profit"
-          subtitle={`Per unit (${scopeLabel})`}
+          subtitle={`Bars in ₹, line shows net margin % (${scopeLabel})`}
           empty={!revenueVsNet.length}
           loading={loading}
           emptyLabel={periodEmptyLabel}
         >
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={revenueVsNet} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} barGap={4}>
+            <ComposedChart data={revenueVsNet} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
               <XAxis dataKey="unit" tick={axisTick} interval={0} angle={-20} textAnchor="end" height={56} tickLine={false} axisLine={{ stroke: gridStroke }} />
-              <YAxis tick={axisTick} tickFormatter={moneyCompact} width={64} tickLine={false} axisLine={false} />
+              <YAxis yAxisId="money" tick={axisTick} tickFormatter={moneyCompact} width={64} tickLine={false} axisLine={false} />
+              <YAxis yAxisId="pct" orientation="right" tick={axisTick} tickFormatter={(v) => `${Math.round(v)}%`} width={42} tickLine={false} axisLine={false} />
               <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(8,120,108,0.06)' }} />
-              <Bar dataKey="Revenue" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} maxBarSize={42} />
-              <Bar dataKey="Est. Net Profit" radius={[4, 4, 0, 0]} maxBarSize={42}>
+              <Bar yAxisId="money" dataKey="Revenue" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} maxBarSize={38} />
+              <Bar yAxisId="money" dataKey="Est. Net Profit" radius={[4, 4, 0, 0]} maxBarSize={38}>
                 {revenueVsNet.map((entry) => (
                   <Cell key={entry.unit} fill={entry['Est. Net Profit'] < 0 ? NEG_COLOR : NET_COLOR} />
                 ))}
               </Bar>
-            </BarChart>
+              <Line
+                yAxisId="pct"
+                type="monotone"
+                dataKey="Margin"
+                name="Net Margin"
+                stroke={MARGIN_COLOR}
+                strokeWidth={2}
+                dot={{ r: 3, fill: MARGIN_COLOR, strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
           <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-medium text-on-surface-variant">
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: REVENUE_COLOR }} />Revenue</span>
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: NET_COLOR }} />Est. Net Profit</span>
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: NEG_COLOR }} />Net Loss</span>
+            <span className="flex items-center gap-1.5"><span className="h-0.5 w-3.5 rounded-full" style={{ background: MARGIN_COLOR }} />Net Margin %</span>
           </div>
         </ChartBlock>
 
