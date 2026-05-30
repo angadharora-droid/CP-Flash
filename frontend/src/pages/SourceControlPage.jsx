@@ -121,7 +121,9 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
     setRunningImport(true);
     setError('');
     try {
-      const status = await runEmailImport(authToken, { force: false });
+      // force: re-fetch and re-process every source, even ones already imported
+      // today, so a manual refresh always pulls everything (not just new emails).
+      const status = await runEmailImport(authToken, { force: true });
       setEmailImport(status);
       load(true);
     } catch (err) {
