@@ -10,7 +10,8 @@ const SECTION_TITLE = 'Forecast';
 // Persisted as `forecastVersion`; the handler's matching `importVersion` forces a
 // one-time re-import when this changes. v3: file under the run's flash date (outDate),
 // not a date derived from the forecast row. v4: persist forecastDate for the header.
-export const FORECAST_IMPORT_VERSION = 4;
+// v5: forecast row is D+2 (the HCP email is generated the morning the D flash is read).
+export const FORECAST_IMPORT_VERSION = 5;
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -73,9 +74,10 @@ function ensureSectionRows(data, unit) {
 /**
  * Parses the HCP_FORE occupancy forecast and fills the hotels "Forecast" KPI table.
  *
- * Date note: HCP_FORE is forward-looking — its single row forecasts ahead of the
- * business date (`outDate`). It maps onto the existing "Tomorrow …" rows and is written
- * into the run's flash-date (`outDate`) JSON.
+ * Date note: HCP_FORE is forward-looking. The HCP report for business date D (`outDate`)
+ * is generated the morning the D flash is read (D+1), so the forecast row is dated D+2 —
+ * "tomorrow" from the reader's viewpoint. It maps onto the existing "Tomorrow …" rows and
+ * is written into the run's flash-date (`outDate`) JSON.
  */
 export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   const wb = XLSX.readFile(file, { cellDates: true });
@@ -105,11 +107,11 @@ export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   }
   if (!forecastDate) throw new Error('No forecast data row with a date found.');
 
-  // Stale-email guard: the forecast row is tomorrow's occupancy, so it must be dated the
-  // day after the run's business date. A leftover email from a previous cycle forecasts
-  // `outDate` itself (not outDate+1) — skip it so the source stays Pending rather than
-  // importing yesterday's report.
-  const expectedForecastDate = isoAddDays(outDate, 1);
+  // Stale-email guard: the forecast row is dated D+2 (the HCP email for business date D is
+  // generated the morning the D flash is read, and forecasts the day after that). A
+  // leftover email from a previous cycle forecasts D+1, which fails this check — so it
+  // stays Pending rather than importing yesterday's report.
+  const expectedForecastDate = isoAddDays(outDate, 2);
   if (forecastDate !== expectedForecastDate) {
     console.warn(`[importForecast] Skipping stale report: forecast is for ${forecastDate}, expected ${expectedForecastDate} (run date ${outDate}).`);
     return { ok: false, pending: true, reason: 'stale-report', unit, forecastFor: forecastDate, expected: expectedForecastDate };

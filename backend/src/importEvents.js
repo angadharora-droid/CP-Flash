@@ -2,13 +2,35 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
+import { pageSchemas, schemaRowsToKpis } from './schema.js';
 import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 // Persisted in importSource as `eventsVersion`; the email handler's matching
 // `importVersion` triggers a one-time re-import when this changes. v4: file under the
 // run's flash date (outDate), not the earliest event date. v5: persist banquet*Date for
-// the section headers.
-export const EVENTS_IMPORT_VERSION = 5;
+// the section headers. v6: 3-day file (D business-day / D+1 today / D+2 tomorrow) — D+1/D+2
+// feed the function lists and D feeds the Banquets Covers + No. of Functions KPIs.
+export const EVENTS_IMPORT_VERSION = 6;
+
+const BANQUETS_SECTION = 'Banquets';
+
+/** "2026-05-30" + 1 → "2026-05-31". */
+function isoAddDays(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Makes sure the Banquets KPI rows exist for `unit` (older daily files predate them). */
+function ensureSectionRows(data, unit) {
+  const section = pageSchemas.hotels.find((s) => s.title === BANQUETS_SECTION);
+  if (!section) return;
+  data.hotels = data.hotels ?? [];
+  const existingIds = new Set(data.hotels.map((r) => r.id));
+  for (const row of schemaRowsToKpis(unit, 'hotels', [section])) {
+    if (!existingIds.has(row.id)) data.hotels.push(row);
+  }
+}
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -43,13 +65,17 @@ const isFunctionRow = (cell) => /^\d+\s*\/\s*\d+$/.test(clean(cell)); // "28978 
  * Parses the HCP_EVENT banquet booking sheet into the daily function lists.
  *
  * The sheet groups confirmed functions under "Event Date:DD-MMM-YYYY" headers and
- * carries TWO days — the report day ("today") and the next day ("tomorrow"). Each
- * function is a main row (Res#/Party/Function/From/To/Pax/…/Net.Amt/Status) followed
- * by a "Room: <Hall>" detail row.
+ * carries THREE days relative to the business date D (`outDate`): D (the closed business
+ * day), D+1 ("today" from the reader's viewpoint) and D+2 ("tomorrow"). Each function is a
+ * main row (Res#/Party/Function/From/To/Pax/…/Net.Amt/Status) followed by a "Room: <Hall>"
+ * detail row.
  *
- * Date note: this file is forward-looking. We split by the file's own dates — earliest =
- * "today" (banquetToday), latest = "tomorrow" (banquetTomorrow) — but file the result
- * under the run's flash date (`outDate`), the report it belongs to.
+ * Date note: the HCP report for business date D is generated the morning the D flash is
+ * read, so its day labels run one ahead of the flash. We select by explicit date:
+ *   D   → Banquets Covers (Σ pax) + No. of Functions (count)
+ *   D+1 → banquetToday list
+ *   D+2 → banquetTomorrow list
+ * Everything is filed under the run's flash date (`outDate`).
  */
 export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   const wb = XLSX.readFile(file, { cellDates: true });
@@ -90,22 +116,25 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
 
   if (!events.length) throw new Error('No confirmed functions parsed.');
 
-  // The file carries two forward-looking days; the EARLIER date is "today"
-  // (banquetToday) and the LATER is "tomorrow" (banquetTomorrow). The lists are split by
-  // the file's own dates, but everything is filed under the run's flash date (outDate).
+  // The file spans business date D plus the two days ahead of it. Select by explicit
+  // date rather than by index so a day with no functions doesn't shift the mapping.
   const dates = [...new Set(events.map((e) => e.date))].sort();
+  const businessDate = outDate;                 // D — closed business day (actuals)
+  const todayDate = isoAddDays(outDate, 1);     // D+1 — "today" from the reader's viewpoint
+  const tomorrowDate = isoAddDays(outDate, 2);  // D+2 — "tomorrow"
 
-  // Stale-email guard: the file carries today (D) + tomorrow (D+1), so its earliest date
-  // must not be before the run's business date. A leftover email from a previous cycle
-  // has earliest = D−1 — skip it so the source stays Pending instead of importing
-  // yesterday's functions. (ISO YYYY-MM-DD strings compare lexicographically.)
+  // Stale-email guard: a fresh file's earliest date is the business day (D). A leftover
+  // email from a previous cycle has earliest = D−1 — skip it so the source stays Pending
+  // instead of importing yesterday's functions. (ISO YYYY-MM-DD strings compare
+  // lexicographically.)
   if (dates[0] < outDate) {
     console.warn(`[importEvents] Skipping stale report: earliest event date ${dates[0]} < run date ${outDate}.`);
     return { ok: false, pending: true, reason: 'stale-report', unit, earliest: dates[0] };
   }
 
-  const today = events.filter((e) => e.date === dates[0]);
-  const next = dates[1] ? events.filter((e) => e.date === dates[1]) : [];
+  const businessEvents = events.filter((e) => e.date === businessDate);
+  const today = events.filter((e) => e.date === todayDate);
+  const next = events.filter((e) => e.date === tomorrowDate);
   const reportDate = outDate;
 
   const strip = (e) => ({ marketSegment: e.marketSegment, pax: e.pax, venue: e.venue, session: e.session, revenue: e.revenue, notes: e.notes });
@@ -113,8 +142,19 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   const data = (await readDailyJson(reportDate)) ?? buildSeedData();
   data.banquetToday = today.map(strip);
   data.banquetTomorrow = next.map(strip);
-  data.banquetTodayDate = dates[0] ?? '';
-  data.banquetTomorrowDate = dates[1] ?? '';
+  data.banquetTodayDate = todayDate;
+  data.banquetTomorrowDate = tomorrowDate;
+
+  // Business-day (D) functions feed the Banquets KPI summary. Revenue Today is left to the
+  // Night Audit importer (its source of truth), so only Covers + No. of Functions here.
+  ensureSectionRows(data, unit);
+  const setBanquetKpi = (name, value) => {
+    const row = data.hotels.find((r) => r.unit === unit && r.section === BANQUETS_SECTION && r.name === name);
+    if (row) row.actual = String(value);
+  };
+  const businessPax = businessEvents.reduce((sum, e) => sum + (Number(e.pax) || 0), 0);
+  setBanquetKpi('Covers', businessPax);
+  setBanquetKpi('No. of Functions', businessEvents.length);
 
   data.importSource = {
     ...(data.importSource ?? {}),
@@ -125,7 +165,16 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
 
   await writeDailyJson(reportDate, data);
 
-  return { ok: true, date: reportDate, unit, mapped: { today: `${dates[0]} (${today.length})`, tomorrow: `${dates[1] ?? '—'} (${next.length})` } };
+  return {
+    ok: true,
+    date: reportDate,
+    unit,
+    mapped: {
+      business: `${businessDate} (${businessEvents.length} fn, ${businessPax} pax)`,
+      today: `${todayDate} (${today.length})`,
+      tomorrow: `${tomorrowDate} (${next.length})`
+    }
+  };
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
