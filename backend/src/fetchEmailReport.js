@@ -24,7 +24,7 @@ import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
 import { importOccupancyMix } from './importOccupancyMix.js';
 import { importPosSales } from './importPosSales.js';
-import { importForecast } from './importForecast.js';
+import { importForecast, FORECAST_IMPORT_VERSION } from './importForecast.js';
 import { importEvents, EVENTS_IMPORT_VERSION } from './importEvents.js';
 import { importPetpoojaReport } from './importPetpoojaReport.js';
 import { importPetpoojaPaymentSummary } from './importPetpoojaPaymentSummary.js';
@@ -192,6 +192,7 @@ const HANDLERS = [
     // the forecast row is dated `date + 1` and lands in the report-date JSON.
     name: 'HCP Forecast (CP Nagpur)',
     importSourceKey: 'forecastImportedAt',
+    importVersion: FORECAST_IMPORT_VERSION,
     bundled: true,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?FORE/i),
     run: async (parsed, date) => {
@@ -342,7 +343,7 @@ const HANDLERS = [
   }
 ];
 
-async function processMessage(parsed, date, existingData) {
+async function processMessage(parsed, date, existingData, touchedDates) {
   const subject = parsed.subject || '';
   log(`Processing: "${subject}"`);
 
@@ -357,11 +358,11 @@ async function processMessage(parsed, date, existingData) {
   // email so sibling attachments (HCP_OCC, HCP_POS_SALE, …) are all processed.
   const handlers = [primary, ...HANDLERS.filter((h) => h !== primary && h.bundled && h.matches(subject, parsed))];
   for (const handler of handlers) {
-    await runHandler(handler, parsed, date, existingData);
+    await runHandler(handler, parsed, date, existingData, touchedDates);
   }
 }
 
-async function runHandler(handler, parsed, date, existingData) {
+async function runHandler(handler, parsed, date, existingData, touchedDates) {
   log(`  → Handler: ${handler.name}`);
 
   if (handler.importSourceKey && existingData?.importSource?.[handler.importSourceKey]) {
@@ -387,6 +388,9 @@ async function runHandler(handler, parsed, date, existingData) {
     const result = await handler.run(parsed, date);
     if (!result?.pending) {
       log(`  Done: ${JSON.stringify(result?.mapped ?? result)}`);
+      // Handlers may file under a date other than the run date (forward-looking
+      // reports use their own content date) — track it so the run syncs it too.
+      if (result?.date) touchedDates?.add(result.date);
       if (handler.importSourceKey) {
         existingData.importSource = {
           ...(existingData.importSource ?? {}),
@@ -401,6 +405,9 @@ async function runHandler(handler, parsed, date, existingData) {
 
 async function run() {
   const date = yesterday();
+  // Every daily JSON a handler writes to — synced to the cloud at the end. Seeded with
+  // the run date; forward-looking handlers (forecast/events) add their own content date.
+  const touchedDates = new Set([date]);
 
   // Load existing data once — used to skip sources already imported this run
   let existingData = (await readDailyJson(date)) ?? { importSource: {} };
@@ -446,7 +453,7 @@ async function run() {
       // Handlers stay sequential: they share the daily JSON / Mongo doc; parallelising them
       // would race on read-modify-write of the same record.
       for (const parsed of parsedAll.reverse()) {
-        await processMessage(parsed, date, existingData);
+        await processMessage(parsed, date, existingData, touchedDates);
       }
     }
 
@@ -514,8 +521,11 @@ async function run() {
     }
   }
 
-  // Push processed data to cloud backend
-  await syncToCloud(date);
+  // Push processed data to cloud backend — one sync per date any handler wrote to
+  // (forward-looking reports may land on a different day than the run date).
+  for (const d of [...touchedDates].sort()) {
+    await syncToCloud(d);
+  }
 }
 
 async function syncToCloud(date) {
