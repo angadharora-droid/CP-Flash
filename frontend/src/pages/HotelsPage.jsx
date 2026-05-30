@@ -9,6 +9,20 @@ import { SHEET_URLS } from '../lib/navigation';
 import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
 import { groupRevenue, money, moneyCompact, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "2026-05-30" → "30 May 2026". Returns '' for empty/invalid input. */
+function fmtDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');
+  return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}` : '';
+}
+
+/** " — 30 May 2026" for a header suffix, or '' if no valid date. */
+function dateSuffix(iso) {
+  const f = fmtDate(iso);
+  return f ? ` — ${f}` : '';
+}
+
 export default function HotelsPage({ data, date }) {
   const [hotelUnit, setHotelUnit] = useState('CP Nagpur');
   const rows = (data.hotels ?? []).filter((row) => row.unit === hotelUnit);
@@ -35,7 +49,7 @@ export default function HotelsPage({ data, date }) {
       {sections.map((section) => (
         <SectionCard
           key={section}
-          title={`${hotelLabel}: ${section}`}
+          title={`${hotelLabel}: ${section}${section === 'Forecast' ? dateSuffix(data.forecastDate) : ''}`}
           subtitle={`${rows.filter((row) => row.section === section).length} KPI${rows.filter((row) => row.section === section).length === 1 ? '' : 's'}`}
           icon={SECTION_ICONS.hotel}
           tone="indigo"
@@ -47,7 +61,7 @@ export default function HotelsPage({ data, date }) {
       {hotelUnit === 'CP Nagpur' && ['banquetToday', 'banquetTomorrow'].map((key) => (
         <SectionCard
           key={key}
-          title={`${hotelLabel}: ${key === 'banquetToday' ? 'Banquet Function List Today' : 'Banquet Function List Tomorrow'}`}
+          title={`${hotelLabel}: ${key === 'banquetToday' ? 'Banquet Function List Today' : 'Banquet Function List Tomorrow'}${dateSuffix(data[`${key}Date`])}`}
           subtitle={`${(data[key] ?? []).length} function${(data[key] ?? []).length === 1 ? '' : 's'} scheduled`}
           icon={SECTION_ICONS.banquet}
           tone="amber"

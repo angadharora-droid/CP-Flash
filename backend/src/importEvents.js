@@ -5,8 +5,10 @@ import { buildSeedData } from './excel.js';
 import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 // Persisted in importSource as `eventsVersion`; the email handler's matching
-// `importVersion` triggers a one-time re-import when this changes.
-export const EVENTS_IMPORT_VERSION = 3;
+// `importVersion` triggers a one-time re-import when this changes. v4: file under the
+// run's flash date (outDate), not the earliest event date. v5: persist banquet*Date for
+// the section headers.
+export const EVENTS_IMPORT_VERSION = 5;
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -45,11 +47,9 @@ const isFunctionRow = (cell) => /^\d+\s*\/\s*\d+$/.test(clean(cell)); // "28978 
  * function is a main row (Res#/Party/Function/From/To/Pax/…/Net.Amt/Status) followed
  * by a "Room: <Hall>" detail row.
  *
- * Date note: the run's `outDate` is the business date (yesterday), but this file is
- * forward-looking. We split by the file's own dates — earliest = "today" (banquetToday),
- * latest = "tomorrow" (banquetTomorrow) — AND file the result under that earliest date
- * (the day it describes / the day the user views it on), not `outDate`. The run syncs
- * every date a handler writes, so the off-run-date flash still reaches the cloud.
+ * Date note: this file is forward-looking. We split by the file's own dates — earliest =
+ * "today" (banquetToday), latest = "tomorrow" (banquetTomorrow) — but file the result
+ * under the run's flash date (`outDate`), the report it belongs to.
  */
 export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   const wb = XLSX.readFile(file, { cellDates: true });
@@ -90,27 +90,31 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
 
   if (!events.length) throw new Error('No confirmed functions parsed.');
 
-  // The file carries the two days AFTER the business date (outDate = yesterday): the
-  // EARLIER date is "today" (the day the flash is read), the LATER is "tomorrow". So we
-  // key off the file's own dates, not outDate — e.g. an outDate of the 28th carries
-  // functions for the 29th (today) and 30th (tomorrow).
-  // This report is forward-looking: it carries the report's "today" (earliest date) and
-  // "tomorrow" (latest). File it under that "today" date — the day it actually describes
-  // and the day the user views it on — NOT the run's yesterday()-based `outDate`, which
-  // is a day behind for this report. The run syncs every date a handler writes.
+  // The file carries two forward-looking days; the EARLIER date is "today"
+  // (banquetToday) and the LATER is "tomorrow" (banquetTomorrow). The lists are split by
+  // the file's own dates, but everything is filed under the run's flash date (outDate).
   const dates = [...new Set(events.map((e) => e.date))].sort();
+
+  // Stale-email guard: the file carries today (D) + tomorrow (D+1), so its earliest date
+  // must not be before the run's business date. A leftover email from a previous cycle
+  // has earliest = D−1 — skip it so the source stays Pending instead of importing
+  // yesterday's functions. (ISO YYYY-MM-DD strings compare lexicographically.)
+  if (dates[0] < outDate) {
+    console.warn(`[importEvents] Skipping stale report: earliest event date ${dates[0]} < run date ${outDate}.`);
+    return { ok: false, pending: true, reason: 'stale-report', unit, earliest: dates[0] };
+  }
+
   const today = events.filter((e) => e.date === dates[0]);
   const next = dates[1] ? events.filter((e) => e.date === dates[1]) : [];
-  const reportDate = dates[0];
-  if (reportDate !== outDate) {
-    console.warn(`[importEvents] Filing under ${reportDate} (the report's today), not run date ${outDate}.`);
-  }
+  const reportDate = outDate;
 
   const strip = (e) => ({ marketSegment: e.marketSegment, pax: e.pax, venue: e.venue, session: e.session, revenue: e.revenue, notes: e.notes });
 
   const data = (await readDailyJson(reportDate)) ?? buildSeedData();
   data.banquetToday = today.map(strip);
   data.banquetTomorrow = next.map(strip);
+  data.banquetTodayDate = dates[0] ?? '';
+  data.banquetTomorrowDate = dates[1] ?? '';
 
   data.importSource = {
     ...(data.importSource ?? {}),
