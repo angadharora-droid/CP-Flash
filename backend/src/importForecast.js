@@ -7,6 +7,11 @@ import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 const SECTION_TITLE = 'Forecast';
 
+// Persisted as `forecastVersion`; the handler's matching `importVersion` forces a
+// one-time re-import when this changes. v2: file under the forecast's own day-before
+// date instead of the yesterday()-based run date.
+export const FORECAST_IMPORT_VERSION = 2;
+
 const clean = (value) => String(value ?? '').trim();
 
 function num(value) {
@@ -21,6 +26,13 @@ function toISO(value) {
   if (!m) return '';
   const [, d, mo, y] = m;
   return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+
+function addDays(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 /**
@@ -93,13 +105,16 @@ export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   }
   if (!forecastDate) throw new Error('No forecast data row with a date found.');
 
-  // The forecast looks ahead of the business date (outDate = yesterday); just
-  // sanity-check that it isn't stale rather than assuming an exact day offset.
-  if (forecastDate <= outDate) {
-    console.warn(`[importForecast] Forecast date ${forecastDate} is not after the report date ${outDate}.`);
+  // The forecast row is "tomorrow", so the report's "today" is the day before it. File
+  // under that date (the day the user views it on), not the run's yesterday()-based
+  // `outDate` which is a day behind for this forward-looking report. It maps onto the
+  // existing "Tomorrow …" rows. The run syncs every date a handler writes.
+  const reportDate = addDays(forecastDate, -1) || outDate;
+  if (reportDate !== outDate) {
+    console.warn(`[importForecast] Filing under ${reportDate} (day before forecast ${forecastDate}), not run date ${outDate}.`);
   }
 
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDailyJson(reportDate)) ?? buildSeedData();
   ensureSectionRows(data, unit);
 
   const setActual = (name, value) => {
@@ -113,12 +128,13 @@ export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   data.importSource = {
     ...(data.importSource ?? {}),
     forecastFile: path.basename(file),
-    forecastImportedAt: new Date().toISOString()
+    forecastImportedAt: new Date().toISOString(),
+    forecastVersion: FORECAST_IMPORT_VERSION
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDailyJson(reportDate, data);
 
-  return { ok: true, date: outDate, unit, forecastFor: forecastDate, mapped: { occPct, arrivals, departures } };
+  return { ok: true, date: reportDate, unit, forecastFor: forecastDate, mapped: { occPct, arrivals, departures } };
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);

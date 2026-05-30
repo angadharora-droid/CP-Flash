@@ -6,7 +6,7 @@ import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 // Persisted in importSource as `eventsVersion`; the email handler's matching
 // `importVersion` triggers a one-time re-import when this changes.
-export const EVENTS_IMPORT_VERSION = 2;
+export const EVENTS_IMPORT_VERSION = 3;
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -46,9 +46,10 @@ const isFunctionRow = (cell) => /^\d+\s*\/\s*\d+$/.test(clean(cell)); // "28978 
  * by a "Room: <Hall>" detail row.
  *
  * Date note: the run's `outDate` is the business date (yesterday), but this file is
- * forward-looking and carries the TWO days after it. We split by the file's own dates —
- * earliest = "today" (banquetToday), latest = "tomorrow" (banquetTomorrow) — so the
- * split is correct regardless of how `outDate` relates to the calendar run day.
+ * forward-looking. We split by the file's own dates — earliest = "today" (banquetToday),
+ * latest = "tomorrow" (banquetTomorrow) — AND file the result under that earliest date
+ * (the day it describes / the day the user views it on), not `outDate`. The run syncs
+ * every date a handler writes, so the off-run-date flash still reaches the cloud.
  */
 export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   const wb = XLSX.readFile(file, { cellDates: true });
@@ -93,13 +94,21 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   // EARLIER date is "today" (the day the flash is read), the LATER is "tomorrow". So we
   // key off the file's own dates, not outDate — e.g. an outDate of the 28th carries
   // functions for the 29th (today) and 30th (tomorrow).
+  // This report is forward-looking: it carries the report's "today" (earliest date) and
+  // "tomorrow" (latest). File it under that "today" date — the day it actually describes
+  // and the day the user views it on — NOT the run's yesterday()-based `outDate`, which
+  // is a day behind for this report. The run syncs every date a handler writes.
   const dates = [...new Set(events.map((e) => e.date))].sort();
   const today = events.filter((e) => e.date === dates[0]);
   const next = dates[1] ? events.filter((e) => e.date === dates[1]) : [];
+  const reportDate = dates[0];
+  if (reportDate !== outDate) {
+    console.warn(`[importEvents] Filing under ${reportDate} (the report's today), not run date ${outDate}.`);
+  }
 
   const strip = (e) => ({ marketSegment: e.marketSegment, pax: e.pax, venue: e.venue, session: e.session, revenue: e.revenue, notes: e.notes });
 
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDailyJson(reportDate)) ?? buildSeedData();
   data.banquetToday = today.map(strip);
   data.banquetTomorrow = next.map(strip);
 
@@ -107,15 +116,12 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
     ...(data.importSource ?? {}),
     eventsFile: path.basename(file),
     eventsImportedAt: new Date().toISOString(),
-    // Bumped when the parse/placement logic changes so an already-imported day
-    // re-runs once. v2: split today/tomorrow by the file's own dates (earliest =
-    // today), fixing today's functions landing in the Tomorrow list.
     eventsVersion: EVENTS_IMPORT_VERSION
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDailyJson(reportDate, data);
 
-  return { ok: true, date: outDate, unit, mapped: { today: today.length, tomorrow: next.length } };
+  return { ok: true, date: reportDate, unit, mapped: { today: `${dates[0]} (${today.length})`, tomorrow: `${dates[1] ?? '—'} (${next.length})` } };
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
