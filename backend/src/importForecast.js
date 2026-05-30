@@ -8,9 +8,9 @@ import { readDailyJson, writeDailyJson } from './dailyStore.js';
 const SECTION_TITLE = 'Forecast';
 
 // Persisted as `forecastVersion`; the handler's matching `importVersion` forces a
-// one-time re-import when this changes. v2: file under the forecast's own day-before
-// date instead of the yesterday()-based run date.
-export const FORECAST_IMPORT_VERSION = 2;
+// one-time re-import when this changes. v3: file under the run's flash date (outDate),
+// not a date derived from the forecast row. v4: persist forecastDate for the header.
+export const FORECAST_IMPORT_VERSION = 4;
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -20,19 +20,19 @@ function num(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+/** "2026-05-30" + 1 → "2026-05-31". */
+function isoAddDays(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /** "30/05/2026" (DD/MM/YYYY) → "2026-05-30". Returns '' if not a date. */
 function toISO(value) {
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(clean(value));
   if (!m) return '';
   const [, d, mo, y] = m;
   return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
-}
-
-function addDays(iso, days) {
-  const d = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return '';
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 /**
@@ -73,9 +73,9 @@ function ensureSectionRows(data, unit) {
 /**
  * Parses the HCP_FORE occupancy forecast and fills the hotels "Forecast" KPI table.
  *
- * Date note: HCP_FORE is forward-looking — its single row forecasts a day ahead of the
- * business date (`outDate` = yesterday). It maps onto the existing "Tomorrow …" rows and
- * is written into the report-date JSON; a guardrail just warns if the file date is stale.
+ * Date note: HCP_FORE is forward-looking — its single row forecasts ahead of the
+ * business date (`outDate`). It maps onto the existing "Tomorrow …" rows and is written
+ * into the run's flash-date (`outDate`) JSON.
  */
 export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   const wb = XLSX.readFile(file, { cellDates: true });
@@ -105,14 +105,20 @@ export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   }
   if (!forecastDate) throw new Error('No forecast data row with a date found.');
 
-  // The forecast row is "tomorrow", so the report's "today" is the day before it. File
-  // under that date (the day the user views it on), not the run's yesterday()-based
-  // `outDate` which is a day behind for this forward-looking report. It maps onto the
-  // existing "Tomorrow …" rows. The run syncs every date a handler writes.
-  const reportDate = addDays(forecastDate, -1) || outDate;
-  if (reportDate !== outDate) {
-    console.warn(`[importForecast] Filing under ${reportDate} (day before forecast ${forecastDate}), not run date ${outDate}.`);
+  // Stale-email guard: the forecast row is tomorrow's occupancy, so it must be dated the
+  // day after the run's business date. A leftover email from a previous cycle forecasts
+  // `outDate` itself (not outDate+1) — skip it so the source stays Pending rather than
+  // importing yesterday's report.
+  const expectedForecastDate = isoAddDays(outDate, 1);
+  if (forecastDate !== expectedForecastDate) {
+    console.warn(`[importForecast] Skipping stale report: forecast is for ${forecastDate}, expected ${expectedForecastDate} (run date ${outDate}).`);
+    return { ok: false, pending: true, reason: 'stale-report', unit, forecastFor: forecastDate, expected: expectedForecastDate };
   }
+
+  // File under the run's flash date (outDate). The forecast row is a forward-looking
+  // figure that belongs on the current report; it maps onto the existing "Tomorrow …"
+  // rows. `forecastDate` (the day being forecast) is persisted for the section header.
+  const reportDate = outDate;
 
   const data = (await readDailyJson(reportDate)) ?? buildSeedData();
   ensureSectionRows(data, unit);
@@ -124,6 +130,7 @@ export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   setActual('Tomorrow Occupancy Forecast %', occPct);
   setActual('Arrivals', arrivals);
   setActual('Departures', departures);
+  data.forecastDate = forecastDate;
 
   data.importSource = {
     ...(data.importSource ?? {}),

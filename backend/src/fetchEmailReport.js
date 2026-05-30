@@ -194,6 +194,7 @@ const HANDLERS = [
     importSourceKey: 'forecastImportedAt',
     importVersion: FORECAST_IMPORT_VERSION,
     bundled: true,
+    validatesDate: true,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?FORE/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[_-]?FORE/i);
@@ -210,6 +211,7 @@ const HANDLERS = [
     importSourceKey: 'eventsImportedAt',
     importVersion: EVENTS_IMPORT_VERSION,
     bundled: true,
+    validatesDate: true,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?EVENT/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[_-]?EVENT/i);
@@ -357,8 +359,18 @@ async function processMessage(parsed, date, existingData, touchedDates) {
   // Beyond the first match, also run any handlers flagged `bundled` that match the same
   // email so sibling attachments (HCP_OCC, HCP_POS_SALE, …) are all processed.
   const handlers = [primary, ...HANDLERS.filter((h) => h !== primary && h.bundled && h.matches(subject, parsed))];
+  // Run date-validating handlers (forecast/events) first: if one finds the email is from
+  // an older cycle, the whole bundle is stale, so skip the siblings that can't check
+  // their own date (occ-mix / pos-sales) rather than import yesterday's data.
+  handlers.sort((a, b) => (b.validatesDate ? 1 : 0) - (a.validatesDate ? 1 : 0));
+  let bundleStale = false;
   for (const handler of handlers) {
-    await runHandler(handler, parsed, date, existingData, touchedDates);
+    if (bundleStale && handler.bundled) {
+      log(`  Skipping ${handler.name}: HCP bundle email is stale (older than run date).`);
+      continue;
+    }
+    const result = await runHandler(handler, parsed, date, existingData, touchedDates);
+    if (result?.pending && result?.reason === 'stale-report') bundleStale = true;
   }
 }
 
@@ -386,7 +398,9 @@ async function runHandler(handler, parsed, date, existingData, touchedDates) {
 
   try {
     const result = await handler.run(parsed, date);
-    if (!result?.pending) {
+    if (result?.pending) {
+      log(`  Pending: ${result.reason ?? 'not imported'} — leaving source unset.`);
+    } else {
       log(`  Done: ${JSON.stringify(result?.mapped ?? result)}`);
       // Handlers may file under a date other than the run date (forward-looking
       // reports use their own content date) — track it so the run syncs it too.
@@ -398,8 +412,10 @@ async function runHandler(handler, parsed, date, existingData, touchedDates) {
         };
       }
     }
+    return result;
   } catch (err) {
     log(`  ERROR: ${err.message}`);
+    return null;
   }
 }
 
