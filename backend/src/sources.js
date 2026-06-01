@@ -301,7 +301,7 @@ function pickMeta(importSource, source) {
     .filter((report) => !source.meta.filePattern || source.meta.filePattern.test(String(report.file)));
   const reportFiles = reports
     .map((report) => report.file)
-    .filter((file) => /\.(xlsx|xls|csv)$/i.test(String(file)));
+    .filter((file) => /\.(xlsx|xls|csv|pdf)$/i.test(String(file)));
   const importedFile = reports[0]?.file ?? '';
   const importedAtFields = source.meta.importedAtFields ?? [source.meta.importedAt];
   const importedAt = importedAtFields
