@@ -310,7 +310,18 @@ export function buildSourceStatus(data = {}) {
   const importSource = data.importSource ?? {};
   const sources = dailySources.map((source) => {
     const meta = pickMeta(importSource, source);
-    const hasData = source.paths.some((key) => hasEnteredValue(data[key]));
+
+    // For sources tied to a specific hotel unit, filter KPI-row arrays to that unit
+    // so CP Nagpur data doesn't make CP NM sources appear as "Entered".
+    function pathData(key) {
+      const val = data[key];
+      if (Array.isArray(val) && source.unit && source.unit !== 'Bank Statement') {
+        return val.filter((r) => r.unit === source.unit || r.unit === `${source.unit}s`);
+      }
+      return val;
+    }
+
+    const hasData = source.paths.some((key) => hasEnteredValue(pathData(key)));
     const hasRabbitKpis = source.id === 'rabbits-sales' && hasEnteredValue(data.rabbits);
     const hasImport = isFilled(meta.importedAt) || hasRabbitKpis;
     const status = hasImport ? 'Imported' : hasData ? 'Entered' : 'Pending';
