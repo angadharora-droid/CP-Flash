@@ -1,24 +1,33 @@
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import XLSX from 'xlsx';
+import { createRequire } from 'module';
 import { buildSeedData } from './excel.js';
 import { pageSchemas, schemaRowsToKpis } from './schema.js';
 import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
-// Parses the IDS Next FortuneNext automated night-audit email for CP NM (Vashi).
-//
-//   importCpNmManagerFlash   ← "Manager_Flash_Report_*"
-//                               Room Revenue, Occupancy %, Rooms Sold, ARR, RevPAR,
-//                               F&B Revenue, Settlement modes.
-//
-//   importCpNmHistForecast   ← "History_and_Forecast_Report_*"  (the "History_and_…" attachment)
-//                               Tomorrow Occupancy %, Expected Arrivals, Expected Departures.
+// CP NM (Vashi) IDS Next reports arrive as PDFs, not XLS files.
+// All 6 attachments in the nightly email are PDFs:
+//   Manager_Flash_Report_For_*          ← room/occupancy/F&B stats + tomorrow's arrivals/departures
+//   History_and_Forecast_Report_*       ← tomorrow's occupancy forecast %
+//   Pay_Type_Report_*                   ← settlement modes (Cash / Card / UPI / City Ledger)
+//   Arrival_Report_*, Departure_Report_*, Guest_In_House_Report_* ← not imported
+
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 const UNIT = 'CP NM';
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+async function extractPdfText(filePath) {
+  const buffer = await fs.readFile(filePath);
+  const result = await pdfParse(buffer);
+  return result.text;
+}
 
 function num(value) {
   if (typeof value === 'number') return value;
-  const parsed = Number(String(value ?? '').replace(/[,%\s]/g, ''));
+  const parsed = Number(String(value ?? '').replace(/[,\s]/g, ''));
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -26,45 +35,16 @@ function fmt(value, decimals = 2) {
   return String(Math.round(num(value) * (10 ** decimals)) / (10 ** decimals));
 }
 
-// Find row whose col-0 or col-1 exactly matches any of the given labels
-// (case-insensitive, whitespace-normalised).
-function findRow(rows, ...labels) {
-  const lower = labels.map((l) => l.toLowerCase().replace(/\s+/g, ' ').trim());
-  return rows.find((row) => {
-    const c0 = String(row[0] ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-    const c1 = String(row[1] ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-    return lower.includes(c0) || lower.includes(c1);
-  }) ?? [];
-}
-
-// Revenue rows — standard hotel layout:
-//   col 0: label | col 1: Amount | col 2: Allowance | col 3: NET  (today)
-//   col 4: blank | col 5: Amount | col 6: Allowance | col 7: NET  (MTD)
-// Falls back to col 1 / col 5 when col 3 / col 7 are absent.
-function revenueNet(row) {
-  const todayNet = row[3] !== undefined && row[3] !== '' ? num(row[3]) : num(row[1]);
-  const mtdNet   = row[7] !== undefined && row[7] !== '' ? num(row[7]) : num(row[5]);
-  return { actual: todayNet, mtd: mtdNet };
-}
-
-// For stat rows (Occ%, ARR, RevPAR, Rooms Sold): return the first non-zero
-// numeric value found starting from col 1.
-function statFirstVal(row) {
-  for (let c = 1; c < row.length; c++) {
-    const raw = String(row[c] ?? '').trim();
-    if (raw !== '' && !raw.startsWith('-')) {
-      const v = num(row[c]);
-      if (v !== 0) return v;
-    }
-  }
-  return 0;
-}
-
 function setKpi(data, name, values) {
   const row = data.hotels.find((r) => r.unit === UNIT && r.name === name);
   if (!row) return;
   if (values.actual !== undefined) row.actual = values.actual === 0 ? '0' : fmt(values.actual);
   if (values.mtd !== undefined && values.mtd !== 0) row.mtd = fmt(values.mtd, 0);
+}
+
+function setForecast(data, name, value) {
+  const row = data.hotels.find((r) => r.unit === UNIT && r.section === 'Forecast' && r.name === name);
+  if (row && value > 0) row.actual = String(value);
 }
 
 function ensureForecastRows(data) {
@@ -77,119 +57,146 @@ function ensureForecastRows(data) {
   }
 }
 
-function loadSheet(file) {
-  const wb = XLSX.readFile(file, { cellDates: true });
-  for (const sheetName of wb.SheetNames) {
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, blankrows: false, defval: '' });
-    if (rows.length > 5) return { rows, sheetName };
+// Extract all "Rs X,XXX.XX" values from a text segment
+function extractRsValues(text) {
+  return [...text.matchAll(/Rs\s*([\d,]+(?:\.\d+)?)/g)]
+    .map((m) => parseFloat(m[1].replace(/,/g, '')));
+}
+
+// First Rs value on a line, or 0
+function firstRs(line) {
+  return extractRsValues(line)[0] ?? 0;
+}
+
+// First decimal (float) value on a line, ignoring Rs amounts
+function firstFloat(line) {
+  const cleaned = line.replace(/Rs\s*[\d,]+\.\d+/g, '');
+  return parseFloat(/(\d+\.\d+)/.exec(cleaned)?.[1] ?? '0') || 0;
+}
+
+// The History & Forecast row concatenates preceding integers with the occ% value:
+// "Mon116228.95%" where true occ% is 28.95.  Find the decimal suffix ≤ 100.
+function extractEmbeddedOccPct(str) {
+  const m = /(\d+)(\.\d{2})%/.exec(str);
+  if (!m) return 0;
+  const intPart = m[1];
+  const decPart = m[2]; // ".95"
+  const direct = parseFloat(intPart + decPart);
+  if (direct >= 0 && direct <= 100) return direct;
+  // Strip leading digits until the remaining integer part gives a valid percentage
+  for (let i = 1; i < intPart.length; i++) {
+    const candidate = parseFloat(intPart.slice(i) + decPart);
+    if (candidate >= 0 && candidate <= 100) return candidate;
   }
-  throw new Error(`No usable sheet found. Sheets: ${wb.SheetNames.join(', ')}`);
+  return 0;
 }
 
-// "30/05/2026" or "30/05/2026(F)" → "2026-05-30".  Handles JS Date objects too.
-function toISO(value) {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  const s = String(value ?? '').replace(/\([^)]*\)/g, '').trim(); // strip "(F)" suffix
-  const m = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/.exec(s);
-  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (iso) return s;
-  return '';
+// Split a run of concatenated small integers — each must be ≤ `max`.
+// e.g. splitSmallInts("1162", 39, 3) → [11, 6, 2]
+function splitSmallInts(str, max, count) {
+  const s = String(str ?? '').trim().replace(/\D/g, '');
+  const result = [];
+  let i = 0;
+  for (let n = 0; n < count && i < s.length; n++) {
+    // Try 2-digit first, then 1-digit
+    const two = parseInt(s.slice(i, i + 2));
+    if (s.length - i >= 2 && two <= max) { result.push(two); i += 2; }
+    else { result.push(parseInt(s.slice(i, i + 1)) || 0); i += 1; }
+  }
+  return result;
 }
 
-function isoAddDays(iso, days) {
+// For "Arrival Rooms for Tomorrow67" (6 current year, 7 last year): take first value ≤ max
+function firstSmallInt(str, max) {
+  const s = String(str ?? '').trim().replace(/\D/g, '');
+  const two = parseInt(s.slice(0, 2));
+  if (!isNaN(two) && two <= max) return two;
+  const one = parseInt(s.slice(0, 1));
+  if (!isNaN(one) && one <= max) return one;
+  return 0;
+}
+
+// "2026-05-31" + 1 → formatted "Jun 01, 2026"
+function isoToDisplay(iso, daysDelta = 0) {
   const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+  d.setUTCDate(d.getUTCDate() + daysDelta);
+  const mon = MONTH_ABBR[d.getUTCMonth()];
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${mon} ${day}, ${d.getUTCFullYear()}`;
 }
 
 // ─── Manager Flash Report ─────────────────────────────────────────────────────
-// Extracts: Occupancy %, Rooms Sold, Room Revenue, ARR, RevPAR, F&B Revenue,
-//           settlement modes (Cash / Card / UPI / City Ledger).
+// Source: Manager_Flash_Report_For_YYYY-MM-DD_*.pdf  (one business day behind email date)
+// Extracts:
+//   Occupancy %, Rooms Sold, ADR, RevPAR, Room Revenue, F&B Revenue,
+//   Tomorrow Arrivals, Tomorrow Departures, Total Revenue → P&L
 export async function importCpNmManagerFlash(file, outDate) {
-  const { rows, sheetName } = loadSheet(file);
+  const text = await extractPdfText(file);
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  const find = (pattern) => lines.find((l) => pattern.test(l)) ?? '';
+
+  // Total rooms in hotel (used to split concatenated integers)
+  const totalRoomsRaw = find(/Total Rooms in Hotel/i)
+    .replace(/Total Rooms in Hotel[^)]*\)/i, '').trim();
+  const totalRooms = parseInt(totalRoomsRaw.slice(0, 2)) || 39;
+
+  // Occupancy % — "% Rooms Occupied minus OOO47.3760.40…" — first float is today
+  const occPct = firstFloat(find(/% Rooms Occupied minus OOO/i));
+  const roomsSold = Math.round(totalRooms * occPct / 100);
+
+  // ADR — "ADRRs 4,573.06Rs …" (NOT "ADR minus Comp")
+  const arr = firstRs(find(/^ADRRs/i));
+
+  // RevPAR — "RevPARRs 2,166.00Rs …" (NOT "RevPAR Include DNR")
+  const revpar = firstRs(find(/^RevPARRs/i));
+
+  // Room Revenue
+  const roomRevenue = firstRs(find(/^Room RevenueRs/i));
+
+  // POS (F&B) breakdown
+  const roomServiceRevenue = firstRs(find(/^Room ServiceRs/i));
+  const bougainvilleaRevenue = firstRs(find(/^BougainvilleaRs/i));
+  const totalFnbRevenue = firstRs(find(/^Total POS RevenueRs/i));
+
+  // Total Revenue
+  const totalRevenue = firstRs(find(/^Total RevenueRs/i));
+
+  // Tomorrow arrivals / departures (suffix of the label row is 2 years concatenated)
+  const arrTomStr = find(/Arrival Rooms for Tomorrow/i)
+    .replace(/Arrival Rooms for Tomorrow/i, '').trim();
+  const tomorrowArrivals = firstSmallInt(arrTomStr, totalRooms);
+
+  const depTomStr = find(/Departure Rooms for Tomorrow/i)
+    .replace(/Departure Rooms for Tomorrow/i, '').trim();
+  const tomorrowDepartures = firstSmallInt(depTomStr, totalRooms);
+
+  // ── Write to daily JSON ──────────────────────────────────────────────────
   const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  ensureForecastRows(data);
 
-  // ── Occupancy stats ───────────────────────────────────────────────────────
-  const occPctRow    = findRow(rows, 'occupancy %', 'occupancy%', 'occ %', 'occ.%', 'occupancy');
-  const roomsSoldRow = findRow(rows,
-    'occupied', 'rooms occupied', 'occupied rooms', 'occ. rooms', 'rooms sold', 'occ rooms'
-  );
-  const arrRow    = findRow(rows, 'arr', 'a.r.r', 'average room rate', 'average rate', 'avg rate');
-  const revparRow = findRow(rows, 'rev par', 'revpar', 'revenue per available room', 'rev. par', 'rev.par');
+  if (occPct > 0)          setKpi(data, 'Occupancy %', { actual: occPct });
+  if (roomsSold > 0)       setKpi(data, 'Rooms Sold', { actual: roomsSold });
+  if (arr > 0)             setKpi(data, 'ARR', { actual: arr });
+  if (revpar > 0)          setKpi(data, 'RevPAR', { actual: revpar });
+  if (roomRevenue > 0)     setKpi(data, 'Room Revenue', { actual: roomRevenue });
+  if (bougainvilleaRevenue > 0) setKpi(data, 'Bougainvillea Revenue', { actual: bougainvilleaRevenue });
+  if (roomServiceRevenue > 0)   setKpi(data, 'In-Room Dining Revenue', { actual: roomServiceRevenue });
 
-  const occupancyPct = statFirstVal(occPctRow);
-  const roomsSold    = Math.round(statFirstVal(roomsSoldRow));
-  const arr          = statFirstVal(arrRow);
-  const revpar       = statFirstVal(revparRow);
-  // MTD rooms — col 2 or 3 depending on layout
-  const mtdRooms = num(roomsSoldRow[2]) || num(roomsSoldRow[3]) || 0;
+  if (tomorrowArrivals > 0)   setForecast(data, 'Arrivals', tomorrowArrivals);
+  if (tomorrowDepartures > 0) setForecast(data, 'Departures', tomorrowDepartures);
 
-  if (occupancyPct > 0) setKpi(data, 'Occupancy %', { actual: occupancyPct });
-  if (roomsSold > 0)    setKpi(data, 'Rooms Sold', { actual: roomsSold, mtd: mtdRooms || undefined });
-  if (arr > 0)          setKpi(data, 'ARR', { actual: arr });
-  if (revpar > 0)       setKpi(data, 'RevPAR', { actual: revpar });
-
-  // ── Revenue ───────────────────────────────────────────────────────────────
-  // "Accommodation" or "Tariff" for room revenue; IDS Next uses "Accommodation".
-  const roomRow = findRow(rows,
-    'accommodation', 'tariff', 'room revenue', 'rooms revenue', 'total ( a )', 'total (a)'
-  );
-  const room = revenueNet(roomRow);
-
-  // F&B total
-  const fnbRow = findRow(rows,
-    'food & beverage', 'food and beverage', 'f & b', 'f&b', 'total ( b )', 'total (b)',
-    'restaurant', 'food and bev'
-  );
-  const fnb = revenueNet(fnbRow);
-
-  // Banquet
-  const banquetRow = findRow(rows, 'banquet');
-  const banquet    = revenueNet(banquetRow);
-
-  // Other / Miscellaneous
-  const otherRow = findRow(rows, 'others', 'other', 'miscellaneous', 'total ( c )', 'total (c)', 'other sales');
-  const other    = revenueNet(otherRow);
-
-  if (room.actual > 0)    setKpi(data, 'Room Revenue', room);
-  if (fnb.actual > 0)     setKpi(data, 'Bougainvillea Revenue', fnb); // schema catch-all for CP NM F&B
-  if (banquet.actual > 0) setKpi(data, 'Revenue Today', banquet);
-
-  const pnlTotal = room.actual + fnb.actual + banquet.actual + other.actual;
-  if (pnlTotal > 0) {
+  if (totalRevenue > 0) {
     data.pnl = (data.pnl ?? []).map((r) =>
-      r.unit === UNIT ? { ...r, revenueToday: fmt(pnlTotal) } : r
+      r.unit === UNIT ? { ...r, revenueToday: fmt(totalRevenue) } : r
     );
   }
-
-  // ── Settlement ────────────────────────────────────────────────────────────
-  const cashRow    = findRow(rows, 'cash');
-  const ccRow      = findRow(rows, 'credit card', 'card', 'debit card');
-  const upiRow     = findRow(rows, 'upi');
-  const companyRow = findRow(rows, 'city ledger', 'company', 'company account', 'ledger');
-
-  const getAmt = (row) => {
-    const v3 = row[3] !== undefined && row[3] !== '' ? num(row[3]) : null;
-    return v3 !== null ? v3 : num(row[1]);
-  };
-
-  data.settlement = data.settlement ?? {};
-  const cashAmt    = getAmt(cashRow);
-  const ccAmt      = getAmt(ccRow);
-  const upiAmt     = getAmt(upiRow);
-  const companyAmt = getAmt(companyRow);
-
-  if (cashAmt > 0)    data.settlement.Cash = { ...(data.settlement.Cash ?? {}), [UNIT]: String(cashAmt) };
-  if (ccAmt > 0)      data.settlement['Credit Card'] = { ...(data.settlement['Credit Card'] ?? {}), [UNIT]: String(ccAmt) };
-  if (upiAmt > 0)     data.settlement.UPI = { ...(data.settlement.UPI ?? {}), [UNIT]: String(upiAmt) };
-  if (companyAmt > 0) data.settlement['City Ledger/Credit'] = { ...(data.settlement['City Ledger/Credit'] ?? {}), [UNIT]: String(companyAmt) };
 
   data.importSource = {
     ...(data.importSource ?? {}),
     cpNmFile: path.basename(file),
     cpNmImportedAt: new Date().toISOString(),
-    cpNmNotes: `Sheet "${sheetName}": occ=${occupancyPct}%, rooms=${roomsSold}, arr=${arr}, revpar=${revpar}, room=${room.actual}, fnb=${fnb.actual}`
+    cpNmNotes: `occ=${occPct}%, rooms=${roomsSold}, arr=${arr}, revpar=${revpar}, roomRev=${roomRevenue}, fnb=${totalFnbRevenue}, total=${totalRevenue}`
   };
 
   await writeDailyJson(outDate, data);
@@ -197,74 +204,79 @@ export async function importCpNmManagerFlash(file, outDate) {
   return {
     ok: true, date: outDate, unit: UNIT,
     mapped: {
-      occupancyPct, roomsSold, arr, revpar,
-      roomRevenue: room.actual, fnbRevenue: fnb.actual,
-      banquetRevenue: banquet.actual, pnlTotal,
-      cash: cashAmt, creditCard: ccAmt, upi: upiAmt, cityLedger: companyAmt
+      totalRooms, occupancyPct: occPct, roomsSold, arr, revpar,
+      roomRevenue, bougainvilleaRevenue, roomServiceRevenue,
+      totalFnbRevenue, totalRevenue,
+      tomorrowArrivals, tomorrowDepartures
     }
   };
 }
 
 // ─── History & Forecast Report ────────────────────────────────────────────────
-// Finds tomorrow's forecast row and writes:
-//   Tomorrow Occupancy Forecast %, Arrivals, Departures  → Forecast section of CP NM.
-//
-// The report is a date-indexed table; each row has a Date column and sub-columns
-// for Occ%, expected Arrivals (Arr), expected Departures (Dep).
-// Forecast rows are typically marked with "(F)" in the date cell.
+// Source: History_and_Forecast_Report_Between_*.pdf
+// Finds tomorrow's date row and extracts Tomorrow Occupancy Forecast %.
+// Row format (concatenated by pdf-parse):
+//   "Jun 01, 2026 Mon<rooms><arr><comp><occ%>Rs <rev>Rs <revpar>Rs <rate><dep><other><pax>"
 export async function importCpNmHistForecast(file, outDate) {
-  const { rows, sheetName } = loadSheet(file);
+  const text = await extractPdfText(file);
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+
   const data = (await readDailyJson(outDate)) ?? buildSeedData();
   ensureForecastRows(data);
 
-  // ── Resolve column positions from the header row ──────────────────────────
-  let cols = null;
-  for (let r = 0; r < rows.length; r++) {
-    const row = rows[r];
-    const idx = {};
-    row.forEach((cell, c) => {
-      const label = String(cell ?? '').toLowerCase().trim().replace(/\s+/g, ' ');
-      if (/^date$/.test(label) && idx.date == null)             idx.date = c;
-      if (/^arr(ivals?)?$/.test(label) && idx.arr == null)      idx.arr = c;
-      if (/^dep(artures?)?$/.test(label) && idx.dep == null)    idx.dep = c;
-      if (/occ\s*%|occupancy\s*%|^%$/.test(label) && idx.occPct == null) idx.occPct = c;
-    });
-    if (idx.date != null && (idx.occPct != null || idx.arr != null || idx.dep != null)) {
-      cols = { headerRow: r, ...idx };
-      break;
-    }
-  }
-  if (!cols) throw new Error(`No forecast header (Date / Arr / Dep / Occ%) found. Sheet: ${sheetName}`);
+  // Total rooms — needed to split concatenated integers (re-derive from Manager Flash
+  // data already stored, or fall back to 39 for Vashi)
+  const cpNmRows = (data.hotels ?? []).filter((r) => r.unit === UNIT);
+  const storedRoomsSold = num(cpNmRows.find((r) => r.name === 'Rooms Sold')?.actual ?? 0);
+  const storedOcc = num(cpNmRows.find((r) => r.name === 'Occupancy %')?.actual ?? 0);
+  const totalRooms = storedOcc > 0 ? Math.round(storedRoomsSold / (storedOcc / 100)) : 39;
 
-  // ── Find tomorrow's forecast row ──────────────────────────────────────────
-  const tomorrow = isoAddDays(outDate, 1);
-  let forecastRow = null;
-  for (let r = cols.headerRow + 1; r < rows.length; r++) {
-    const iso = toISO(rows[r]?.[cols.date]);
-    if (iso === tomorrow) { forecastRow = rows[r]; break; }
-  }
+  const tomorrow = isoToDisplay(outDate, 1); // "Jun 01, 2026"
+  const forecastLine = lines.find((l) => l.startsWith(tomorrow));
 
-  if (!forecastRow) {
-    // Soft fail — report is accepted but data stays blank (stale / non-matching email)
-    console.warn(`[importCpNmHistForecast] No row for ${tomorrow} found in ${sheetName}. Available dates: ${
-      rows.slice(cols.headerRow + 1).map((r) => toISO(r[cols.date])).filter(Boolean).slice(0, 5).join(', ')
-    }`);
+  if (!forecastLine) {
+    const available = lines
+      .filter((l) => /^[A-Z][a-z]{2} \d{2}, \d{4}/.test(l))
+      .map((l) => l.slice(0, 12))
+      .slice(0, 5)
+      .join(', ');
+    console.warn(`[importCpNmHistForecast] No row for "${tomorrow}". Available: ${available}`);
     return { ok: false, pending: true, reason: 'no-forecast-row', date: outDate, forecastFor: tomorrow };
   }
 
-  const occPct     = cols.occPct != null ? num(forecastRow[cols.occPct]) : 0;
-  const arrivals   = cols.arr != null ? Math.round(num(forecastRow[cols.arr])) : 0;
-  const departures = cols.dep != null ? Math.round(num(forecastRow[cols.dep])) : 0;
+  // Occ% is embedded after concatenated integers: "Mon116228.95%" → 28.95
+  const occPct = extractEmbeddedOccPct(forecastLine);
 
-  const setForecast = (name, value) => {
-    const row = data.hotels.find((r) => r.unit === UNIT && r.section === 'Forecast' && r.name === name);
-    if (row && value > 0) row.actual = String(value);
-  };
+  // Integers before occ% (after date + weekday): [Rooms Occ][Arr Rooms][Comp Rooms]
+  // Strip the date, any weekday word, and everything from the occ% decimal onward
+  const afterDate = forecastLine.slice(tomorrow.length);
+  const occRaw = /(\d+)(\.\d{2})%/.exec(afterDate)?.[0] ?? '';
+  const beforeOcc = afterDate.slice(0, afterDate.indexOf(occRaw));
+  const intStr = beforeOcc.replace(/\D/g, ''); // strip weekday letters like "Mon"
+  const [, arrRooms] = splitSmallInts(intStr, totalRooms, 3); // second value = arrivals
 
-  setForecast('Tomorrow Occupancy Forecast %', occPct);
-  setForecast('Arrivals', arrivals);
-  setForecast('Departures', departures);
-  data.forecastDate = tomorrow;
+  // Integers after the last Rs value: [Dep Rooms][Day Use][No Show][Cncl][DNR][HouseUse][Pax]
+  const allRsM = [...forecastLine.matchAll(/Rs\s*[\d,]+\.\d+/g)];
+  let afterRsStr = '';
+  if (allRsM.length > 0) {
+    const lastM = allRsM.at(-1);
+    afterRsStr = forecastLine.slice(lastM.index + lastM[0].length).replace(/-+/g, '').trim();
+  } else {
+    const occEnd = forecastLine.indexOf(occRaw) + occRaw.length;
+    afterRsStr = forecastLine.slice(occEnd).replace(/-+/g, '').trim();
+  }
+  const [depRooms] = splitSmallInts(afterRsStr, totalRooms, 1);
+
+  if (occPct > 0) setForecast(data, 'Tomorrow Occupancy Forecast %', occPct);
+  // Arrivals and departures from History & Forecast override Manager Flash values
+  // only when they are non-zero (Manager Flash already wrote them, but this is more accurate)
+  if (arrRooms > 0)  setForecast(data, 'Arrivals', arrRooms);
+  if (depRooms > 0)  setForecast(data, 'Departures', depRooms);
+
+  data.forecastDate = isoToDisplay(outDate, 1).replace(/(\w+ \d+), (\d{4})/, (_, md, y) => {
+    const [m, d] = md.split(' ');
+    return `${y}-${String(MONTH_ABBR.indexOf(m) + 1).padStart(2, '0')}-${d}`;
+  });
 
   data.importSource = {
     ...(data.importSource ?? {}),
@@ -276,7 +288,55 @@ export async function importCpNmHistForecast(file, outDate) {
 
   return {
     ok: true, date: outDate, unit: UNIT, forecastFor: tomorrow,
-    mapped: { occPct, arrivals, departures }
+    mapped: { occPct, arrRooms, depRooms }
+  };
+}
+
+// ─── Pay Type Report ──────────────────────────────────────────────────────────
+// Source: Pay_Type_Report_Between_*.pdf
+// The report is a detailed transaction register.  Each payment mode section ends with
+// "Total of <Mode>\nRs\n<amount>" or "Total of <Mode>  Rs <amount>" — we capture both.
+export async function importCpNmPayType(file, outDate) {
+  const text = await extractPdfText(file);
+
+  // Collapse whitespace/newlines around "Rs" so "Total of X\nRs\n12,345.00" becomes parseable
+  const collapsed = text.replace(/\s*\n\s*/g, ' ');
+
+  // Extract all "Total of <Mode> Rs <amount>" patterns
+  function totalFor(...patterns) {
+    for (const pat of patterns) {
+      const m = new RegExp(`Total of ${pat}[^R]*Rs\\s*([\\d,]+\\.\\d+)`, 'i').exec(collapsed);
+      if (m) return parseFloat(m[1].replace(/,/g, ''));
+    }
+    return 0;
+  }
+
+  const cashAmt        = totalFor('Cash');
+  const ccAmt          = totalFor('Credit Card', 'Card');
+  const upiAmt         = totalFor('UPI');
+  const companyAmt     = totalFor('City Ledger', 'Company', 'Ledger');
+  const bankAmt        = totalFor('Bank Transfer', 'NEFT', 'Bank');
+
+  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  data.settlement = data.settlement ?? {};
+
+  if (cashAmt > 0)    data.settlement.Cash = { ...(data.settlement.Cash ?? {}), [UNIT]: String(cashAmt) };
+  if (ccAmt > 0)      data.settlement['Credit Card'] = { ...(data.settlement['Credit Card'] ?? {}), [UNIT]: String(ccAmt) };
+  if (upiAmt > 0)     data.settlement.UPI = { ...(data.settlement.UPI ?? {}), [UNIT]: String(upiAmt) };
+  if (companyAmt > 0) data.settlement['City Ledger/Credit'] = { ...(data.settlement['City Ledger/Credit'] ?? {}), [UNIT]: String(companyAmt) };
+  if (bankAmt > 0)    data.settlement['NEFT/Bank Transfer'] = { ...(data.settlement['NEFT/Bank Transfer'] ?? {}), [UNIT]: String(bankAmt) };
+
+  data.importSource = {
+    ...(data.importSource ?? {}),
+    cpNmPayTypeFile: path.basename(file),
+    cpNmPayTypeImportedAt: new Date().toISOString()
+  };
+
+  await writeDailyJson(outDate, data);
+
+  return {
+    ok: true, date: outDate, unit: UNIT,
+    mapped: { cash: cashAmt, creditCard: ccAmt, upi: upiAmt, cityLedger: companyAmt, bankTransfer: bankAmt }
   };
 }
 
@@ -284,11 +344,13 @@ const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   const [, , mode = 'flash', file, outDate = new Date().toISOString().slice(0, 10)] = process.argv;
   if (!file) {
-    console.error('Usage: node importCpNmReport.js <flash|forecast> <file> [YYYY-MM-DD]');
+    console.error('Usage: node importCpNmReport.js <flash|forecast|paytype> <file.pdf> [YYYY-MM-DD]');
     process.exit(1);
   }
   const { closeDailyStore } = await import('./dailyStore.js');
-  const fn = mode === 'forecast' ? importCpNmHistForecast : importCpNmManagerFlash;
+  const fn = mode === 'forecast' ? importCpNmHistForecast
+    : mode === 'paytype' ? importCpNmPayType
+    : importCpNmManagerFlash;
   fn(file, outDate)
     .then((r) => console.log(JSON.stringify(r, null, 2)))
     .finally(() => closeDailyStore());
