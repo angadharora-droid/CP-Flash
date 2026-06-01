@@ -10,6 +10,8 @@
  *   "Report Notification: DALI …"                → importPetpoojaReport    (HTML body, no attachment)
  *   "Payment Wise Summary : PABLO …"             → importPetpoojaPaymentSummary (XLS attachment)
  *   "Payment Wise Summary : DALI …"              → importPetpoojaPaymentSummary (XLS attachment)
+ *   "Hotel Centre Point … Vijan Motors …"        → importCpNmManagerFlash  (Manager_Flash_Report_* XLS)
+ *     (same email, bundled)                      → importCpNmHistForecast  (History_and_Forecast_* XLS)
  *
  * After email processing, fetches bank positions from Google Sheets.
  */
@@ -36,6 +38,7 @@ import { importPurosoulSalesReport, importMickysSalesReport } from './importDail
 import { importPurosoulFlashReport } from './importPurosoulFlashReport.js';
 import { importMickysLeads } from './importMickysLeads.js';
 import { attachReportPreviews } from './attachmentPreview.js';
+import { importCpNmManagerFlash, importCpNmHistForecast } from './importCpNmReport.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
@@ -316,6 +319,47 @@ const HANDLERS = [
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'petpooja-rabbits-time-sales', date);
       return importPetpoojaTimeSalesReport(filePath, 'Rabbit', date);
+    }
+  },
+  // ── CP NM (Centre Point, Vashi — Unit of Vijan Motors) ──────────────────────
+  // Both handlers match the same IDS Next automated email (sender
+  // navimumbaicentrepoint@gmail.com, subject "Hotel Centre Point … Vijan Motors …").
+  // They are bundled so both attachments are processed in one email pass.
+  {
+    // Manager Flash Report → Occupancy %, Rooms Sold, Room Revenue, ARR, RevPAR,
+    //                         F&B Revenue, Settlement modes (Cash/Card/UPI/City Ledger).
+    name: 'CP NM Manager Flash Report',
+    importSourceKey: 'cpNmImportedAt',
+    bundled: true,
+    matches: (s, parsed) => {
+      const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
+        || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
+      return isCpNm && !!findAttachmentByName(parsed, /manager.?flash|flash.?report/i);
+    },
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /manager.?flash|flash.?report/i);
+      if (!att) { logAttachments(parsed); throw new Error('No Manager Flash Report attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'cpnm-manager-flash', date);
+      return importCpNmManagerFlash(filePath, date);
+    }
+  },
+  {
+    // History & Forecast Report → Tomorrow Occupancy Forecast %, Arrivals, Departures.
+    name: 'CP NM History & Forecast Report',
+    importSourceKey: 'cpNmForecastImportedAt',
+    bundled: true,
+    matches: (s, parsed) => {
+      const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
+        || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
+      return isCpNm && !!findAttachmentByName(parsed, /history.*forecast|hist.*fore|History_and/i);
+    },
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /history.*forecast|hist.*fore|History_and/i);
+      if (!att) { logAttachments(parsed); throw new Error('No History & Forecast Report attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'cpnm-hist-forecast', date);
+      return importCpNmHistForecast(filePath, date);
     }
   },
   {
