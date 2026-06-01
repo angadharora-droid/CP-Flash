@@ -38,7 +38,7 @@ import { importPurosoulSalesReport, importMickysSalesReport } from './importDail
 import { importPurosoulFlashReport } from './importPurosoulFlashReport.js';
 import { importMickysLeads } from './importMickysLeads.js';
 import { attachReportPreviews } from './attachmentPreview.js';
-import { importCpNmManagerFlash, importCpNmHistForecast } from './importCpNmReport.js';
+import { importCpNmManagerFlash, importCpNmHistForecast, importCpNmPayType } from './importCpNmReport.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
@@ -322,22 +322,21 @@ const HANDLERS = [
     }
   },
   // ── CP NM (Centre Point, Vashi — Unit of Vijan Motors) ──────────────────────
-  // Both handlers match the same IDS Next automated email (sender
-  // navimumbaicentrepoint@gmail.com, subject "Hotel Centre Point … Vijan Motors …").
-  // They are bundled so both attachments are processed in one email pass.
+  // All 6 attachments in the IDS Next email are PDFs (not XLS).  Three handlers
+  // run bundled from the same email (navimumbaicentrepoint@gmail.com).
   {
-    // Manager Flash Report → Occupancy %, Rooms Sold, Room Revenue, ARR, RevPAR,
-    //                         F&B Revenue, Settlement modes (Cash/Card/UPI/City Ledger).
+    // Manager Flash Report (PDF) → Occupancy %, Rooms Sold, Room Revenue, ARR, RevPAR,
+    //                              F&B Revenue, Tomorrow Arrivals/Departures, P&L total.
     name: 'CP NM Manager Flash Report',
     importSourceKey: 'cpNmImportedAt',
     bundled: true,
     matches: (s, parsed) => {
       const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
         || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
-      return isCpNm && !!findAttachmentByName(parsed, /manager.?flash|flash.?report/i);
+      return isCpNm && !!findAttachmentByName(parsed, /Manager_Flash_Report/i);
     },
     run: async (parsed, date) => {
-      const att = findAttachmentByName(parsed, /manager.?flash|flash.?report/i);
+      const att = findAttachmentByName(parsed, /Manager_Flash_Report/i);
       if (!att) { logAttachments(parsed); throw new Error('No Manager Flash Report attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'cpnm-manager-flash', date);
@@ -345,21 +344,39 @@ const HANDLERS = [
     }
   },
   {
-    // History & Forecast Report → Tomorrow Occupancy Forecast %, Arrivals, Departures.
+    // History & Forecast Report (PDF) → Tomorrow Occupancy Forecast %.
     name: 'CP NM History & Forecast Report',
     importSourceKey: 'cpNmForecastImportedAt',
     bundled: true,
     matches: (s, parsed) => {
       const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
         || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
-      return isCpNm && !!findAttachmentByName(parsed, /history.*forecast|hist.*fore|History_and/i);
+      return isCpNm && !!findAttachmentByName(parsed, /History_and_Forecast_Report/i);
     },
     run: async (parsed, date) => {
-      const att = findAttachmentByName(parsed, /history.*forecast|hist.*fore|History_and/i);
+      const att = findAttachmentByName(parsed, /History_and_Forecast_Report/i);
       if (!att) { logAttachments(parsed); throw new Error('No History & Forecast Report attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'cpnm-hist-forecast', date);
       return importCpNmHistForecast(filePath, date);
+    }
+  },
+  {
+    // Pay Type Report (PDF) → Cash / Credit Card / UPI / City Ledger settlement.
+    name: 'CP NM Pay Type Report',
+    importSourceKey: 'cpNmPayTypeImportedAt',
+    bundled: true,
+    matches: (s, parsed) => {
+      const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
+        || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
+      return isCpNm && !!findAttachmentByName(parsed, /Pay_Type_Report/i);
+    },
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /Pay_Type_Report/i);
+      if (!att) { logAttachments(parsed); throw new Error('No Pay Type Report attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'cpnm-pay-type', date);
+      return importCpNmPayType(filePath, date);
     }
   },
   {

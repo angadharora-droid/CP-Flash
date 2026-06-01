@@ -95,7 +95,7 @@ export const dailySources = [
     id: 'cpnm-manager-flash',
     label: 'CP NM Manager Flash',
     unit: 'CP NM',
-    type: 'Mail / Excel',
+    type: 'Mail / PDF',
     paths: ['hotels', 'pnl', 'settlement'],
     meta: {
       file: 'cpNmFile',
@@ -109,12 +109,25 @@ export const dailySources = [
     id: 'cpnm-hist-forecast',
     label: 'CP NM History & Forecast',
     unit: 'CP NM',
-    type: 'Mail / Excel',
+    type: 'Mail / PDF',
     paths: ['hotels'],
     meta: {
       file: 'cpNmForecastFile',
       importedAt: 'cpNmForecastImportedAt',
       reportLabels: { cpNmForecastFile: 'History & Forecast Report' }
+    },
+    cadence: 'Daily'
+  },
+  {
+    id: 'cpnm-pay-type',
+    label: 'CP NM Pay Type',
+    unit: 'CP NM',
+    type: 'Mail / PDF',
+    paths: ['settlement'],
+    meta: {
+      file: 'cpNmPayTypeFile',
+      importedAt: 'cpNmPayTypeImportedAt',
+      reportLabels: { cpNmPayTypeFile: 'Pay Type Report' }
     },
     cadence: 'Daily'
   },
