@@ -5,8 +5,6 @@ import { buildSeedData } from './excel.js';
 import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
 const SHEET_ID = '1cgU6utD59v57HwlunQtSBCsVfpiMwX7F';
-// One entry per monthly sheet tab — add new gids here each month
-const GIDS = [1631018641, 1196246728];
 
 function num(v) {
   if (v == null) return 0;
@@ -32,13 +30,24 @@ function parseDate(cell) {
   return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
 
-async function fetchRows(gid) {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching Dali cost sheet gid=${gid}`);
-  const csv = await res.text();
-  const wb = XLSX.read(csv, { type: 'string' });
-  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', blankrows: true });
+async function fetchAllRows() {
+  // Discover all tab names from the workbook
+  const xlsxRes = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`);
+  if (!xlsxRes.ok) throw new Error(`HTTP ${xlsxRes.status} fetching Dali cost sheet`);
+  const wb = XLSX.read(await xlsxRes.arrayBuffer(), { type: 'array' });
+
+  // Fetch each tab as CSV so dates stay as text strings (e.g. "1/4/2026")
+  const allRows = await Promise.all(
+    wb.SheetNames.map(async (name) => {
+      const csvRes = await fetch(
+        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name.trim())}`
+      );
+      if (!csvRes.ok) return [];
+      const csvWb = XLSX.read(await csvRes.text(), { type: 'string' });
+      return XLSX.utils.sheet_to_json(csvWb.Sheets[csvWb.SheetNames[0]], { header: 1, defval: '', blankrows: true });
+    })
+  );
+  return allRows.flat();
 }
 
 function setKpi(data, name, actual, mtd, { preserveActual = false } = {}) {
@@ -53,8 +62,7 @@ async function readData(date) {
 }
 
 export async function importDaliCostHistory() {
-  // Fetch all monthly sheet tabs and merge
-  const allRawRows = (await Promise.all(GIDS.map(fetchRows))).flat();
+  const allRawRows = await fetchAllRows();
 
   // Keep only rows with a parseable DD/M/YYYY date AND actual food sales data (col[2] not blank)
   const daily = allRawRows
@@ -109,7 +117,7 @@ export async function importDaliCostHistory() {
     );
     data.importSource = {
       ...(data.importSource ?? {}),
-      daliCostFile: `Dali Cost Sheet (gids=${GIDS.join(',')})`,
+      daliCostFile: `Dali Cost Sheet (all tabs)`,
       daliCostImportedAt: new Date().toISOString(),
       daliCostNotes: `Fetched from Google Sheet. MTD cumulative through ${row.date}.`,
     };
