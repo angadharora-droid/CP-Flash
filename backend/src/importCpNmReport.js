@@ -107,14 +107,18 @@ function splitSmallInts(str, max, count) {
   return result;
 }
 
-// For "Arrival Rooms for Tomorrow67" (6 current year, 7 last year): take first value ≤ max
+// Extract the first (day-column) value from an IDS Next concatenated integer string.
+// IDS Next never zero-pads: 0 → "0", 5 → "5", 12 → "12", so if the string starts
+// with "0" the day value IS zero (e.g. "06150314" → day=0, month=6, year=15, …).
 function firstSmallInt(str, max) {
   const s = String(str ?? '').trim().replace(/\D/g, '');
-  const two = parseInt(s.slice(0, 2));
-  if (!isNaN(two) && two <= max) return two;
-  const one = parseInt(s.slice(0, 1));
-  if (!isNaN(one) && one <= max) return one;
-  return 0;
+  if (!s) return 0;
+  if (s[0] === '0') return 0;           // leading zero ⇒ day value is 0
+  if (s.length >= 2) {
+    const two = parseInt(s.slice(0, 2));
+    if (two <= max) return two;
+  }
+  return parseInt(s[0]) || 0;
 }
 
 // "2026-05-31" + 2 → "2026-06-02"
@@ -170,14 +174,18 @@ export async function importCpNmManagerFlash(file, outDate) {
   // Total Revenue
   const totalRevenue = firstRs(find(/^Total RevenueRs/i));
 
-  // Tomorrow arrivals / departures (suffix of the label row is 2 years concatenated)
-  const arrTomStr = find(/Arrival Rooms for Tomorrow/i)
-    .replace(/Arrival Rooms for Tomorrow/i, '').trim();
-  const tomorrowArrivals = firstSmallInt(arrTomStr, totalRooms);
-
-  const depTomStr = find(/Departure Rooms for Tomorrow/i)
-    .replace(/Departure Rooms for Tomorrow/i, '').trim();
-  const tomorrowDepartures = firstSmallInt(depTomStr, totalRooms);
+  // ── Market Segments (in-house room counts by booking category) ───────────────
+  // IDS Next never zero-pads integers, so "0..." means the day value is 0.
+  const segVal = (label) => {
+    const raw = find(label).replace(label, '').trim();
+    return firstSmallInt(raw, totalRooms);
+  };
+  const segCorporate  = segVal(/^Company Rooms In-House/i);
+  const segFit        = segVal(/^Individual Rooms In-House/i);
+  const segOta        = segVal(/^Travel Agent Rooms In-House/i); // TA + OTA combined
+  const segGroup      = segVal(/^Block Rooms In-House/i);
+  const segWalkIn     = segVal(/^Walk-in Rooms/i);
+  const segNoShow     = segVal(/^No Show Rooms/i);
 
   // ── Write to daily JSON ──────────────────────────────────────────────────
   const data = (await readDailyJson(outDate)) ?? buildSeedData();
@@ -190,6 +198,20 @@ export async function importCpNmManagerFlash(file, outDate) {
   if (roomRevenue > 0)     setKpi(data, 'Room Revenue', { actual: roomRevenue });
   if (bougainvilleaRevenue > 0) setKpi(data, 'Bougainvillea Revenue', { actual: bougainvilleaRevenue });
   if (roomServiceRevenue > 0)   setKpi(data, 'In-Room Dining Revenue', { actual: roomServiceRevenue });
+
+  // Market Segments — best-effort from Manager Flash in-house counts
+  // "Company Rooms In-House" → Corporate
+  // "Individual Rooms In-House" → FIT/Leisure (non-block, non-company individual guests)
+  // "Travel Agent Rooms In-House" → OTA (TA + OTA combined; closest available proxy)
+  // "Block Rooms In-House" → Group Bookings
+  // "Walk-in Rooms" → Walk-ins
+  // "No Show Rooms" → Cancellations/No-shows
+  setKpi(data, 'Corporate',               { actual: segCorporate });
+  setKpi(data, 'FIT/Leisure',             { actual: segFit });
+  setKpi(data, 'OTA (MMT/Booking.com)',   { actual: segOta });
+  setKpi(data, 'Group Bookings',          { actual: segGroup });
+  setKpi(data, 'Walk-ins',               { actual: segWalkIn });
+  setKpi(data, 'Cancellations/No-shows', { actual: segNoShow });
 
   // Arrivals / Departures for "tomorrow" from the Manager Flash are D+1 (e.g. Jun 01
   // when the flash date is May 31).  The History & Forecast report provides the D+2 row
@@ -206,7 +228,7 @@ export async function importCpNmManagerFlash(file, outDate) {
     ...(data.importSource ?? {}),
     cpNmFile: path.basename(file),
     cpNmImportedAt: new Date().toISOString(),
-    cpNmNotes: `occ=${occPct}%, rooms=${roomsSold}, arr=${arr}, revpar=${revpar}, roomRev=${roomRevenue}, fnb=${totalFnbRevenue}, total=${totalRevenue}`
+    cpNmNotes: `occ=${occPct}%, rooms=${roomsSold}, arr=${arr}, revpar=${revpar}, roomRev=${roomRevenue}, fnb=${totalFnbRevenue}, total=${totalRevenue}, corp=${segCorporate}, fit=${segFit}, ota=${segOta}, grp=${segGroup}, walkin=${segWalkIn}, noshow=${segNoShow}`
   };
 
   await writeDailyJson(outDate, data);
@@ -216,7 +238,8 @@ export async function importCpNmManagerFlash(file, outDate) {
     mapped: {
       totalRooms, occupancyPct: occPct, roomsSold, arr, revpar,
       roomRevenue, bougainvilleaRevenue, roomServiceRevenue,
-      totalFnbRevenue, totalRevenue
+      totalFnbRevenue, totalRevenue,
+      segments: { corporate: segCorporate, fit: segFit, ota: segOta, group: segGroup, walkIn: segWalkIn, noShow: segNoShow }
     }
   };
 }
