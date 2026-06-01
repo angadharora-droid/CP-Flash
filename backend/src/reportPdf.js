@@ -441,7 +441,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const label = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
       const rows = (data.hotels ?? []).filter((row) => row.unit === unit);
       const sections = [...new Set(rows.map((row) => row.section))].filter(
-        (s) => s !== 'Forecast' && (unit !== 'CP NM' || !cpNmExclude.includes(s))
+        (s) => unit !== 'CP NM' || !cpNmExclude.includes(s)
       );
       for (const section of sections) {
         kpiTable(`${label} - ${section}`, rows.filter((row) => row.section === section), false);
@@ -485,12 +485,16 @@ export function createDailyFlashPdf(data, date, options = {}) {
     for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
       kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section), true);
     }
-    const skuTableRows = (data.purosoulSku ?? []).map((row) => [row.sku, row.produced || '-', row.dispatched || '-', numberValue(row.produced) - numberValue(row.dispatched), row.mtd || '-', row.ytd || '-']);
+    const skuTableRows = (data.purosoulSku ?? []).map((row) => {
+      const rawCl = String(row.clStock ?? '').trim();
+      const clStock = rawCl !== '' ? rawCl : String(numberValue(row.produced) - numberValue(row.dispatched));
+      return [row.sku, row.produced || '-', row.dispatched || '-', clStock || '-', row.mtd || '-', row.ytd || '-'];
+    });
     if (skuTableRows.length) {
       const skuTableOptions = { widths: [100, 80, 90, 90, 80, 83] };
       sectionTitle('Purosoul - SKU Production & Dispatch', tablePreviewHeight(skuTableRows, skuTableOptions));
       table(
-        ['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD', 'YTD'],
+        ['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD Dispatched', 'YTD'],
         skuTableRows,
         skuTableOptions
       );
