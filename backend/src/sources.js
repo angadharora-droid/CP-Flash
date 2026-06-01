@@ -92,6 +92,33 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
+    id: 'cpnm-manager-flash',
+    label: 'CP NM Manager Flash',
+    unit: 'CP NM',
+    type: 'Mail / Excel',
+    paths: ['hotels', 'pnl', 'settlement'],
+    meta: {
+      file: 'cpNmFile',
+      importedAt: 'cpNmImportedAt',
+      notes: 'cpNmNotes',
+      reportLabels: { cpNmFile: 'Manager Flash Report' }
+    },
+    cadence: 'Daily'
+  },
+  {
+    id: 'cpnm-hist-forecast',
+    label: 'CP NM History & Forecast',
+    unit: 'CP NM',
+    type: 'Mail / Excel',
+    paths: ['hotels'],
+    meta: {
+      file: 'cpNmForecastFile',
+      importedAt: 'cpNmForecastImportedAt',
+      reportLabels: { cpNmForecastFile: 'History & Forecast Report' }
+    },
+    cadence: 'Daily'
+  },
+  {
     id: 'pablo-cost',
     label: 'Pablo Cost Sheet',
     unit: 'Pablo',
