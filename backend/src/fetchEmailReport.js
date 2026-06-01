@@ -33,6 +33,7 @@ import { importBankPosition } from './importBankPosition.js';
 import { importDaliCostHistory } from './importDaliCostHistory.js';
 import { importPabloCostHistory } from './importPabloCostHistory.js';
 import { importPurosoulSalesReport, importMickysSalesReport } from './importDailySalesReport.js';
+import { importPurosoulFlashReport } from './importPurosoulFlashReport.js';
 import { importMickysLeads } from './importMickysLeads.js';
 import { attachReportPreviews } from './attachmentPreview.js';
 
@@ -534,6 +535,19 @@ async function run() {
       log(`Micky's leads imported: ${leadsResult.total} total, ${leadsResult.active} active, ${leadsResult.converted} converted`);
     } catch (err) {
       log(`Micky's leads ERROR: ${err.message}`);
+    }
+  }
+
+  // Fetch Purosoul SKU production & dispatch from Google Sheet
+  if (!shouldRefreshSheetSource(existingData?.importSource, 'purosoulFlashImportedAt')) {
+    logSheetSkip('Purosoul SKU flash report', existingData.importSource.purosoulFlashImportedAt);
+  } else {
+    log('Fetching Purosoul SKU flash report from Google Sheets…');
+    try {
+      const purosoulSkuResult = await importPurosoulFlashReport();
+      log(`Purosoul SKU imported: ${purosoulSkuResult.rowCount} rows → ${purosoulSkuResult.written.join(', ')}`);
+    } catch (err) {
+      log(`Purosoul SKU ERROR: ${err.message}`);
     }
   }
 
