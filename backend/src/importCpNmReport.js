@@ -352,20 +352,35 @@ export async function importCpNmPayType(file, outDate) {
     return 0;
   }
 
-  const cashAmt        = totalFor('Cash');
-  const ccAmt          = totalFor('Credit Card', 'Card');
-  const upiAmt         = totalFor('UPI');
-  const companyAmt     = totalFor('City Ledger', 'Company', 'Ledger');
-  const bankAmt        = totalFor('Bank Transfer', 'NEFT', 'Bank');
+  // IDS Next Pay Type categories → settlement modes:
+  //   Bank Transfer  → NEFT/Bank Transfer  (includes advance deposits for future stays)
+  //   Cash           → Cash
+  //   Credit Card    → Credit Card
+  //   UPI            → UPI  (may be absent; some setups classify UPI under "Others")
+  //   City Ledger    → City Ledger/Credit
+  //   Others         → UPI  (IDS Next "Others" in Indian hotels is typically UPI/wallets)
+  const cashAmt    = totalFor('Cash');
+  const ccAmt      = totalFor('Credit Card', 'Card');
+  const upiAmt     = totalFor('UPI');
+  const othersAmt  = totalFor('Others');          // UPI / wallets classified as Others
+  const companyAmt = totalFor('City Ledger', 'Company', 'Ledger');
+  const bankAmt    = totalFor('Bank Transfer', 'NEFT', 'Bank');
+
+  // Merge UPI and Others (both represent digital wallet / UPI payments)
+  const totalUpi = upiAmt + othersAmt;
 
   const data = (await readDailyJson(outDate)) ?? buildSeedData();
   data.settlement = data.settlement ?? {};
 
-  if (cashAmt > 0)    data.settlement.Cash = { ...(data.settlement.Cash ?? {}), [UNIT]: String(cashAmt) };
-  if (ccAmt > 0)      data.settlement['Credit Card'] = { ...(data.settlement['Credit Card'] ?? {}), [UNIT]: String(ccAmt) };
-  if (upiAmt > 0)     data.settlement.UPI = { ...(data.settlement.UPI ?? {}), [UNIT]: String(upiAmt) };
-  if (companyAmt > 0) data.settlement['City Ledger/Credit'] = { ...(data.settlement['City Ledger/Credit'] ?? {}), [UNIT]: String(companyAmt) };
-  if (bankAmt > 0)    data.settlement['NEFT/Bank Transfer'] = { ...(data.settlement['NEFT/Bank Transfer'] ?? {}), [UNIT]: String(bankAmt) };
+  const set = (key, amt) => {
+    if (amt > 0) data.settlement[key] = { ...(data.settlement[key] ?? {}), [UNIT]: String(amt) };
+  };
+
+  set('Cash',              cashAmt);
+  set('Credit Card',       ccAmt);
+  set('UPI',               totalUpi);
+  set('City Ledger/Credit', companyAmt);
+  set('NEFT/Bank Transfer', bankAmt);
 
   data.importSource = {
     ...(data.importSource ?? {}),
@@ -377,7 +392,7 @@ export async function importCpNmPayType(file, outDate) {
 
   return {
     ok: true, date: outDate, unit: UNIT,
-    mapped: { cash: cashAmt, creditCard: ccAmt, upi: upiAmt, cityLedger: companyAmt, bankTransfer: bankAmt }
+    mapped: { cash: cashAmt, creditCard: ccAmt, upi: upiAmt, others: othersAmt, totalUpi, cityLedger: companyAmt, bankTransfer: bankAmt }
   };
 }
 
