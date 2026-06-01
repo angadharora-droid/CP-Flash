@@ -57,9 +57,10 @@ function ensureForecastRows(data) {
   }
 }
 
-// Extract all "Rs X,XXX.XX" values from a text segment
+// Extract all "Rs X,XXX.XX" values from a text segment.
+// Use exactly 2 decimal places so trailing integers aren't swallowed greedily.
 function extractRsValues(text) {
-  return [...text.matchAll(/Rs\s*([\d,]+(?:\.\d+)?)/g)]
+  return [...text.matchAll(/Rs\s*([\d,]+\.\d{2})/g)]
     .map((m) => parseFloat(m[1].replace(/,/g, '')));
 }
 
@@ -114,6 +115,13 @@ function firstSmallInt(str, max) {
   const one = parseInt(s.slice(0, 1));
   if (!isNaN(one) && one <= max) return one;
   return 0;
+}
+
+// "2026-05-31" + 2 → "2026-06-02"
+function isoAddDays(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 // "2026-05-31" + 1 → formatted "Jun 01, 2026"
@@ -183,8 +191,10 @@ export async function importCpNmManagerFlash(file, outDate) {
   if (bougainvilleaRevenue > 0) setKpi(data, 'Bougainvillea Revenue', { actual: bougainvilleaRevenue });
   if (roomServiceRevenue > 0)   setKpi(data, 'In-Room Dining Revenue', { actual: roomServiceRevenue });
 
-  if (tomorrowArrivals > 0)   setForecast(data, 'Arrivals', tomorrowArrivals);
-  if (tomorrowDepartures > 0) setForecast(data, 'Departures', tomorrowDepartures);
+  // Arrivals / Departures for "tomorrow" from the Manager Flash are D+1 (e.g. Jun 01
+  // when the flash date is May 31).  The History & Forecast report provides the D+2 row
+  // (Jun 02) which is what the Forecast section header shows — consistent with CP Nagpur.
+  // So we do NOT write Manager Flash's tomorrow figures here; they come from importCpNmHistForecast.
 
   if (totalRevenue > 0) {
     data.pnl = (data.pnl ?? []).map((r) =>
@@ -206,17 +216,18 @@ export async function importCpNmManagerFlash(file, outDate) {
     mapped: {
       totalRooms, occupancyPct: occPct, roomsSold, arr, revpar,
       roomRevenue, bougainvilleaRevenue, roomServiceRevenue,
-      totalFnbRevenue, totalRevenue,
-      tomorrowArrivals, tomorrowDepartures
+      totalFnbRevenue, totalRevenue
     }
   };
 }
 
 // ─── History & Forecast Report ────────────────────────────────────────────────
 // Source: History_and_Forecast_Report_Between_*.pdf
-// Finds tomorrow's date row and extracts Tomorrow Occupancy Forecast %.
+// The CP NM email is generated at midnight D+1 (e.g. Jun 01 00:07 for May 31 business date).
+// When the user reads the May 31 flash on Jun 01 morning, "tomorrow" is Jun 02 (D+2).
+// This matches CP Nagpur's convention where HCP_FORE always forecasts D+2 from outDate.
 // Row format (concatenated by pdf-parse):
-//   "Jun 01, 2026 Mon<rooms><arr><comp><occ%>Rs <rev>Rs <revpar>Rs <rate><dep><other><pax>"
+//   "Jun 02, 2026 Tue<rooms><arr><comp><occ%>Rs <rev>Rs <revpar>Rs <rate><dep><other><pax>"
 export async function importCpNmHistForecast(file, outDate) {
   const text = await extractPdfText(file);
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -224,15 +235,16 @@ export async function importCpNmHistForecast(file, outDate) {
   const data = (await readDailyJson(outDate)) ?? buildSeedData();
   ensureForecastRows(data);
 
-  // Total rooms — needed to split concatenated integers (re-derive from Manager Flash
-  // data already stored, or fall back to 39 for Vashi)
+  // Total rooms — re-derive from Manager Flash data already stored, or fall back to 39
   const cpNmRows = (data.hotels ?? []).filter((r) => r.unit === UNIT);
   const storedRoomsSold = num(cpNmRows.find((r) => r.name === 'Rooms Sold')?.actual ?? 0);
   const storedOcc = num(cpNmRows.find((r) => r.name === 'Occupancy %')?.actual ?? 0);
   const totalRooms = storedOcc > 0 ? Math.round(storedRoomsSold / (storedOcc / 100)) : 39;
 
-  const tomorrow = isoToDisplay(outDate, 1); // "Jun 01, 2026"
-  const forecastLine = lines.find((l) => l.startsWith(tomorrow));
+  // D+2: "Jun 02, 2026" when outDate is "2026-05-31"
+  const forecastDisplay = isoToDisplay(outDate, 2);
+  const forecastIso = isoAddDays(outDate, 2);
+  const forecastLine = lines.find((l) => l.startsWith(forecastDisplay));
 
   if (!forecastLine) {
     const available = lines
@@ -240,23 +252,34 @@ export async function importCpNmHistForecast(file, outDate) {
       .map((l) => l.slice(0, 12))
       .slice(0, 5)
       .join(', ');
-    console.warn(`[importCpNmHistForecast] No row for "${tomorrow}". Available: ${available}`);
-    return { ok: false, pending: true, reason: 'no-forecast-row', date: outDate, forecastFor: tomorrow };
+    console.warn(`[importCpNmHistForecast] No row for "${forecastDisplay}". Available: ${available}`);
+    return { ok: false, pending: true, reason: 'no-forecast-row', date: outDate, forecastFor: forecastDisplay };
   }
 
-  // Occ% is embedded after concatenated integers: "Mon116228.95%" → 28.95
+  // Occ% is embedded after concatenated integers: "Tue104126.32%" → 26.32
   const occPct = extractEmbeddedOccPct(forecastLine);
 
-  // Integers before occ% (after date + weekday): [Rooms Occ][Arr Rooms][Comp Rooms]
-  // Strip the date, any weekday word, and everything from the occ% decimal onward
-  const afterDate = forecastLine.slice(tomorrow.length);
-  const occRaw = /(\d+)(\.\d{2})%/.exec(afterDate)?.[0] ?? '';
+  // Integers before occ% are embedded inside the occ match itself:
+  // "Tue104126.32%" → occRaw="104126.32%", intPart="104126", occ=26.32, prefix="1041"
+  // Extract prefix by finding where the percentage value starts within intPart.
+  const afterDate = forecastLine.slice(forecastDisplay.length);
+  const occMatchFull = /(\d+)(\.\d{2})%/.exec(afterDate);
+  let intPrefix = '';
+  if (occMatchFull) {
+    const [intPart, decPart] = [occMatchFull[1], occMatchFull[2]];
+    for (let i = 0; i < intPart.length; i++) {
+      const candidate = parseFloat(intPart.slice(i) + decPart);
+      if (candidate >= 0 && candidate <= 100) { intPrefix = intPart.slice(0, i); break; }
+    }
+  }
+  const occRaw = occMatchFull?.[0] ?? '';
   const beforeOcc = afterDate.slice(0, afterDate.indexOf(occRaw));
-  const intStr = beforeOcc.replace(/\D/g, ''); // strip weekday letters like "Mon"
+  // beforeOcc has weekday letters only ("Tue"); the digit prefix is inside occRaw
+  const intStr = beforeOcc.replace(/\D/g, '') + intPrefix;
   const [, arrRooms] = splitSmallInts(intStr, totalRooms, 3); // second value = arrivals
 
   // Integers after the last Rs value: [Dep Rooms][Day Use][No Show][Cncl][DNR][HouseUse][Pax]
-  const allRsM = [...forecastLine.matchAll(/Rs\s*[\d,]+\.\d+/g)];
+  const allRsM = [...forecastLine.matchAll(/Rs\s*[\d,]+\.\d{2}/g)];
   let afterRsStr = '';
   if (allRsM.length > 0) {
     const lastM = allRsM.at(-1);
@@ -267,16 +290,11 @@ export async function importCpNmHistForecast(file, outDate) {
   }
   const [depRooms] = splitSmallInts(afterRsStr, totalRooms, 1);
 
-  if (occPct > 0) setForecast(data, 'Tomorrow Occupancy Forecast %', occPct);
-  // Arrivals and departures from History & Forecast override Manager Flash values
-  // only when they are non-zero (Manager Flash already wrote them, but this is more accurate)
+  if (occPct > 0)    setForecast(data, 'Tomorrow Occupancy Forecast %', occPct);
   if (arrRooms > 0)  setForecast(data, 'Arrivals', arrRooms);
   if (depRooms > 0)  setForecast(data, 'Departures', depRooms);
 
-  data.forecastDate = isoToDisplay(outDate, 1).replace(/(\w+ \d+), (\d{4})/, (_, md, y) => {
-    const [m, d] = md.split(' ');
-    return `${y}-${String(MONTH_ABBR.indexOf(m) + 1).padStart(2, '0')}-${d}`;
-  });
+  data.forecastDate = forecastIso;
 
   data.importSource = {
     ...(data.importSource ?? {}),
@@ -287,7 +305,7 @@ export async function importCpNmHistForecast(file, outDate) {
   await writeDailyJson(outDate, data);
 
   return {
-    ok: true, date: outDate, unit: UNIT, forecastFor: tomorrow,
+    ok: true, date: outDate, unit: UNIT, forecastFor: forecastDisplay,
     mapped: { occPct, arrRooms, depRooms }
   };
 }
