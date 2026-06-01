@@ -1,7 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createRequire } from 'module';
 import XLSX from 'xlsx';
 import { dailySources } from './sources.js';
+
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 const PREVIEW_VERSION = 2;
 
@@ -28,8 +32,8 @@ export function trimSheetRows(rows, maxRows = rows.length, maxColumns = 40) {
 
 export async function readAttachmentPreview(fileName, attachmentsDir) {
   const safeName = path.basename(String(fileName ?? ''));
-  if (!safeName || !/\.(xlsx|xls|csv)$/i.test(safeName)) {
-    throw new Error('Preview is available only for spreadsheet attachments.');
+  if (!safeName || !/\.(xlsx|xls|csv|pdf)$/i.test(safeName)) {
+    throw new Error('Preview is available only for spreadsheet or PDF attachments.');
   }
 
   const root = path.resolve(attachmentsDir);
@@ -39,6 +43,20 @@ export async function readAttachmentPreview(fileName, attachmentsDir) {
   }
 
   await fs.access(filePath);
+
+  // PDF: extract text and render each non-empty line as a single-cell row
+  if (/\.pdf$/i.test(safeName)) {
+    const buffer = await fs.readFile(filePath);
+    const result = await pdfParse(buffer);
+    const rows = result.text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => [l]);
+    return { file: safeName, previewVersion: PREVIEW_VERSION, sheets: [{ name: 'Report', rows }] };
+  }
+
+  // Spreadsheet
   const workbook = XLSX.readFile(filePath, { cellDates: true, raw: false });
   const sheets = workbook.SheetNames.map((sheetName) => ({
     name: sheetName,
@@ -61,7 +79,7 @@ function referencedReportFiles(data = {}) {
       ...(source.meta.files ?? []).map((key) => importSource[key])
     ].filter((file) =>
       file
-      && /\.(xlsx|xls|csv)$/i.test(String(file))
+      && /\.(xlsx|xls|csv|pdf)$/i.test(String(file))
       && (!source.meta.filePattern || source.meta.filePattern.test(String(file)))
     );
   });
