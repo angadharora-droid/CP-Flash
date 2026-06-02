@@ -607,6 +607,9 @@ function mergeKpiRows(existingRows = [], incomingRows = []) {
 }
 
 function mergeReportData(existingData = {}, localData = {}) {
+  existingData ??= {};
+  localData ??= {};
+
   const merged = {
     ...existingData,
     ...localData,
