@@ -10,7 +10,8 @@ import { readDailyJson, writeDailyJson } from './dailyStore.js';
 // run's flash date (outDate), not the earliest event date. v5: persist banquet*Date for
 // the section headers. v6: 3-day file (D business-day / D+1 today / D+2 tomorrow) — D+1/D+2
 // feed the function lists and D feeds the Banquets Covers + No. of Functions KPIs.
-export const EVENTS_IMPORT_VERSION = 6;
+// v7: supports the newer detailed "Function Details" banquet report layout.
+export const EVENTS_IMPORT_VERSION = 7;
 
 const BANQUETS_SECTION = 'Banquets';
 
@@ -59,7 +60,90 @@ function timePart(value) {
   return m ? m[1] : '';
 }
 
-const isFunctionRow = (cell) => /^\d+\s*\/\s*\d+$/.test(clean(cell)); // "28978 / 1"
+const isFunctionRow = (cell) => /^\d+\s*\/\s*\d+(?:\s*\/\s*[A-Za-z])?$/.test(clean(cell)); // "28978 / 1" or "29559 / 1 / C"
+
+function parseFunctionTiming(value) {
+  const m = /Function:\s*(.*?)\s*\(\s*(\d{1,2}-[A-Za-z]{3}-\d{4})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}-[A-Za-z]{3}-\d{4})\s+(\d{1,2}:\d{2})/i.exec(clean(value));
+  if (!m) return {};
+  return {
+    functionName: clean(m[1]),
+    date: toISO(m[2]),
+    session: `${m[3]}-${m[5]}`
+  };
+}
+
+function parseDetailedEvents(rows) {
+  const events = [];
+  let eventDate = '';
+
+  for (let r = 0; r < rows.length; r += 1) {
+    const row = rows[r];
+    const c0 = clean(row?.[0]);
+
+    if (/^Event Date:/i.test(c0)) { eventDate = toISO(c0); continue; }
+    if (/^S\s*U\s*M\s*M\s*A\s*R\s*Y/i.test(c0)) break;
+    if (!isFunctionRow(c0) || !eventDate) continue;
+
+    const block = [];
+    for (let i = r; i < rows.length; i += 1) {
+      const nextC0 = clean(rows[i]?.[0]);
+      if (i > r && (/^Event Date:/i.test(nextC0) || isFunctionRow(nextC0) || /^S\s*U\s*M\s*M\s*A\s*R\s*Y/i.test(nextC0))) break;
+      block.push(rows[i]);
+    }
+
+    const joinedRows = block.map((b) => b.map(clean).join(' | '));
+    const partyRow = block.find((b) => /^Confirm/i.test(clean(b?.[0]))) ?? [];
+    const functionRow = block.find((b) => clean(b?.[1]).startsWith('Room:') && /^Function:/i.test(clean(b?.[2]))) ?? [];
+    const timing = parseFunctionTiming(functionRow[2]);
+    const paxMatch = /Pax Exp\s*\/\s*Gau:\s*([\d,.]+)\s*\/\s*([\d,.]+)/i.exec(joinedRows.join(' | '));
+    const revenueMatch = /Exp\.?Rev:\s*([\d,.]+)/i.exec(joinedRows.join(' | '));
+    const marketMatch = /Mkt\.?\s*Sgmt:\s*([^|]+)/i.exec(joinedRows.join(' | '));
+    const party = clean(partyRow[1]) || clean(partyRow[2]) || c0;
+
+    events.push({
+      date: timing.date || eventDate,
+      marketSegment: party,
+      pax: String(Math.round(num(paxMatch?.[1]))),
+      venue: clean(functionRow[1]).replace(/^Room:\s*/i, ''),
+      session: timing.session || '',
+      revenue: String(Math.round(num(revenueMatch?.[1]))),
+      notes: [timing.functionName, marketMatch?.[1]?.trim()].filter(Boolean).join(' - ')
+    });
+  }
+
+  return events.filter((event) => event.date && (Number(event.pax) > 0 || event.venue || event.session));
+}
+
+function parseCompactEvents(rows) {
+  const events = [];
+  let eventDate = '';
+
+  for (let r = 0; r < rows.length; r += 1) {
+    const row = rows[r];
+    const c0 = clean(row?.[0]);
+
+    if (/^Event Date:/i.test(c0)) { eventDate = toISO(c0); continue; }
+    if (/^S\s*U\s*M\s*M\s*A\s*R\s*Y/i.test(c0)) break;
+    if (!isFunctionRow(c0) || !eventDate) continue;
+
+    const detail = rows[r + 1];
+    const venue = detail && /^Room:/i.test(clean(detail[0])) ? clean(detail[1]) : '';
+
+    const fromTime = timePart(row[3]);
+    const toTime = timePart(row[4]);
+    events.push({
+      date: eventDate,
+      marketSegment: clean(row[1]),
+      pax: String(Math.round(num(row[5]))),
+      venue,
+      session: fromTime && toTime ? `${fromTime}-${toTime}` : (fromTime || ''),
+      revenue: String(Math.round(num(row[10]) || num(row[7]))),
+      notes: [clean(row[2]), clean(row[11])].filter(Boolean).join(' - ')
+    });
+  }
+
+  return events.filter((event) => event.date && (Number(event.pax) > 0 || event.venue || event.session));
+}
 
 /**
  * Parses the HCP_EVENT banquet booking sheet into the daily function lists.
@@ -83,11 +167,13 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   let rows = null;
   for (const sheetName of wb.SheetNames) {
     const r = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, blankrows: false, defval: '' });
-    if (r.some((row) => isFunctionRow(row?.[0]))) { rows = r; break; }
+    if (r.some((row) => isFunctionRow(row?.[0]) || row.some((cell) => /^Function Details:/i.test(clean(cell))))) { rows = r; break; }
   }
   if (!rows) throw new Error(`No function rows found. Sheets: ${wb.SheetNames.join(', ')}`);
 
-  const events = [];
+  const hasDetailedRows = rows.some((row) => row.some((cell) => /^Function Details:/i.test(clean(cell))));
+  const events = hasDetailedRows ? parseDetailedEvents(rows) : parseCompactEvents(rows);
+  if (false) {
   let eventDate = '';
   for (let r = 0; r < rows.length; r += 1) {
     const row = rows[r];
@@ -112,6 +198,8 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
       revenue: String(Math.round(num(row[10]) || num(row[7]))),      // Net.Amt, else Value
       notes: [clean(row[2]), clean(row[11])].filter(Boolean).join(' · ') // Function · Status
     });
+  }
+
   }
 
   if (!events.length) throw new Error('No confirmed functions parsed.');
