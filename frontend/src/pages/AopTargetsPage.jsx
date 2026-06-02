@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SectionCard from '../components/SectionCard';
-import StatStrip from '../components/StatStrip';
 import { ActionButton, BrandLoader } from '../components/DashboardUi';
 import { getAopTargets, saveAopTargets } from '../lib/api';
 
@@ -163,8 +162,6 @@ export default function AopTargetsPage({ authToken }) {
     );
   }
 
-  const dailyOverrideCount = Object.keys(dailyOverrides).length;
-  const weeklyOverrideCount = Object.keys(weeklyOverrides).length;
   const totalCount = kpis.length;
   const visibleCount = filteredKpis.length;
   const activeGroup = activeGroupKey === 'all' ? null : groupPills.find((group) => group.key === activeGroupKey);
@@ -172,12 +169,6 @@ export default function AopTargetsPage({ authToken }) {
 
   return (
     <div className="space-y-5">
-      <StatStrip items={[
-        { label: 'Total KPIs',     value: totalCount,            icon: 'view_list',          tone: 'text-teal-700' },
-        { label: 'Customized',     value: customCount,           icon: 'tune',               tone: customCount ? 'text-emerald-700' : undefined },
-        { label: 'Daily Overrides',  value: dailyOverrideCount,  icon: 'today',              tone: dailyOverrideCount ? 'text-emerald-700' : undefined },
-        { label: 'Weekly Overrides', value: weeklyOverrideCount, icon: 'calendar_view_week', tone: weeklyOverrideCount ? 'text-emerald-700' : undefined }
-      ]} />
 
       <div className="sticky top-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-outline-variant/70 bg-surface-container-lowest/95 px-4 py-3 shadow-card backdrop-blur">
         <div className="flex min-w-0 flex-1 items-center gap-3">

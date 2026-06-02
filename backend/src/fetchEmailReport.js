@@ -10,6 +10,8 @@
  *   "Report Notification: DALI …"                → importPetpoojaReport    (HTML body, no attachment)
  *   "Payment Wise Summary : PABLO …"             → importPetpoojaPaymentSummary (XLS attachment)
  *   "Payment Wise Summary : DALI …"              → importPetpoojaPaymentSummary (XLS attachment)
+ *   "Hotel Centre Point … Vijan Motors …"        → importCpNmManagerFlash  (Manager_Flash_Report_* XLS)
+ *     (same email, bundled)                      → importCpNmHistForecast  (History_and_Forecast_* XLS)
  *
  * After email processing, fetches bank positions from Google Sheets.
  */
@@ -33,8 +35,10 @@ import { importBankPosition } from './importBankPosition.js';
 import { importDaliCostHistory } from './importDaliCostHistory.js';
 import { importPabloCostHistory } from './importPabloCostHistory.js';
 import { importPurosoulSalesReport, importMickysSalesReport } from './importDailySalesReport.js';
+import { importPurosoulFlashReport } from './importPurosoulFlashReport.js';
 import { importMickysLeads } from './importMickysLeads.js';
 import { attachReportPreviews } from './attachmentPreview.js';
+import { importCpNmManagerFlash, importCpNmHistForecast, importCpNmPayType } from './importCpNmReport.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
@@ -52,10 +56,15 @@ function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
+function istIso(offsetDays = 0) {
+  // Render runs UTC; shift to IST (+5:30) so date boundaries match the frontend.
+  const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+  const d = new Date(Date.now() + IST_OFFSET_MS + offsetDays * 86_400_000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
 function yesterday() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
+  return istIso(-1);
 }
 
 function subjectContains(subject, ...keywords) {
@@ -317,6 +326,64 @@ const HANDLERS = [
       return importPetpoojaTimeSalesReport(filePath, 'Rabbit', date);
     }
   },
+  // ── CP NM (Centre Point, Vashi — Unit of Vijan Motors) ──────────────────────
+  // All 6 attachments in the IDS Next email are PDFs (not XLS).  Three handlers
+  // run bundled from the same email (navimumbaicentrepoint@gmail.com).
+  {
+    // Manager Flash Report (PDF) → Occupancy %, Rooms Sold, Room Revenue, ARR, RevPAR,
+    //                              F&B Revenue, Tomorrow Arrivals/Departures, P&L total.
+    name: 'CP NM Manager Flash Report',
+    importSourceKey: 'cpNmImportedAt',
+    bundled: true,
+    matches: (s, parsed) => {
+      const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
+        || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
+      return isCpNm && !!findAttachmentByName(parsed, /Manager_Flash_Report/i);
+    },
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /Manager_Flash_Report/i);
+      if (!att) { logAttachments(parsed); throw new Error('No Manager Flash Report attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'cpnm-manager-flash', date);
+      return importCpNmManagerFlash(filePath, date);
+    }
+  },
+  {
+    // History & Forecast Report (PDF) → Tomorrow Occupancy Forecast %.
+    name: 'CP NM History & Forecast Report',
+    importSourceKey: 'cpNmForecastImportedAt',
+    bundled: true,
+    matches: (s, parsed) => {
+      const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
+        || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
+      return isCpNm && !!findAttachmentByName(parsed, /History_and_Forecast_Report/i);
+    },
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /History_and_Forecast_Report/i);
+      if (!att) { logAttachments(parsed); throw new Error('No History & Forecast Report attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'cpnm-hist-forecast', date);
+      return importCpNmHistForecast(filePath, date);
+    }
+  },
+  {
+    // Pay Type Report (PDF) → Cash / Credit Card / UPI / City Ledger settlement.
+    name: 'CP NM Pay Type Report',
+    importSourceKey: 'cpNmPayTypeImportedAt',
+    bundled: true,
+    matches: (s, parsed) => {
+      const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
+        || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
+      return isCpNm && !!findAttachmentByName(parsed, /Pay_Type_Report/i);
+    },
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /Pay_Type_Report/i);
+      if (!att) { logAttachments(parsed); throw new Error('No Pay Type Report attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'cpnm-pay-type', date);
+      return importCpNmPayType(filePath, date);
+    }
+  },
   {
     name: 'Purosoul Daily Sales Report',
     importSourceKey: 'purosoulSalesImportedAt',
@@ -449,12 +516,12 @@ async function run() {
       const lock = await client.getMailboxLock('INBOX');
 
       try {
-    const since = new Date();
-    since.setDate(since.getDate() - 1);
-    since.setHours(0, 0, 0, 0);
+    // Start of yesterday in IST (midnight IST = previous day 18:30 UTC).
+    const sinceDate = istIso(-1);
+    const since = new Date(`${sinceDate}T00:00:00+05:30`);
 
     const seqs = await client.search({ since });
-    log(`Found ${seqs.length} email(s) since ${since.toISOString().slice(0, 10)}`);
+    log(`Found ${seqs.length} email(s) since ${sinceDate}`);
 
     if (!seqs.length) {
       log('No emails in the period — nothing to import.');
@@ -534,6 +601,19 @@ async function run() {
       log(`Micky's leads imported: ${leadsResult.total} total, ${leadsResult.active} active, ${leadsResult.converted} converted`);
     } catch (err) {
       log(`Micky's leads ERROR: ${err.message}`);
+    }
+  }
+
+  // Fetch Purosoul SKU production & dispatch from Google Sheet
+  if (!shouldRefreshSheetSource(existingData?.importSource, 'purosoulFlashImportedAt')) {
+    logSheetSkip('Purosoul SKU flash report', existingData.importSource.purosoulFlashImportedAt);
+  } else {
+    log('Fetching Purosoul SKU flash report from Google Sheets…');
+    try {
+      const purosoulSkuResult = await importPurosoulFlashReport();
+      log(`Purosoul SKU imported: ${purosoulSkuResult.rowCount} rows → ${purosoulSkuResult.written.join(', ')}`);
+    } catch (err) {
+      log(`Purosoul SKU ERROR: ${err.message}`);
     }
   }
 
