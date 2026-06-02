@@ -23,13 +23,21 @@ import cpLogo from './cp-logo.png';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
 const MIN_INITIAL_LOADER_MS = 1200;
+
+function localIso(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
 const d = new Date(); d.setDate(d.getDate() - 1);
-const today = d.toISOString().slice(0, 10);
+const today = localIso(d);
 
 function shiftIso(iso, delta) {
   const d = new Date(iso);
   d.setDate(d.getDate() + delta);
-  return d.toISOString().slice(0, 10);
+  return localIso(d);
 }
 
 function wait(ms) {

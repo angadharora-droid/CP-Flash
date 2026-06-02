@@ -40,7 +40,7 @@ export default function HotelsPage({ data, date }) {
           key: unit,
           label: unit === 'CP NM' ? 'CP Navi Mumbai' : unit,
           badge: getFreshness(
-            unit === 'CP Nagpur' ? data.importSource?.importedAt : data.importSource?.occupancyImportedAt,
+            unit === 'CP Nagpur' ? data.importSource?.importedAt : data.importSource?.cpNmImportedAt,
             hasKpiData((data.hotels ?? []).filter((r) => r.unit === unit)),
             date
           )

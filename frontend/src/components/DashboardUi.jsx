@@ -4,7 +4,13 @@ import { money, formatIndianNumber } from '../lib/calculations';
 import KpiRow from './KpiRow';
 import cpLogo from '../cp-logo.png';
 
-const NOW = new Date().toISOString().slice(0, 10);
+function localIso(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+const NOW = localIso(new Date());
 
 // Status tone classes used by SourceControlPage and friends. Pill-shaped pills with M3 hues.
 export const statusTone = {
@@ -268,7 +274,7 @@ function formatDisplayDate(iso) {
 function shiftIso(iso, delta) {
   const d = new Date(iso);
   d.setDate(d.getDate() + delta);
-  return d.toISOString().slice(0, 10);
+  return localIso(d);
 }
 
 // ---- DateControl ----

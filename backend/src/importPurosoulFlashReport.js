@@ -1,28 +1,19 @@
-/**
- * Parses the Purosoul monthly Flash Report CSV (side-by-side SKU layout).
- *
- * Sheet structure (0-indexed columns):
- *   Row 5: SKU group headers  — "250 ML" at col 1, "500 ML" at col 10, "1 Ltr" at col 19
- *   Row 6: Sub-headers        — Date, Op.Stock, Production, Bill Dispatch, Scheme Dispatch, Cl.Stock, Tally, Variance
- *   Row 7+: Data              — each row has the same date repeated for each SKU block
- *
- * Per-block column offsets (relative to block start):
- *   0=Date, 1=Op.Stock, 2=Production, 3=Bill Dispatch, 4=Scheme Dispatch, 5=Cl.Stock
- */
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
 import { readDailyJson, writeDailyJson } from './dailyStore.js';
 
+const SHEET_ID = '1NeheL3S8opBiwpQLLR_0CHjFxbZONk_uxLGKkPPip90';
+
+// Side-by-side SKU layout — gviz CSV has a leading empty col, so dates land at 1/10/19
+// Per-block offsets: +0=Date, +1=Op.Stock, +2=Production, +3=Bill Dispatch, +4=Scheme Dispatch, +5=Cl.Stock
 const SKU_BLOCKS = [
   { col: 1,  sku: '250ml' },
   { col: 10, sku: '500ml' },
   { col: 19, sku: '1L'    },
 ];
 
-// Handles "1/5/26", "01/05/26", "01/05/2026" or Date objects → "2026-05-01"
+// "13/05/26", "1/5/2026", "01/05/26" → "2026-05-01"
 function parseDate(cell) {
   if (!cell && cell !== 0) return null;
   if (cell instanceof Date) return cell.toISOString().slice(0, 10);
@@ -40,60 +31,75 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+async function fetchAllRows() {
+  // Discover all tab names from the workbook
+  const xlsxRes = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`);
+  if (!xlsxRes.ok) throw new Error(`HTTP ${xlsxRes.status} fetching Purosoul sheet`);
+  const wb = XLSX.read(await xlsxRes.arrayBuffer(), { type: 'array' });
+
+  // Fetch each tab as CSV so dates stay as text strings (e.g. "13/05/26")
+  const allRows = await Promise.all(
+    wb.SheetNames.map(async (name) => {
+      const csvRes = await fetch(
+        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name.trim())}`
+      );
+      if (!csvRes.ok) return [];
+      const csvWb = XLSX.read(await csvRes.text(), { type: 'string' });
+      return XLSX.utils.sheet_to_json(csvWb.Sheets[csvWb.SheetNames[0]], { header: 1, defval: '', blankrows: true });
+    })
+  );
+  return allRows.flat();
+}
+
 async function readData(date) {
   return (await readDailyJson(date)) ?? buildSeedData();
 }
 
-export async function importPurosoulFlashReport(csvPathOrBuffer) {
-  let wb;
-  if (typeof csvPathOrBuffer === 'string') {
-    const content = await fs.readFile(csvPathOrBuffer, 'utf8');
-    wb = XLSX.read(content, { type: 'string', cellDates: true });
-  } else {
-    wb = XLSX.read(csvPathOrBuffer, { type: 'buffer', cellDates: true });
-  }
+export async function importPurosoulFlashReport() {
+  const allRawRows = await fetchAllRows();
 
-  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', blankrows: true, raw: false });
+  // Keep only daily rows — serial-date rows and blank rows are filtered by parseDate
+  const daily = allRawRows
+    .map((r) => ({ date: parseDate(r[SKU_BLOCKS[0].col]), row: r }))
+    .filter(({ date }) => date !== null)
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Collect data rows: skip header rows (first 6), skip Total row, skip rows with no parseable date
-  const dataRows = rows.slice(6).filter((r) => {
-    const date = parseDate(r[SKU_BLOCKS[0].col]);
-    return date !== null && String(r[SKU_BLOCKS[0].col + 1] ?? '').trim().toLowerCase() !== 'total';
-  });
+  if (daily.length === 0) throw new Error('No daily rows found in Purosoul flash report');
 
-  if (dataRows.length === 0) throw new Error('No data rows found in Purosoul flash report');
-
-  // Track MTD cumulative dispatch per SKU, resetting at month boundary
+  // MTD resets each month; YTD resets each year
   const mtd = {};
+  const ytd = {};
+  SKU_BLOCKS.forEach((b) => { mtd[b.sku] = 0; ytd[b.sku] = 0; });
   let lastMonth = null;
-
+  let lastYear = null;
   const written = [];
 
-  for (const row of dataRows) {
-    const date = parseDate(row[SKU_BLOCKS[0].col]);
-    if (!date) continue;
-
+  for (const { date, row } of daily) {
     const month = date.slice(0, 7);
+    const year = date.slice(0, 4);
+
+    if (year !== lastYear) {
+      SKU_BLOCKS.forEach((b) => { ytd[b.sku] = 0; });
+      lastYear = year;
+    }
     if (month !== lastMonth) {
       SKU_BLOCKS.forEach((b) => { mtd[b.sku] = 0; });
       lastMonth = month;
     }
 
-    // Extract per-SKU values
     const skuData = {};
     for (const block of SKU_BLOCKS) {
-      const production    = num(row[block.col + 2]);
-      const billDispatch  = num(row[block.col + 3]);
+      const production     = num(row[block.col + 2]);
+      const billDispatch   = num(row[block.col + 3]);
       const schemeDispatch = num(row[block.col + 4]);
-      const clStock       = num(row[block.col + 5]);
-      const dispatched    = billDispatch + schemeDispatch;
+      const clStock        = num(row[block.col + 5]);
+      const dispatched     = billDispatch + schemeDispatch;
       mtd[block.sku] += dispatched;
-      skuData[block.sku] = { production, dispatched, clStock, mtd: mtd[block.sku] };
+      ytd[block.sku] += dispatched;
+      skuData[block.sku] = { production, dispatched, clStock, mtd: mtd[block.sku], ytd: ytd[block.sku] };
     }
 
     const data = await readData(date);
-
-    // Normalize SKU list to the canonical set (migrate away from old seed SKUs)
     const EXPECTED_SKUS = ['250ml', '500ml', '1L'];
     const existingBySku = {};
     (data.purosoulSku ?? []).forEach((r) => { existingBySku[r.sku] = r; });
@@ -102,12 +108,19 @@ export async function importPurosoulFlashReport(csvPathOrBuffer) {
       const base = existingBySku[sku] ?? { sku, produced: '', dispatched: '', clStock: '', mtd: '', ytd: '' };
       const d = skuData[sku];
       if (!d) return base;
-      return { ...base, produced: String(d.production), dispatched: String(d.dispatched), clStock: String(d.clStock), mtd: String(d.mtd) };
+      return {
+        ...base,
+        produced: String(d.production),
+        dispatched: String(d.dispatched),
+        clStock: String(d.clStock),
+        mtd: String(d.mtd),
+        ytd: String(d.ytd),
+      };
     });
 
     data.importSource = {
       ...(data.importSource ?? {}),
-      purosoulFlashFile: typeof csvPathOrBuffer === 'string' ? path.basename(csvPathOrBuffer) : 'purosoul-flash.csv',
+      purosoulFlashFile: 'Purosoul Flash Report (all tabs)',
       purosoulFlashImportedAt: new Date().toISOString(),
     };
 
@@ -115,14 +128,13 @@ export async function importPurosoulFlashReport(csvPathOrBuffer) {
     written.push(date);
   }
 
-  return { ok: true, written, rowCount: dataRows.length };
+  return { ok: true, written, rowCount: daily.length };
 }
 
-// CLI: node importPurosoulFlashReport.js [path-to-csv]
+// CLI: node importPurosoulFlashReport.js
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
-  const csvPath = process.argv[2] ?? path.resolve(process.cwd(), 'data', 'attachments', 'purosoul-flash-2026-05.csv');
-  importPurosoulFlashReport(csvPath)
-    .then((r) => console.log(`Imported ${r.rowCount} rows → ${r.written.join(', ')}`))
+  importPurosoulFlashReport()
+    .then((r) => console.log(JSON.stringify(r, null, 2)))
     .catch((err) => { console.error(err.message); process.exit(1); });
 }

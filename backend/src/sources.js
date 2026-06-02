@@ -92,6 +92,46 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
+    id: 'cpnm-manager-flash',
+    label: 'CP NM Manager Flash',
+    unit: 'CP NM',
+    type: 'Mail / PDF',
+    paths: ['hotels', 'pnl', 'settlement'],
+    meta: {
+      file: 'cpNmFile',
+      importedAt: 'cpNmImportedAt',
+      notes: 'cpNmNotes',
+      reportLabels: { cpNmFile: 'Manager Flash Report' }
+    },
+    cadence: 'Daily'
+  },
+  {
+    id: 'cpnm-hist-forecast',
+    label: 'CP NM History & Forecast',
+    unit: 'CP NM',
+    type: 'Mail / PDF',
+    paths: ['hotels'],
+    meta: {
+      file: 'cpNmForecastFile',
+      importedAt: 'cpNmForecastImportedAt',
+      reportLabels: { cpNmForecastFile: 'History & Forecast Report' }
+    },
+    cadence: 'Daily'
+  },
+  {
+    id: 'cpnm-pay-type',
+    label: 'CP NM Pay Type',
+    unit: 'CP NM',
+    type: 'Mail / PDF',
+    paths: ['settlement'],
+    meta: {
+      file: 'cpNmPayTypeFile',
+      importedAt: 'cpNmPayTypeImportedAt',
+      reportLabels: { cpNmPayTypeFile: 'Pay Type Report' }
+    },
+    cadence: 'Daily'
+  },
+  {
     id: 'pablo-cost',
     label: 'Pablo Cost Sheet',
     unit: 'Pablo',
@@ -261,7 +301,7 @@ function pickMeta(importSource, source) {
     .filter((report) => !source.meta.filePattern || source.meta.filePattern.test(String(report.file)));
   const reportFiles = reports
     .map((report) => report.file)
-    .filter((file) => /\.(xlsx|xls|csv)$/i.test(String(file)));
+    .filter((file) => /\.(xlsx|xls|csv|pdf)$/i.test(String(file)));
   const importedFile = reports[0]?.file ?? '';
   const importedAtFields = source.meta.importedAtFields ?? [source.meta.importedAt];
   const importedAt = importedAtFields
@@ -283,7 +323,18 @@ export function buildSourceStatus(data = {}) {
   const importSource = data.importSource ?? {};
   const sources = dailySources.map((source) => {
     const meta = pickMeta(importSource, source);
-    const hasData = source.paths.some((key) => hasEnteredValue(data[key]));
+
+    // For sources tied to a specific hotel unit, filter KPI-row arrays to that unit
+    // so CP Nagpur data doesn't make CP NM sources appear as "Entered".
+    function pathData(key) {
+      const val = data[key];
+      if (Array.isArray(val) && source.unit && source.unit !== 'Bank Statement') {
+        return val.filter((r) => r.unit === source.unit || r.unit === `${source.unit}s`);
+      }
+      return val;
+    }
+
+    const hasData = source.paths.some((key) => hasEnteredValue(pathData(key)));
     const hasRabbitKpis = source.id === 'rabbits-sales' && hasEnteredValue(data.rabbits);
     const hasImport = isFilled(meta.importedAt) || hasRabbitKpis;
     const status = hasImport ? 'Imported' : hasData ? 'Entered' : 'Pending';
