@@ -99,7 +99,8 @@ function parseInvoiceSheet(rows) {
   if (headerIdx === -1) throw new Error('No header row found');
 
   const header = rows[headerIdx];
-  const amountCol = findColumn(header, ['Sales', 'Sales A/c', 'Basic Value', 'Value'], 9);
+  const amountCol = findColumn(header, ['Sales', 'Sales A/c', 'Basic Value', 'Value'], -1);
+  if (amountCol === -1) throw new Error('No invoice amount column found');
   const byDate = {};
   let grandTotal = null;
 
@@ -124,9 +125,15 @@ function parseInvoiceSheet(rows) {
   return { byDate, latestDate, mtd };
 }
 
-function getInvoiceRows(wb, preferredSheetNames, reportName) {
+function getInvoiceRows(wb, preferredSheetNames, reportName, targetDate) {
   const errors = [];
-  for (const sheetName of preferredSheetNames) {
+  const sheetNames = [
+    ...preferredSheetNames,
+    ...wb.SheetNames.filter((name) => !preferredSheetNames.includes(name))
+  ];
+  let best = null;
+
+  for (const sheetName of sheetNames) {
     const sheet = wb.Sheets[sheetName];
     if (!sheet) {
       errors.push(`${sheetName}: sheet not found`);
@@ -135,13 +142,18 @@ function getInvoiceRows(wb, preferredSheetNames, reportName) {
 
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false, raw: false });
     try {
-      parseInvoiceSheet(rows);
-      return { rows, sheetName };
+      const parsed = parseInvoiceSheet(rows);
+      if (targetDate && Object.hasOwn(parsed.byDate, targetDate)) return { rows, sheetName, parsed };
+      if (Object.keys(parsed.byDate).length && !best) best = { rows, sheetName, parsed };
     } catch (err) {
       errors.push(`${sheetName}: ${err.message}`);
     }
   }
 
+  if (targetDate && best) {
+    throw new Error(`No ${targetDate} invoice rows found in ${reportName}; latest available is ${best.parsed.latestDate} on ${best.sheetName}`);
+  }
+  if (best) return best;
   throw new Error(`No invoice sheet found in ${reportName}. Tried: ${errors.join('; ')}`);
 }
 
@@ -195,8 +207,8 @@ async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiR
 export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate) {
   const wb = XLSX.read(xlsBuffer, { type: 'buffer', cellDates: true });
 
-  const { rows, sheetName } = getInvoiceRows(wb, ['Sales'], 'Purosoul report');
-  const { latestDate, mtd: grandTotal, byDate } = parseInvoiceSheet(rows);
+  const { sheetName, parsed } = getInvoiceRows(wb, ['Sales'], 'Purosoul report', targetDate);
+  const { latestDate, mtd: grandTotal, byDate } = parsed;
   if (!latestDate) throw new Error('No dated invoice rows found in Purosoul report');
 
   const written = await writeInvoiceReport({
@@ -216,8 +228,8 @@ export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate)
 export async function importMickysSalesReport(xlsBuffer, fileName, targetDate) {
   const wb = XLSX.read(xlsBuffer, { type: 'buffer', cellDates: true });
 
-  const { rows, sheetName } = getInvoiceRows(wb, ['Sheet1'], 'Micky\'s report');
-  const { latestDate, mtd: grandTotal, byDate } = parseInvoiceSheet(rows);
+  const { sheetName, parsed } = getInvoiceRows(wb, ['Sheet1'], 'Micky\'s report', targetDate);
+  const { latestDate, mtd: grandTotal, byDate } = parsed;
   if (!latestDate) throw new Error('No dated invoice rows found in Micky\'s report');
 
   const written = await writeInvoiceReport({
