@@ -56,13 +56,15 @@ function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
+function istIso(offsetDays = 0) {
+  // Render runs UTC; shift to IST (+5:30) so date boundaries match the frontend.
+  const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+  const d = new Date(Date.now() + IST_OFFSET_MS + offsetDays * 86_400_000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
 function yesterday() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${dd}`;
+  return istIso(-1);
 }
 
 function subjectContains(subject, ...keywords) {
@@ -514,12 +516,12 @@ async function run() {
       const lock = await client.getMailboxLock('INBOX');
 
       try {
-    const since = new Date();
-    since.setDate(since.getDate() - 1);
-    since.setHours(0, 0, 0, 0);
+    // Start of yesterday in IST (midnight IST = previous day 18:30 UTC).
+    const sinceDate = istIso(-1);
+    const since = new Date(`${sinceDate}T00:00:00+05:30`);
 
     const seqs = await client.search({ since });
-    log(`Found ${seqs.length} email(s) since ${since.toISOString().slice(0, 10)}`);
+    log(`Found ${seqs.length} email(s) since ${sinceDate}`);
 
     if (!seqs.length) {
       log('No emails in the period — nothing to import.');
