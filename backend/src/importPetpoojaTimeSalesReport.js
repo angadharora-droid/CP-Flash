@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 function num(value) {
   const parsed = Number(String(value ?? '').replace(/[^\d.-]/g, ''));
@@ -247,7 +247,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
 
   if (!mappedRows) throw new Error(`No dated time-level rows found for ${outDate}.`);
 
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDaily(outDate)) ?? buildSeedData();
 
   if (outlet === 'Pablo' || outlet === 'Dali') {
     const seed = buildSeedData();
@@ -292,7 +292,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     [`${key}TimeSalesTableTurnover`]: tableTurnover
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return { ok: true, date: outDate, outlet, mappedRows, split, comboSales, totalSales, bills: allBills.size, liquorBills: liquorBills.size, dineInBills: dineInBills.size, beverageAttachRate, tableTurnover };
 }

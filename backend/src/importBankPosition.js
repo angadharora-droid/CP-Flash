@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 const SHEET_ID = '1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf';
 
@@ -81,7 +81,7 @@ export async function importBankPosition(outDate) {
     });
   }
 
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDaily(outDate)) ?? buildSeedData();
 
   data.bankPosition = accountRows;
   data.importSource = {
@@ -89,7 +89,7 @@ export async function importBankPosition(outDate) {
     bankPositionImportedAt: new Date().toISOString(),
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return { ok: true, date: outDate, mapped: accountRows };
 }

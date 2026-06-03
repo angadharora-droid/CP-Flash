@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'module';
 import { buildSeedData } from './excel.js';
 import { pageSchemas, schemaRowsToKpis } from './schema.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 // CP NM (Vashi) IDS Next reports arrive as PDFs, not XLS files.
 // All 6 attachments in the nightly email are PDFs:
@@ -188,7 +188,7 @@ export async function importCpNmManagerFlash(file, outDate) {
   const segNoShow     = segVal(/^No Show Rooms/i);
 
   // ── Write to daily JSON ──────────────────────────────────────────────────
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDaily(outDate)) ?? buildSeedData();
   ensureForecastRows(data);
 
   if (occPct > 0)          setKpi(data, 'Occupancy %', { actual: occPct });
@@ -231,7 +231,7 @@ export async function importCpNmManagerFlash(file, outDate) {
     cpNmNotes: `occ=${occPct}%, rooms=${roomsSold}, arr=${arr}, revpar=${revpar}, roomRev=${roomRevenue}, fnb=${totalFnbRevenue}, total=${totalRevenue}, corp=${segCorporate}, fit=${segFit}, ota=${segOta}, grp=${segGroup}, walkin=${segWalkIn}, noshow=${segNoShow}`
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return {
     ok: true, date: outDate, unit: UNIT,
@@ -255,7 +255,7 @@ export async function importCpNmHistForecast(file, outDate) {
   const text = await extractPdfText(file);
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
 
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDaily(outDate)) ?? buildSeedData();
   ensureForecastRows(data);
 
   // Total rooms — re-derive from Manager Flash data already stored, or fall back to 39
@@ -325,7 +325,7 @@ export async function importCpNmHistForecast(file, outDate) {
     cpNmForecastImportedAt: new Date().toISOString()
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return {
     ok: true, date: outDate, unit: UNIT, forecastFor: forecastDisplay,
@@ -369,7 +369,7 @@ export async function importCpNmPayType(file, outDate) {
   // Merge UPI and Others (both represent digital wallet / UPI payments)
   const totalUpi = upiAmt + othersAmt;
 
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDaily(outDate)) ?? buildSeedData();
   data.settlement = data.settlement ?? {};
 
   const set = (key, amt) => {
@@ -388,7 +388,7 @@ export async function importCpNmPayType(file, outDate) {
     cpNmPayTypeImportedAt: new Date().toISOString()
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return {
     ok: true, date: outDate, unit: UNIT,

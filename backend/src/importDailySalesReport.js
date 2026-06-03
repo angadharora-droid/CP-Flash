@@ -94,9 +94,9 @@ function findColumn(header, names, fallback) {
 }
 
 function parseInvoiceSheet(rows) {
-  // Find header row (has "Date" in col[0])
-  const headerIdx = rows.findIndex((r) => String(r[0]).trim() === 'Date');
-  if (headerIdx === -1) throw new Error('No header row found');
+  // Find header row (has "Date" / "DATE" / "date" in col[0])
+  const headerIdx = rows.findIndex((r) => /^date$/i.test(String(r[0]).trim()));
+  if (headerIdx === -1) throw new Error('No header row found (expected a row whose first cell is "Date")');
 
   const header = rows[headerIdx];
   const amountCol = findColumn(header, ['Sales', 'Sales A/c', 'Basic Value', 'Value'], -1);

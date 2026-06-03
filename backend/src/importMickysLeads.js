@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 const SHEET_ID = '1jvnmwP4AaNQW54E3QVlzR9ZMj589HXZugJfhBOye_gs';
 const GID = 871818724;
@@ -22,7 +22,7 @@ function num(v) {
 }
 
 async function readData(date) {
-  return (await readDailyJson(date)) ?? buildSeedData();
+  return (await readDaily(date)) ?? buildSeedData();
 }
 
 function setMtd(mickys, name, value) {
@@ -100,7 +100,7 @@ export async function importMickysLeads(targetDate) {
     mickysLeadsImportedAt: new Date().toISOString(),
   };
 
-  await writeDailyJson(targetDate, data);
+  await writeDaily(targetDate, data);
 
   return {
     ok: true, targetDate,

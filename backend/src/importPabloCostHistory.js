@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 const SHEET_ID = '1SliCSYQIhRekgYy-6YN0nn5nFtlZQooH';
 
@@ -85,7 +85,7 @@ function setKpi(data, name, actual, mtd, { preserveActual = false } = {}) {
 }
 
 async function readData(date) {
-  return (await readDailyJson(date)) ?? buildSeedData();
+  return (await readDaily(date)) ?? buildSeedData();
 }
 
 export async function importPabloCostHistory() {
@@ -138,7 +138,7 @@ export async function importPabloCostHistory() {
       pabloCostNotes: `Fetched from Google Sheet. MTD cumulative through ${row.date}.`,
     };
 
-    await writeDailyJson(row.date, data);
+    await writeDaily(row.date, data);
     written.push(row.date);
   }
 

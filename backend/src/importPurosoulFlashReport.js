@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 const SHEET_ID = '1NeheL3S8opBiwpQLLR_0CHjFxbZONk_uxLGKkPPip90';
 
@@ -52,7 +52,7 @@ async function fetchAllRows() {
 }
 
 async function readData(date) {
-  return (await readDailyJson(date)) ?? buildSeedData();
+  return (await readDaily(date)) ?? buildSeedData();
 }
 
 export async function importPurosoulFlashReport() {
@@ -124,7 +124,7 @@ export async function importPurosoulFlashReport() {
       purosoulFlashImportedAt: new Date().toISOString(),
     };
 
-    await writeDailyJson(date, data);
+    await writeDaily(date, data);
     written.push(date);
   }
 
