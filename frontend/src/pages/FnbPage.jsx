@@ -1,11 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import DataTable from '../components/DataTable';
-import FlagBadge from '../components/FlagBadge';
+import React, { useState } from 'react';
 import SectionCard from '../components/SectionCard';
-import StatStrip from '../components/StatStrip';
-import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, TopItemsList } from '../components/DashboardUi';
-import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
-import { groupRevenue, money, moneyCompact, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
+import { getFreshness, hasKpiData, KpiTable, SECTION_ICONS, SegmentedControl, TopItemsList } from '../components/DashboardUi';
 
 export default function FnbPage({ data, date }) {
   const [tab, setTab] = useState('Pablo');

@@ -1,12 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import DataTable from '../components/DataTable';
-import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
-import StatStrip from '../components/StatStrip';
-import { ActionButton, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
-import { SHEET_URLS } from '../lib/navigation';
-import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
-import { groupRevenue, money, moneyCompact, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
+import { KpiTable, ReportValue, SECTION_ICONS } from '../components/DashboardUi';
 
 export default function PurosoulPage({ data, date }) {
   return (

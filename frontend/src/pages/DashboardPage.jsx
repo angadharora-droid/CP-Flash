@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import DashboardCharts from '../components/DashboardCharts';
-import { PageTitle } from '../components/DashboardUi';
 import { getPnlPeriod } from '../lib/api';
 import { buildMonthOptions, buildWeekOptions, monthKeyFromDate, weekStartContaining } from '../lib/weeks';
 

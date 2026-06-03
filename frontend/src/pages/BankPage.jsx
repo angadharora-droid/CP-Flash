@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import DataTable from '../components/DataTable';
-import FlagBadge from '../components/FlagBadge';
-import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ActionButton, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SegmentedControl, TopItemsList } from '../components/DashboardUi';
-import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
-import { groupRevenue, money, moneyCompact, numberValue, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
+import { ReportValue } from '../components/DashboardUi';
+import { money, moneyCompact, numberValue } from '../lib/calculations';
 
 export default function BankPage({ data, date }) {
   const rows = data.bankPosition ?? [];
