@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
 import { pageSchemas, schemaRowsToKpis } from './schema.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 // HCP_POS_SALE outlet section header (uppercased) → "Covers" row in the hotels
 // "F&B Outlets" KPI table. Only these three outlets are tracked; the report also
@@ -152,7 +152,7 @@ export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
 
   if (!billsByOutlet.size) throw new Error(`No outlet bill rows found in sheet "${usedSheet}".`);
 
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDaily(outDate)) ?? buildSeedData();
   ensureSectionRows(data, unit);
 
   const setActual = (name, value) => {
@@ -182,7 +182,7 @@ export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
     posSalesImportedAt: new Date().toISOString()
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return {
     ok: true,

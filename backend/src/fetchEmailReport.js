@@ -694,6 +694,20 @@ function mergeKpiRows(existingRows = [], incomingRows = []) {
   return [...byId.values()];
 }
 
+function mergePnlRows(existingRows = [], incomingRows = []) {
+  const byUnit = new Map((existingRows ?? []).map((row) => [row.unit, row]));
+  for (const row of (incomingRows ?? [])) {
+    const previous = byUnit.get(row.unit) ?? {};
+    byUnit.set(row.unit, {
+      ...previous,
+      ...row,
+      revenueToday: filled(row.revenueToday) ? row.revenueToday : previous.revenueToday,
+      purchasesToday: filled(row.purchasesToday) ? row.purchasesToday : previous.purchasesToday
+    });
+  }
+  return [...byUnit.values()];
+}
+
 function mergeReportData(existingData = {}, localData = {}) {
   existingData ??= {};
   localData ??= {};
@@ -714,6 +728,15 @@ function mergeReportData(existingData = {}, localData = {}) {
   for (const key of ['hotels', 'rabbits', 'mickys', 'purosoul']) {
     merged[key] = mergeKpiRows(existingData[key], localData[key]);
   }
+
+  // Merge FnB KPI rows by id so Pablo/Dali actuals are never overwritten with seed blanks.
+  merged.fnb = {};
+  for (const outlet of ['Pablo', 'Dali']) {
+    merged.fnb[outlet] = mergeKpiRows(existingData.fnb?.[outlet], localData.fnb?.[outlet]);
+  }
+
+  // Merge P&L rows by unit so manually-entered revenue/purchases survive a re-import.
+  merged.pnl = mergePnlRows(existingData.pnl, localData.pnl);
 
   return merged;
 }

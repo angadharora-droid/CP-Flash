@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 function num(value) {
   if (typeof value === 'number') return value;
@@ -41,7 +41,7 @@ export async function importOccupancyReport(file, outDate, unit = 'CP Nagpur') {
   const revpar      = num(dayTotalRow[10]);  // ARP = RevPAR
   const mtdRooms    = num(dayTotalRow[11]);  // MTD rooms sold
 
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDaily(outDate)) ?? buildSeedData();
 
   function setKpi(name, actual, mtd) {
     const row = data.hotels.find((item) => item.unit === unit && item.name === name);
@@ -62,7 +62,7 @@ export async function importOccupancyReport(file, outDate, unit = 'CP Nagpur') {
     occupancyNotes: `Mapped Day Total row from sheet "${usedSheet}" into ${unit} occupancy KPIs.`
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return {
     ok: true, date: outDate, unit, file: `${outDate}.json`,

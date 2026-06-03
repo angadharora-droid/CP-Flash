@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
 import { pageSchemas, schemaRowsToKpis } from './schema.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 const SECTION_TITLE = 'Forecast';
 
@@ -122,7 +122,7 @@ export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   // rows. `forecastDate` (the day being forecast) is persisted for the section header.
   const reportDate = outDate;
 
-  const data = (await readDailyJson(reportDate)) ?? buildSeedData();
+  const data = (await readDaily(reportDate)) ?? buildSeedData();
   ensureSectionRows(data, unit);
 
   const setActual = (name, value) => {
@@ -141,7 +141,7 @@ export async function importForecast(file, outDate, unit = 'CP Nagpur') {
     forecastVersion: FORECAST_IMPORT_VERSION
   };
 
-  await writeDailyJson(reportDate, data);
+  await writeDaily(reportDate, data);
 
   return { ok: true, date: reportDate, unit, forecastFor: forecastDate, mapped: { occPct, arrivals, departures } };
 }

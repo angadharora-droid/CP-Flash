@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSeedData } from './excel.js';
 import { normalizeRabbitCategoryBreakdown } from './schema.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 function num(str) {
   const n = parseFloat(String(str ?? '').replace(/,/g, ''));
@@ -164,7 +164,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const categoryBreakdown = parseCategoryBreakdown(emailHtml);
   const comboCategorySales = parseComboCategorySales(emailHtml);
 
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDaily(outDate)) ?? buildSeedData();
 
   if (outlet === 'Rabbit') {
     normalizeRabbitCategoryBreakdown(data);
@@ -241,7 +241,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     [`${key}PetpoojaValues`]: Object.fromEntries(values)
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return {
     ok: true,

@@ -314,7 +314,7 @@ function pickMeta(importSource, source) {
     file: importedFile,
     reportFiles,
     reports,
-    importedAt: importedFile || !source.meta.filePattern ? importedAt : '',
+    importedAt,
     notes: importSource[source.meta.notes] ?? ''
   };
 }

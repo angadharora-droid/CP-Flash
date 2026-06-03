@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 function num(value) {
   if (typeof value === 'number') return value;
@@ -119,7 +119,7 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
   const upi    = successTotals.upi;
   const online = successTotals.online; // Zomato/Swiggy delivery
 
-  const data = (await readDailyJson(outDate)) ?? { settlement: {}, importSource: {} };
+  const data = (await readDaily(outDate)) ?? { settlement: {}, importSource: {} };
 
   data.settlement = data.settlement ?? {};
   data.settlement['Cash'] = { ...(data.settlement['Cash'] ?? {}), [outlet]: String(cash) };
@@ -180,7 +180,7 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
     [`${key}PaymentImportedAt`]: new Date().toISOString()
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return {
     ok: true, date: outDate, outlet,

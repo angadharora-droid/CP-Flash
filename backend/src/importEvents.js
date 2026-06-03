@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
 import { pageSchemas, schemaRowsToKpis } from './schema.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 // Persisted in importSource as `eventsVersion`; the email handler's matching
 // `importVersion` triggers a one-time re-import when this changes. v4: file under the
@@ -227,7 +227,7 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
 
   const strip = (e) => ({ marketSegment: e.marketSegment, pax: e.pax, venue: e.venue, session: e.session, revenue: e.revenue, notes: e.notes });
 
-  const data = (await readDailyJson(reportDate)) ?? buildSeedData();
+  const data = (await readDaily(reportDate)) ?? buildSeedData();
   data.banquetToday = today.map(strip);
   data.banquetTomorrow = next.map(strip);
   data.banquetTodayDate = todayDate;
@@ -251,7 +251,7 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
     eventsVersion: EVENTS_IMPORT_VERSION
   };
 
-  await writeDailyJson(reportDate, data);
+  await writeDaily(reportDate, data);
 
   return {
     ok: true,

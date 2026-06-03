@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
 import { pageSchemas, schemaRowsToKpis } from './schema.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 // HCP_OCC report value (uppercased) → preset row in the "Market Segments" KPI table.
 // Mar.Seg and S.O.B value sets don't overlap, so both feed the one table. Unmapped
@@ -172,7 +172,7 @@ export async function importOccupancyMix(file, outDate, unit = 'CP Nagpur') {
     );
   }
 
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDaily(outDate)) ?? buildSeedData();
 
   data.occupancyMix = {
     unit,
@@ -194,7 +194,7 @@ export async function importOccupancyMix(file, outDate, unit = 'CP Nagpur') {
     occupancyMixImportedAt: new Date().toISOString()
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return {
     ok: true,

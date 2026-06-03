@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDailyJson, writeDailyJson } from './dailyStore.js';
+import { readDaily, writeDaily } from './dailyStore.js';
 
 function num(value) {
   if (typeof value === 'number') return value;
@@ -10,8 +10,13 @@ function num(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function findRow(rows, label) {
-  return rows.find((row) => String(row[0]).trim().toLowerCase() === label.toLowerCase()) ?? [];
+function normalizeLabel(s) {
+  return String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function findRow(rows, ...labels) {
+  const needles = labels.map(normalizeLabel);
+  return rows.find((row) => needles.includes(normalizeLabel(row[0]))) ?? [];
 }
 
 function net(row) {
@@ -41,16 +46,16 @@ export async function importHotelReport(file, outDate) {
   const unit = 'CP Nagpur';
   // Read existing daily file so we don't overwrite data written by other importers
   // (e.g. occupancy report may have already run before this one)
-  const data = (await readDailyJson(outDate)) ?? buildSeedData();
+  const data = (await readDaily(outDate)) ?? buildSeedData();
 
-  const room = net(findRow(rows, 'Total ( A )'));
-  const meetingPoint = net(findRow(rows, 'MEETING POINT'));
-  const freakk = net(findRow(rows, 'FREAKK'));
-  const roomService = net(findRow(rows, 'ROOM SERVICE'));
-  const bougainvillea = net(findRow(rows, 'BOUGAINVILLEA'));
-  const banquet = net(findRow(rows, 'BANQUET'));
-  const highSteak = net(findRow(rows, 'HIGH STEAK'));
-  const otherSales = net(findRow(rows, 'Total ( C )'));
+  const room = net(findRow(rows, 'Total ( A )', 'Total (A)', 'TOTAL ( A )'));
+  const meetingPoint = net(findRow(rows, 'MEETING POINT', 'Meeting Point'));
+  const freakk = net(findRow(rows, 'FREAKK', 'Freakk'));
+  const roomService = net(findRow(rows, 'ROOM SERVICE', 'Room Service'));
+  const bougainvillea = net(findRow(rows, 'BOUGAINVILLEA', 'Bougainvillea'));
+  const banquet = net(findRow(rows, 'BANQUET', 'Banquet'));
+  const highSteak = net(findRow(rows, 'HIGH STEAK', 'HIGH STEAKS', 'High Steaks'));
+  const otherSales = net(findRow(rows, 'Total ( C )', 'Total (C)', 'TOTAL ( C )'));
 
   setKpi(data, unit, 'Room Revenue', room);
   setKpi(data, unit, 'Meeting Point Revenue', meetingPoint);
@@ -67,10 +72,10 @@ export async function importHotelReport(file, outDate) {
   );
 
   // Collections section: Cash, UPI, Credit Card, Company rows in the same sheet
-  const cashRow = findRow(rows, 'Cash');
+  const cashRow = findRow(rows, 'Cash', 'CASH');
   const upiRow = findRow(rows, 'UPI');
-  const ccRow = findRow(rows, 'Credit Card');
-  const companyRow = findRow(rows, 'Company');
+  const ccRow = findRow(rows, 'Credit Card', 'CREDIT CARD', 'Credit card');
+  const companyRow = findRow(rows, 'Company', 'COMPANY', 'City Ledger', 'CITY LEDGER');
 
   data.settlement = data.settlement ?? {};
   data.settlement.Cash = { ...(data.settlement.Cash ?? {}), [unit]: String(num(cashRow[3])) };
@@ -88,7 +93,7 @@ export async function importHotelReport(file, outDate) {
     notes: `Mapped from sheet "${usedSheet}": room, F&B, collections.`
   };
 
-  await writeDailyJson(outDate, data);
+  await writeDaily(outDate, data);
 
   return {
     ok: true, date: outDate, file: `${outDate}.json`,
