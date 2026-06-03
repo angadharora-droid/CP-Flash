@@ -139,7 +139,7 @@ const HANDLERS = [
   {
     name: 'Night Audit (CP Nagpur)',
     importSourceKey: 'importedAt',
-    matches: (s) => subjectContains(s, 'night audit report', 'nagpur'),
+    matches: (s, parsed) => subjectContains(s, 'night audit') && /nagpur|centre point|hcp/i.test(messageText(parsed)),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
@@ -152,7 +152,7 @@ const HANDLERS = [
     name: 'Occupancy Analysis (CP Nagpur)',
     importSourceKey: 'occupancyImportedAt',
     // actual subject has typo: "Occupency"
-    matches: (s) => (subjectContains(s, 'occupancy analysis') || subjectContains(s, 'occupency analysis')) && subjectContains(s, 'nagpur'),
+    matches: (s, parsed) => (subjectContains(s, 'occupancy analysis') || subjectContains(s, 'occupency analysis')) && /nagpur|centre point|hcp/i.test(messageText(parsed)),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
@@ -387,7 +387,7 @@ const HANDLERS = [
   {
     name: 'Purosoul Daily Sales Report',
     importSourceKey: 'purosoulSalesImportedAt',
-    matches: (s, parsed) => subjectContains(s, 'daily sales report') && /amarjit fiscal|afvpl/i.test(messageText(parsed)),
+    matches: (s, parsed) => /(daily\s+sales|sales report)/i.test(s) && /amarjit fiscal|afvpl|purosoul/i.test(messageText(parsed)),
     currentFile: (file) => /AFVPL/i.test(file),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
@@ -491,6 +491,7 @@ async function run() {
   // Every daily JSON a handler writes to — synced to the cloud at the end. Seeded with
   // the run date; forward-looking handlers (forecast/events) add their own content date.
   const touchedDates = new Set([date]);
+  const forceImport = process.env.FORCE_IMPORT === 'true';
 
   // Load existing data once — used to skip sources already imported this run
   let existingData = (await readDailyJson(date)) ?? { importSource: {} };
@@ -517,7 +518,7 @@ async function run() {
 
       try {
     // Start of yesterday in IST (midnight IST = previous day 18:30 UTC).
-    const sinceDate = istIso(-1);
+    const sinceDate = forceImport ? '1970-01-01' : istIso(-1);
     const since = new Date(`${sinceDate}T00:00:00+05:30`);
 
     const seqs = await client.search({ since });
