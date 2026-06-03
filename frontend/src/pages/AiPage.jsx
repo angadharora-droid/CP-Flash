@@ -1,12 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import DataTable from '../components/DataTable';
-import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
-import StatStrip from '../components/StatStrip';
-import { ActionButton, BrandLoader, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
-import { SHEET_URLS } from '../lib/navigation';
-import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
-import { groupRevenue, money, moneyCompact, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
+import { ActionButton, BrandLoader, SECTION_ICONS } from '../components/DashboardUi';
+import { generateAiNotes } from '../lib/api';
+import { groupRevenue, money, percent, pnlRows, settlementTotals, withFlags } from '../lib/calculations';
 
 export default function AiPage({ data, authToken }) {
   const [text, setText] = useState('');

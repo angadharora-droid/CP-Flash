@@ -184,32 +184,6 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
 
   const groupedEntries = Object.entries(groupedSources);
 
-  // Synthetic recent-activity log built from import timestamps (newest first).
-  const activity = useMemo(() => {
-    const items = [];
-    if (emailImport?.finishedAt) {
-      items.push({
-        time: emailImport.finishedAt,
-        text: `Email import ${emailImport.exitCode === 0 ? 'completed' : 'failed'}.`,
-        tone: emailImport.exitCode === 0 ? 'secondary' : 'error'
-      });
-    }
-    if (emailImport?.startedAt && emailImport.running) {
-      items.push({ time: emailImport.startedAt, text: 'Email import in progress…', tone: 'tertiary' });
-    }
-    sources.forEach((s) => {
-      if (s.importedAt) {
-        items.push({
-          time: s.importedAt,
-          text: `${s.unit}: imported ${s.label}.`,
-          tone: 'secondary'
-        });
-      }
-    });
-    return items
-      .sort((a, b) => new Date(b.time) - new Date(a.time))
-      .slice(0, 6);
-  }, [sources, emailImport]);
 
   return (
     <>
@@ -362,46 +336,6 @@ export default function SourceControlPage({ date, authToken, onOpenReportPreview
         ) : null}
       </div>
 
-      {false ? (
-        <>
-      {/* ---- Recent Activity Log ---- */}
-      <div className="glass-card overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-outline-variant/60 bg-surface-container-lowest px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="flex items-center gap-3">
-            <MIcon name="history" className="text-[20px] text-primary" />
-            <h4 className="font-bold tracking-tight text-on-surface">Recent Activity Log</h4>
-          </div>
-          <div className="flex items-center gap-2 rounded-full bg-primary/5 px-3 py-1">
-            <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Live Updates</span>
-          </div>
-        </div>
-        <div className="divide-y divide-outline-variant/50">
-          {activity.length ? activity.map((item, idx) => {
-            const dot = item.tone === 'error' ? 'bg-error' : item.tone === 'tertiary' ? 'bg-tertiary' : 'bg-secondary';
-            return (
-              <div key={idx} className="group flex items-start gap-3 px-4 py-4 transition-colors hover:bg-surface-container/30 sm:items-center sm:gap-6 sm:px-6">
-                <span className="num w-16 shrink-0 text-[11px] font-medium text-on-surface-variant/50 sm:w-20">
-                  {new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </span>
-                <div className={`size-2 rounded-full ${dot} transition-transform group-hover:scale-125`} />
-                <span className="text-sm text-on-surface">{item.text}</span>
-              </div>
-            );
-          }) : (
-            <div className="px-6 py-12 text-center text-sm text-on-surface-variant">
-              No activity yet — the daily import will populate this log once feeds arrive.
-            </div>
-          )}
-        </div>
-        <div className="bg-surface-container-lowest/50 px-6 py-3 text-center">
-          <button className="text-[11px] font-bold uppercase tracking-widest text-primary hover:underline">
-            View Historical Logs
-          </button>
-        </div>
-      </div>
-        </>
-      ) : null}
     </>
   );
 }

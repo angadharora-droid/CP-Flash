@@ -1,12 +1,9 @@
 import React from 'react';
 import DataTable from '../components/DataTable';
-import FlagBadge from '../components/FlagBadge';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ActionButton, getFreshness, googleSheetPreviewUrl, hasKpiData, KpiTable, ReportValue, SECTION_ICONS, SegmentedControl, SheetLink, TopItemsList } from '../components/DashboardUi';
-import { SHEET_URLS } from '../lib/navigation';
-import { generateAiNotes, getEmailImportStatus, getSourceStatus, reportPdfPreviewUrl, reportPdfUrl, runEmailImport } from '../lib/api';
-import { groupRevenue, money, moneyCompact, numberValue, percent, pnlRows, settlementModes, settlementTotals, UNITS, withFlags } from '../lib/calculations';
+import { ReportValue, SECTION_ICONS } from '../components/DashboardUi';
+import { money, moneyCompact, numberValue, percent, pnlRows, UNITS } from '../lib/calculations';
 
 const EMPTY_PERIOD_ENTRY = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0 };
 
