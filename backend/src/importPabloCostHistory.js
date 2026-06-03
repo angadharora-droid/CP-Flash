@@ -31,23 +31,50 @@ function parseDate(cell) {
 }
 
 async function fetchAllRows() {
-  // Discover all tab names from the workbook
   const xlsxRes = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`);
   if (!xlsxRes.ok) throw new Error(`HTTP ${xlsxRes.status} fetching Pablo cost sheet`);
-  const wb = XLSX.read(await xlsxRes.arrayBuffer(), { type: 'array' });
+  const wb = XLSX.read(Buffer.from(await xlsxRes.arrayBuffer()), { type: 'buffer' });
 
-  // Fetch each tab as CSV so dates stay as text strings (e.g. "1/4/2026")
-  const allRows = await Promise.all(
-    wb.SheetNames.map(async (name) => {
-      const csvRes = await fetch(
-        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name.trim())}`
-      );
-      if (!csvRes.ok) return [];
-      const csvWb = XLSX.read(await csvRes.text(), { type: 'string' });
-      return XLSX.utils.sheet_to_json(csvWb.Sheets[csvWb.SheetNames[0]], { header: 1, defval: '', blankrows: true });
+  return wb.SheetNames.flatMap((name) =>
+    XLSX.utils.sheet_to_json(wb.Sheets[name], {
+      header: 1,
+      defval: '',
+      blankrows: true,
+      raw: false
     })
   );
-  return allRows.flat();
+}
+
+function cleanHeader(value) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function findColumn(headers, label, fallback) {
+  const index = headers.findIndex((cell) => cleanHeader(cell) === label);
+  return index >= 0 ? index : fallback;
+}
+
+function extractDailyRows(rows) {
+  const headerIndex = rows.findIndex((row) => row.some((cell) => cleanHeader(cell) === 'date'));
+  if (headerIndex < 0) return [];
+
+  const headers = rows[headerIndex];
+  const dateCol = findColumn(headers, 'date', 0);
+  const foodSalesCol = findColumn(headers, 'food sales', dateCol + 1);
+  const foodPurchaseCol = findColumn(headers, 'food purchase', dateCol + 2);
+  const liquorSalesCol = findColumn(headers, 'liquor sales', dateCol + 6);
+  const liquorPurchaseCol = findColumn(headers, 'liquor purchase', dateCol + 7);
+
+  return rows.slice(headerIndex + 1)
+    .map((row) => ({ date: parseDate(String(row[dateCol] ?? '')), row }))
+    .filter(({ date, row }) => date !== null && String(row[foodSalesCol] ?? '').trim() !== '')
+    .map(({ date, row }) => ({
+      date,
+      foodSales: num(row[foodSalesCol]),
+      foodPurchase: num(row[foodPurchaseCol]),
+      liquorSales: num(row[liquorSalesCol]),
+      liquorPurchase: num(row[liquorPurchaseCol]),
+    }));
 }
 
 function setKpi(data, name, actual, mtd, { preserveActual = false } = {}) {
@@ -64,18 +91,8 @@ async function readData(date) {
 export async function importPabloCostHistory() {
   const allRawRows = await fetchAllRows();
 
-  // Keep only rows with a parseable DD/M/YYYY date AND actual food sales data (col[2] not blank)
-  const daily = allRawRows
-    .map((r) => ({ date: parseDate(String(r[1] ?? '')), row: r }))
-    .filter(({ date, row }) => date !== null && String(row[2] ?? '').trim() !== '')
-    .map(({ date, row }) => ({
-      date,
-      foodSales: num(row[2]),
-      foodPurchase: num(row[3]),
-      liquorSales: num(row[7]),
-      liquorPurchase: num(row[8]),
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  // Keep only rows with a parseable DD/M/YYYY date and actual food sales data.
+  const daily = extractDailyRows(allRawRows).sort((a, b) => a.date.localeCompare(b.date));
 
   if (daily.length === 0) throw new Error('No daily rows found in Pablo cost sheet');
 
