@@ -17,7 +17,7 @@ export default function SourceReportPreviewScreen({ preview, loading, error, onC
 
   useEffect(() => {
     setActiveSheet(sheets[0]?.name ?? '');
-  }, [preview?.file, sheets[0]?.name]);
+  }, [preview]);
 
   if (!preview && !loading && !error) return null;
 
