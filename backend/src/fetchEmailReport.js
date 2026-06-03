@@ -118,7 +118,14 @@ function logAttachments(parsed) {
 async function saveAttachment(attachment, label, date) {
   await fs.mkdir(ATTACH_DIR, { recursive: true });
   const safeName = (attachment.filename || `${label}-${date}.xls`).replace(/[/\\:*?"<>|]/g, '_');
-  const filePath = path.join(ATTACH_DIR, safeName);
+  let filePath = path.join(ATTACH_DIR, safeName);
+  try {
+    await fs.access(filePath);
+    const parsed = path.parse(safeName);
+    filePath = path.join(ATTACH_DIR, `${parsed.name}-${Date.now()}${parsed.ext}`);
+  } catch {
+    // No existing file with this name.
+  }
   await fs.writeFile(filePath, attachment.content);
   return filePath;
 }
@@ -688,6 +695,9 @@ function mergeKpiRows(existingRows = [], incomingRows = []) {
 }
 
 function mergeReportData(existingData = {}, localData = {}) {
+  existingData ??= {};
+  localData ??= {};
+
   const merged = {
     ...existingData,
     ...localData,
