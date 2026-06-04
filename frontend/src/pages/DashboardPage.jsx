@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import BankPositionTable from '../components/BankPositionTable';
 import DataTable from '../components/DataTable';
+import FnbOutletSalesChart from '../components/FnbOutletSalesChart';
 import RevenueShareDonut from '../components/RevenueShareDonut';
 import SectionCard from '../components/SectionCard';
 import { KpiTable, ReportValue, SECTION_ICONS } from '../components/DashboardUi';
@@ -34,6 +35,10 @@ export default function DashboardPage({ data }) {
   const cpNmForecastRows = (data?.hotels ?? []).filter(
     (row) => row.unit === 'CP NM' && row.section === 'Forecast'
   );
+  const mickysLeadRows = (data?.mickys ?? []).filter((row) => row.section === 'Leads Pipeline');
+  const mickysOrderRevenueRows = (data?.mickys ?? []).filter((row) => row.section === 'Orders & Revenue');
+  const purosoulRevenueRows = (data?.purosoul ?? []).filter((row) => row.section === 'Revenue & Cost');
+  const purosoulSkuRows = data?.purosoulSku ?? [];
   const banquetLists = [
     {
       key: 'banquetToday',
@@ -89,6 +94,7 @@ export default function DashboardPage({ data }) {
           </div>
           <BankPositionTable rows={data?.bankPosition ?? []} />
           <RevenueShareDonut data={data} />
+          <FnbOutletSalesChart data={data} />
           <SectionCard
             title="CP Nagpur: Room Revenue & Occupancy"
             subtitle={`${roomRevenueRows.length} KPI${roomRevenueRows.length === 1 ? '' : 's'}`}
@@ -153,6 +159,55 @@ export default function DashboardPage({ data }) {
             defaultOpen
           >
             <KpiTable rows={cpNmForecastRows} />
+          </SectionCard>
+          <SectionCard
+            title="Micky's: Leads Pipeline"
+            subtitle={`${mickysLeadRows.length} KPI${mickysLeadRows.length === 1 ? '' : 's'}`}
+            icon={SECTION_ICONS.restaurant}
+            tone="rose"
+            defaultOpen
+          >
+            <KpiTable rows={mickysLeadRows} />
+          </SectionCard>
+          <SectionCard
+            title="Micky's: Orders & Revenue"
+            subtitle={`${mickysOrderRevenueRows.length} KPI${mickysOrderRevenueRows.length === 1 ? '' : 's'}`}
+            icon={SECTION_ICONS.restaurant}
+            tone="rose"
+            defaultOpen
+          >
+            <KpiTable rows={mickysOrderRevenueRows} />
+          </SectionCard>
+          <SectionCard
+            title="Purosoul: Revenue & Cost"
+            subtitle="Daily revenue, raw material cost, and margin"
+            icon={SECTION_ICONS.kpi}
+            tone="teal"
+            defaultOpen
+          >
+            <KpiTable rows={purosoulRevenueRows} />
+          </SectionCard>
+          <SectionCard
+            title="Purosoul: Daily Production & Dispatch"
+            subtitle={`${purosoulSkuRows.length} SKU${purosoulSkuRows.length === 1 ? '' : 's'} tracked`}
+            icon={SECTION_ICONS.sku}
+            tone="indigo"
+            defaultOpen
+          >
+            <DataTable
+              columns={['SKU', 'Produced', 'Bill + Scheme Dispatched', 'Closing Stock', 'MTD Dispatched', 'YTD']}
+              rows={purosoulSkuRows.map((row) => ({
+                key: row.sku,
+                cells: [
+                  <span className="font-semibold">{row.sku}</span>,
+                  <ReportValue value={row.produced} />,
+                  <ReportValue value={row.dispatched} />,
+                  <ReportValue value={row.clStock} />,
+                  <ReportValue value={row.mtd} />,
+                  <ReportValue value={row.ytd} />
+                ]
+              }))}
+            />
           </SectionCard>
         </section>
       ) : null}
