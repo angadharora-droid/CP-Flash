@@ -167,7 +167,8 @@ export function PageTitle({ title, subtitle, badge, actions }) {
 }
 
 export function KpiTable({ rows }) {
-  const headers = ['KPI Name', 'AOP Target', 'Today Actual', 'MTD', 'YTD', 'Status'];
+  const visibleRows = (rows ?? []).filter((row) => !/\bytd\b|year\s*to\s*date/i.test(row?.name ?? ''));
+  const headers = ['KPI Name', 'AOP Target', 'Today Actual', 'MTD', 'Status'];
   return (
     <div className="scroll-touch glass-card max-w-full overflow-auto">
       <table className="min-w-[640px] text-[16px] md:min-w-full">
@@ -181,7 +182,7 @@ export function KpiTable({ rows }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((kpi) => <KpiRow key={kpi.id} kpi={kpi} />)}
+          {visibleRows.map((kpi) => <KpiRow key={kpi.id} kpi={kpi} />)}
         </tbody>
       </table>
     </div>

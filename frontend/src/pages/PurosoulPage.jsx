@@ -21,7 +21,7 @@ export default function PurosoulPage({ data, date }) {
         tone="indigo"
       >
         <DataTable
-          columns={['SKU', 'Produced', 'Bill + Scheme Dispatched', 'Closing Stock', 'MTD Dispatched', 'YTD']}
+          columns={['SKU', 'Produced', 'Bill + Scheme Dispatched', 'Closing Stock', 'MTD Dispatched']}
           rows={(data.purosoulSku ?? []).map((row) => ({
             key: row.sku,
             cells: [
@@ -29,8 +29,7 @@ export default function PurosoulPage({ data, date }) {
               <ReportValue value={row.produced} />,
               <ReportValue value={row.dispatched} />,
               <ReportValue value={row.clStock} />,
-              <ReportValue value={row.mtd} />,
-              <ReportValue value={row.ytd} />
+              <ReportValue value={row.mtd} />
             ]
           }))}
         />
