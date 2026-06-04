@@ -5,6 +5,7 @@ import AppHeader from './components/AppHeader';
 import { BrandLoader, googleSheetPreviewUrl, PinGate } from './components/DashboardUi';
 import { BOTTOM_TABS, NAV_GROUPS, NAV_ITEM_BY_KEY, pages } from './lib/navigation';
 import DashboardPage from './pages/DashboardPage';
+import PerformanceChartsPage from './pages/PerformanceChartsPage';
 import BankPage from './pages/BankPage';
 import PnlPage from './pages/PnlPage';
 import FlagsPage from './pages/FlagsPage';
@@ -411,6 +412,7 @@ export default function App() {
     const common = { data: enrichedData, setData, date, authToken };
     const activeKey = canonicalPageKey(renderedActive);
     if (activeKey === 'dashboard') return <DashboardPage {...common} />;
+    if (activeKey === 'performance') return <PerformanceChartsPage {...common} />;
     if (activeKey === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
     if (activeKey === 'bank') return <BankPage {...common} />;
     if (activeKey === 'pnl') return <PnlPage {...common} period={period} />;
