@@ -485,6 +485,8 @@ export default function App() {
       <PdfPreviewPage
         date={date}
         authToken={authToken}
+        data={data}
+        period={period}
         onSave={() => saveData(date, data, authToken)}
         onClose={() => setActive(pdfReturnTo)}
       />

@@ -1,6 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { DonutChart } from '../components/DashboardCharts';
 import { ActionButton, BrandLoader } from '../components/DashboardUi';
-import { reportPdfPreviewUrl, reportPdfUrl } from '../lib/api';
+import FnbOutletSalesChart from '../components/FnbOutletSalesChart';
+import RevenueShareDonut from '../components/RevenueShareDonut';
+import SectionCard from '../components/SectionCard';
+import { reportPdfUrl } from '../lib/api';
+import { numberValue } from '../lib/calculations';
 import {
   buildMonthOptions,
   buildWeekOptions,
@@ -19,15 +24,47 @@ const REPORT_TYPES = [
   { key: 'weekly', label: 'Weekly', icon: 'date_range' }
 ];
 
-export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
+const EMPTY_WEEK = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0, fixedCost: 0 };
+
+function buildWeeklyPnlData(data, period) {
+  return {
+    ...(data ?? {}),
+    pnl: (data?.pnl ?? []).map((row) => {
+      const entry = period?.week?.[row.unit] ?? EMPTY_WEEK;
+      return {
+        ...row,
+        revenueToday: String(Math.round((entry.revenue ?? 0) * 100) / 100),
+        purchasesToday: String(Math.round((entry.purchases ?? 0) * 100) / 100),
+        fixedCost: String(Math.round(((numberValue(row.fixedCost) || (entry.fixedCost ?? 0)) * 7) * 100) / 100),
+      };
+    }),
+  };
+}
+
+function mixChartRows(mix, kind) {
+  const entries = kind === 'source' ? (mix?.sbo ?? []) : (mix?.segment ?? []);
+  return entries
+    .map((row) => ({ name: row.name, value: numberValue(row.revenue) }))
+    .filter((row) => row.value > 0)
+    .sort((a, b) => b.value - a.value);
+}
+
+function MixDonutCard({ title, subtitle, mix, kind }) {
+  const rows = mixChartRows(mix, kind);
+  if (!rows.length) return null;
+  const total = rows.reduce((s, r) => s + r.value, 0);
+  return (
+    <SectionCard title={title} subtitle={subtitle} icon="hotel" tone="amber" defaultOpen>
+      <DonutChart data={rows} total={total} />
+    </SectionCard>
+  );
+}
+
+export default function PdfPreviewPage({ date, authToken, onSave, onClose, data = null, period = null }) {
   const initialWeekStart = weekStartContaining(date);
-  const [pdfKey, setPdfKey] = useState(0);
-  const [frameState, setFrameState] = useState('loading');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState('');
-  const [objectUrl, setObjectUrl] = useState('');
-  const [previewError, setPreviewError] = useState('');
   const [reportType, setReportType] = useState('daily');
   const [draftReportType, setDraftReportType] = useState('daily');
   const [weekStart, setWeekStart] = useState(initialWeekStart);
@@ -42,13 +79,15 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
     ?? draftWeekOptions[0]?.key
     ?? initialWeekStart;
   const activeWeekEnd = weekEndFromStart(weekStart);
-  const previewUrl = reportPdfPreviewUrl(date, authToken, [], reportType, reportType === 'weekly' ? weekStart : '');
   const downloadUrl = reportPdfUrl(date, authToken, [], reportType, reportType === 'weekly' ? weekStart : '');
-  const appPreviewUrl = objectUrl ? `${objectUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH` : '';
-  const previewStatus = frameState === 'ready' ? 'Ready' : frameState === 'error' ? 'Preview issue' : 'Loading';
   const headerDateLabel = reportType === 'weekly'
     ? `${formatShortDate(weekStart)} - ${formatShortDate(activeWeekEnd)}`
     : date;
+
+  const isWeekly = reportType === 'weekly';
+  const weeklyPnlData = useMemo(() => buildWeeklyPnlData(data, period), [data, period]);
+  const cpnMix = period?.occupancyMix?.['CP Nagpur'];
+  const cpNmMix = period?.occupancyMix?.['CP NM'];
 
   const changeDraftWeekMonth = (monthKey) => {
     setDraftWeekMonth(monthKey);
@@ -64,10 +103,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
   };
 
   const cancelSetup = () => {
-    if (!hasGenerated) {
-      onClose();
-      return;
-    }
+    if (!hasGenerated) { onClose(); return; }
     setShowSetup(false);
   };
 
@@ -76,71 +112,13 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
     if (draftReportType === 'weekly') setWeekStart(activeDraftWeekStart);
     setShowSetup(false);
     setHasGenerated(true);
-    setFrameState('loading');
-    setPdfKey((keyValue) => keyValue + 1);
   };
-
-  useEffect(() => {
-    if (!hasGenerated) return undefined;
-    let cancelled = false;
-    let nextObjectUrl = '';
-    const controller = new AbortController();
-
-    setFrameState('loading');
-    setPreviewError('');
-    setObjectUrl((current) => {
-      if (current) URL.revokeObjectURL(current);
-      return '';
-    });
-
-    const timer = setTimeout(() => {
-      controller.abort();
-      setFrameState((state) => state === 'loading' ? 'error' : state);
-      setPreviewError('The PDF request timed out.');
-    }, 20000);
-
-    fetch(previewUrl, { cache: 'no-store', signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) {
-          let detail = '';
-          try {
-            const body = await response.text();
-            const parsed = body ? JSON.parse(body) : null;
-            detail = parsed?.error || body || '';
-          } catch { /* ignore */ }
-          throw new Error(`PDF request failed (${response.status})${detail ? `: ${detail.slice(0, 200)}` : ''}`);
-        }
-        const contentType = response.headers.get('content-type') ?? '';
-        if (!contentType.includes('application/pdf')) throw new Error('The server did not return a PDF.');
-        return response.blob();
-      })
-      .then((blob) => {
-        if (cancelled) return;
-        nextObjectUrl = URL.createObjectURL(blob);
-        setObjectUrl(nextObjectUrl);
-      })
-      .catch((err) => {
-        if (cancelled || err.name === 'AbortError') return;
-        setPreviewError(err.message);
-        setFrameState('error');
-      })
-      .finally(() => clearTimeout(timer));
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-      clearTimeout(timer);
-      if (nextObjectUrl) URL.revokeObjectURL(nextObjectUrl);
-    };
-  }, [pdfKey, previewUrl, hasGenerated]);
 
   const handleSaveAndRefresh = async () => {
     setSaving(true);
     setSaveError('');
     try {
       await onSave();
-      setFrameState('loading');
-      setPdfKey((key) => key + 1);
       setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
     } catch (err) {
       setSaveError(err.message);
@@ -151,28 +129,15 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-surface text-on-surface">
-      <header className="flex shrink-0 flex-col gap-3 border-b border-outline-variant/70 bg-surface-container-lowest px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between md:px-6">
+      <header className="print:hidden flex shrink-0 flex-col gap-3 border-b border-outline-variant/70 bg-surface-container-lowest px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between md:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary shadow-primary">
             <MIcon name="picture_as_pdf" filled />
           </div>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-base font-extrabold tracking-normal text-on-surface md:text-lg">Dashboard PDF Preview</h1>
-              {hasGenerated ? (
-                <span className={`rounded-md border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.05em] ${
-                  frameState === 'ready'
-                    ? 'border-primary/20 bg-primary/10 text-primary'
-                    : frameState === 'error'
-                      ? 'border-error/20 bg-error-container/45 text-error'
-                      : 'border-tertiary/25 bg-tertiary-container/70 text-on-tertiary-container'
-                }`}>
-                  {previewStatus}
-                </span>
-              ) : null}
-            </div>
+            <h1 className="truncate text-base font-extrabold tracking-normal text-on-surface md:text-lg">Dashboard PDF Preview</h1>
             <p className="mt-0.5 truncate text-xs text-on-surface-variant">
-              {reportType === 'weekly' ? 'Weekly dashboard report' : 'Daily dashboard report'} / {headerDateLabel}
+              {isWeekly ? 'Weekly dashboard report' : 'Daily dashboard report'} / {headerDateLabel}
               {lastRefreshed ? ` / refreshed ${lastRefreshed}` : ''}
             </p>
           </div>
@@ -190,13 +155,13 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
                 {saving ? <BrandLoader size={18} /> : <MIcon name="sync" className="text-[17px]" />}
                 {saving ? 'Saving...' : 'Save & Refresh'}
               </ActionButton>
-              <ActionButton onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}>
-                <MIcon name="open_in_new" className="text-[17px]" />
-                Open
+              <ActionButton onClick={() => window.print()}>
+                <MIcon name="print" className="text-[17px]" />
+                Print
               </ActionButton>
               <ActionButton onClick={() => { window.location.href = downloadUrl; }}>
                 <MIcon name="download" className="text-[17px]" />
-                Download
+                Download PDF
               </ActionButton>
             </>
           ) : null}
@@ -211,49 +176,64 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 bg-surface-container p-3 md:p-5">
+      <main className="min-h-0 flex-1 overflow-y-auto bg-surface-container p-3 md:p-5">
         {hasGenerated ? (
-          <div className="relative h-full min-h-0 overflow-hidden rounded-xl border border-outline-variant/70 bg-surface-container-lowest shadow-card">
-            {frameState === 'loading' ? (
-              <div className="absolute inset-0 z-10 grid place-items-center bg-surface-container-lowest">
-                <BrandLoader size={72} label="Preparing dashboard PDF..." />
-              </div>
-            ) : null}
-
-            {frameState === 'error' ? (
-              <div className="absolute inset-0 z-10 grid place-items-center bg-surface-container-lowest p-6 text-center">
-                <div className="max-w-md">
-                  <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-error-container/45 text-error">
-                    <MIcon name="picture_as_pdf" className="text-[30px]" />
-                  </div>
-                  <h2 className="mt-4 text-lg font-extrabold text-on-surface">In-app preview did not load</h2>
-                  <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                    {previewError || 'The report can still be opened or downloaded.'}
-                  </p>
-                  <div className="mt-5 flex flex-wrap justify-center gap-2">
-                    <ActionButton onClick={() => { setFrameState('loading'); setPdfKey((key) => key + 1); }} variant="primary">Try Again</ActionButton>
-                    <ActionButton onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}>Open in Tab</ActionButton>
-                    <ActionButton onClick={() => { window.location.href = downloadUrl; }}>Download PDF</ActionButton>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <iframe
-              key={`${date}-${pdfKey}`}
-              src={appPreviewUrl}
-              title={`${reportType === 'weekly' ? 'Weekly' : 'Daily'} Dashboard PDF`}
-              className="h-full w-full bg-surface-container-lowest"
-              onLoad={() => setFrameState('ready')}
-              onError={() => setFrameState('error')}
-              hidden={!appPreviewUrl}
+          <div className="mx-auto max-w-4xl space-y-5">
+            <RevenueShareDonut
+              data={isWeekly ? weeklyPnlData : data}
+              title="Unit-wise Revenue Share"
+              subtitle={isWeekly
+                ? `P&L revenue contribution by unit - week to date (${formatShortDate(weekStart)} - ${formatShortDate(activeWeekEnd)})`
+                : `P&L revenue contribution by unit - ${date}`
+              }
             />
+            <FnbOutletSalesChart
+              data={data}
+              period={isWeekly ? period : null}
+              mode={isWeekly ? 'week' : 'today'}
+            />
+            {isWeekly && (cpnMix || cpNmMix) ? (
+              <div className="grid gap-5 xl:grid-cols-2">
+                {cpnMix ? (
+                  <>
+                    <MixDonutCard
+                      title="CP Nagpur: Source of Business"
+                      subtitle="Week-to-date room source mix"
+                      mix={cpnMix}
+                      kind="source"
+                    />
+                    <MixDonutCard
+                      title="CP Nagpur: Market Segment"
+                      subtitle="Week-to-date room segment mix"
+                      mix={cpnMix}
+                      kind="segment"
+                    />
+                  </>
+                ) : null}
+                {cpNmMix ? (
+                  <>
+                    <MixDonutCard
+                      title="CP NM: Source of Business"
+                      subtitle="Week-to-date room source mix"
+                      mix={cpNmMix}
+                      kind="source"
+                    />
+                    <MixDonutCard
+                      title="CP NM: Market Segment"
+                      subtitle="Week-to-date room segment mix"
+                      mix={cpNmMix}
+                      kind="segment"
+                    />
+                  </>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="grid h-full min-h-0 place-items-center">
             <div className="max-w-md text-center text-on-surface-variant">
               <MIcon name="picture_as_pdf" className="text-[42px] text-primary" filled />
-              <p className="mt-2 text-sm">Choose Daily or Weekly. The PDF will include the full dashboard for that view.</p>
+              <p className="mt-2 text-sm">Choose Daily or Weekly. The preview will include charts for that view.</p>
             </div>
           </div>
         )}
@@ -268,7 +248,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
                   <MIcon name="picture_as_pdf" />
                 </div>
                 <div>
-                  <h2 className="text-base font-extrabold text-on-surface">Generate Dashboard PDF</h2>
+                  <h2 className="text-base font-extrabold text-on-surface">Generate Dashboard Preview</h2>
                   <p className="text-xs text-on-surface-variant">Daily and Weekly match the dashboard tabs.</p>
                 </div>
               </div>
@@ -276,7 +256,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
                 type="button"
                 onClick={cancelSetup}
                 className="flex size-9 items-center justify-center rounded-lg border border-outline-variant/70 bg-surface-container-lowest text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
-                aria-label="Cancel PDF setup"
+                aria-label="Cancel setup"
               >
                 <MIcon name="close" />
               </button>
@@ -337,7 +317,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose }) {
             <div className="flex items-center justify-end gap-2 border-t border-outline-variant/60 bg-surface-container-low px-5 py-3">
               <ActionButton onClick={cancelSetup}>{hasGenerated ? 'Cancel' : 'Close'}</ActionButton>
               <ActionButton onClick={generatePreview} variant="primary">
-                <MIcon name="picture_as_pdf" className="text-[17px]" />
+                <MIcon name="bar_chart" className="text-[17px]" />
                 {hasGenerated ? 'Update Preview' : 'Generate Preview'}
               </ActionButton>
             </div>
