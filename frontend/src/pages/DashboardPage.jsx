@@ -81,6 +81,7 @@ export default function DashboardPage({ data, date, authToken }) {
   const [weekPeriod, setWeekPeriod] = useState(null);
   const [aopTargets, setAopTargets] = useState({ weekly: {} });
   const [weekLoading, setWeekLoading] = useState(false);
+  const [weekError, setWeekError] = useState('');
   const roomRevenueRows = (data?.hotels ?? []).filter(
     (row) => row.unit === 'CP Nagpur' && row.section === 'Room Revenue & Occupancy'
   );
@@ -121,18 +122,24 @@ export default function DashboardPage({ data, date, authToken }) {
     if (!authToken || viewMode !== 'week') return undefined;
     let cancelled = false;
     setWeekLoading(true);
-    Promise.all([
+    setWeekError('');
+    Promise.allSettled([
       getPnlPeriod(date, authToken),
       getAopTargets(authToken)
     ])
-      .then(([periodPayload, targetsPayload]) => {
+      .then(([periodResult, targetsResult]) => {
         if (cancelled) return;
-        setWeekPeriod(periodPayload);
-        setAopTargets(targetsPayload ?? { weekly: {} });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setWeekPeriod(null);
+        if (periodResult.status === 'fulfilled') {
+          setWeekPeriod(periodResult.value);
+        } else {
+          setWeekPeriod(null);
+          setWeekError(periodResult.reason?.message ?? 'Unable to load week-to-date data');
+        }
+        if (targetsResult.status === 'fulfilled') {
+          setAopTargets(targetsResult.value ?? { weekly: {} });
+        } else {
+          setAopTargets({ weekly: {} });
+        }
       })
       .finally(() => {
         if (!cancelled) setWeekLoading(false);
@@ -340,6 +347,21 @@ export default function DashboardPage({ data, date, authToken }) {
         </section>
       ) : (
         <section className="space-y-5">
+          {weekError ? (
+            <div className="glass-card border border-error/20 bg-error/10 px-5 py-4 text-sm font-semibold text-error">
+              {weekError}
+            </div>
+          ) : null}
+          {weekLoading && !weekPeriod ? (
+            <div className="glass-card px-5 py-4 text-sm font-semibold text-on-surface-variant">
+              Loading week-to-date data...
+            </div>
+          ) : null}
+          {!weekLoading && weekPeriod && !(weekPeriod.weekDates?.length) ? (
+            <div className="glass-card border border-tertiary/25 bg-tertiary-container/45 px-5 py-4 text-sm font-semibold text-on-tertiary-container">
+              No saved reports found for this week up to {date}.
+            </div>
+          ) : null}
           <SectionCard
             title="Unit-wise Estimated P&L"
             subtitle={weekPeriod ? `Week to date: ${weekPeriod.weekStart} - ${date} (${weekPeriod.weekDates?.length ?? 0} saved day${(weekPeriod.weekDates?.length ?? 0) === 1 ? '' : 's'})` : 'Loading week-to-date P&L...'}
