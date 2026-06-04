@@ -29,6 +29,10 @@ export function numberValue(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+export function aopTargetValue() {
+  return 0;
+}
+
 // Indian-style grouped number (e.g. 100700 → 1,00,700; 12345.6 → 12,345.60).
 // Returns the original value unchanged if it isn't a finite number.
 export function formatIndianNumber(value) {
@@ -104,11 +108,12 @@ export function flattenKpis(data) {
 
 export function withFlags(data) {
   return flattenKpis(data).map((kpi) => {
-    const flag = calcFlag(kpi.actual, kpi.target, kpi.direction);
+    const target = aopTargetValue(kpi);
+    const flag = calcFlag(kpi.actual, target, kpi.direction);
     return {
       unit: canonicalUnit(kpi.unit),
       kpiName: kpi.name,
-      aopTarget: kpi.target,
+      aopTarget: String(target),
       todayActual: kpi.actual,
       percentVsTarget: Math.round(flag.ratio),
       flag: flag.label

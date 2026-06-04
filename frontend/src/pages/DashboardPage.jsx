@@ -8,9 +8,10 @@ import RevenueShareDonut from '../components/RevenueShareDonut';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
 import { KpiTable, ReportValue, SECTION_ICONS } from '../components/DashboardUi';
-import { getAopTargets, getPnlPeriod } from '../lib/api';
+import { getPnlPeriod } from '../lib/api';
 import {
   calcFlag,
+  aopTargetValue,
   money,
   moneyCompact,
   numberValue,
@@ -35,27 +36,6 @@ function dateSuffix(iso) {
 
 function isCumulativeKpiName(name) {
   return /(mtd|ytd|month\s*to\s*date|year\s*to\s*date)/i.test(String(name ?? ''));
-}
-
-function inferKpiMode(name) {
-  const label = String(name ?? '').toLowerCase();
-  if (isCumulativeKpiName(label)) return 'latest';
-  if (
-    label.includes('%')
-    || label.includes('avg')
-    || label.includes('occupancy')
-    || label.includes('arr')
-    || label.includes('revpar')
-    || label.includes('aov')
-    || label.includes('apc')
-    || label.includes('rate')
-    || label.includes('turnover')
-    || label.includes('margin')
-    || label.includes('covers/day')
-  ) {
-    return 'avg';
-  }
-  return 'sum';
 }
 
 function fmtAggregate(value) {
@@ -213,7 +193,6 @@ function collectWeeklyFlagKpis(data) {
 export default function DashboardPage({ data, date, authToken, period }) {
   const [viewMode, setViewMode] = useState('day');
   const [weekPeriod, setWeekPeriod] = useState(null);
-  const [aopTargets, setAopTargets] = useState({ weekly: {} });
   const [weekLoading, setWeekLoading] = useState(false);
   const [weekError, setWeekError] = useState('');
   const roomRevenueRows = (data?.hotels ?? []).filter(
@@ -258,21 +237,15 @@ export default function DashboardPage({ data, date, authToken, period }) {
     setWeekLoading(true);
     setWeekError('');
     Promise.allSettled([
-      getPnlPeriod(date, authToken),
-      getAopTargets(authToken)
+      getPnlPeriod(date, authToken)
     ])
-      .then(([periodResult, targetsResult]) => {
+      .then(([periodResult]) => {
         if (cancelled) return;
         if (periodResult.status === 'fulfilled') {
           setWeekPeriod(periodResult.value);
         } else {
           setWeekPeriod(null);
           setWeekError(periodResult.reason?.message ?? 'Unable to load week-to-date data');
-        }
-        if (targetsResult.status === 'fulfilled') {
-          setAopTargets(targetsResult.value ?? { weekly: {} });
-        } else {
-          setAopTargets({ weekly: {} });
         }
       })
       .finally(() => {
@@ -285,20 +258,12 @@ export default function DashboardPage({ data, date, authToken, period }) {
 
   const buildWeeklyRows = useMemo(() => {
     const weeklyValues = activeWeekPeriod?.kpis?.week ?? {};
-    const weeklyModes = activeWeekPeriod?.kpiModes?.week ?? {};
-    const weeklyOverrides = aopTargets?.weekly ?? {};
     return (unit, section, names = null) => (data?.hotels ?? [])
       .filter((row) => row.unit === unit && row.section === section && (!names || names.includes(row.name)))
       .filter((row) => row?.id && !isCumulativeKpiName(row.name))
       .map((row) => {
         const actual = numberValue(weeklyValues[row.id]);
-        const mode = weeklyModes[row.id] ?? inferKpiMode(row.name);
-        const defaultTarget = numberValue(row.target);
-        const target = weeklyOverrides[row.id] !== undefined
-          ? numberValue(weeklyOverrides[row.id])
-          : mode === 'sum'
-            ? defaultTarget * 7
-            : defaultTarget;
+        const target = aopTargetValue(row);
         const flag = calcFlag(actual, target, row.direction);
         return {
           ...row,
@@ -308,24 +273,16 @@ export default function DashboardPage({ data, date, authToken, period }) {
           flag: flag.label
         };
       });
-  }, [activeWeekPeriod?.kpiModes?.week, activeWeekPeriod?.kpis?.week, aopTargets?.weekly, data?.hotels]);
+  }, [activeWeekPeriod?.kpis?.week, data?.hotels]);
 
   const buildWeeklyRowsFrom = useMemo(() => {
     const weeklyValues = activeWeekPeriod?.kpis?.week ?? {};
-    const weeklyModes = activeWeekPeriod?.kpiModes?.week ?? {};
-    const weeklyOverrides = aopTargets?.weekly ?? {};
     return (rows = [], section = null) => rows
       .filter((row) => (!section || row.section === section))
       .filter((row) => row?.id && !isCumulativeKpiName(row.name))
       .map((row) => {
         const actual = numberValue(weeklyValues[row.id]);
-        const mode = weeklyModes[row.id] ?? inferKpiMode(row.name);
-        const defaultTarget = numberValue(row.target);
-        const target = weeklyOverrides[row.id] !== undefined
-          ? numberValue(weeklyOverrides[row.id])
-          : mode === 'sum'
-            ? defaultTarget * 7
-            : defaultTarget;
+        const target = aopTargetValue(row);
         const flag = calcFlag(actual, target, row.direction);
         return {
           ...row,
@@ -335,7 +292,7 @@ export default function DashboardPage({ data, date, authToken, period }) {
           flag: flag.label
         };
       });
-  }, [activeWeekPeriod?.kpiModes?.week, activeWeekPeriod?.kpis?.week, aopTargets?.weekly]);
+  }, [activeWeekPeriod?.kpis?.week]);
 
   const weekCpnRoomRows = buildWeeklyRows('CP Nagpur', 'Room Revenue & Occupancy');
   const weekCpnFnbRows = buildWeeklyRows('CP Nagpur', 'F&B Outlets');
@@ -355,19 +312,11 @@ export default function DashboardPage({ data, date, authToken, period }) {
   }, { revenue: 0, purchases: 0, gp: 0, fixed: 0, net: 0 });
   const weeklyFlags = useMemo(() => {
     const weeklyValues = activeWeekPeriod?.kpis?.week ?? {};
-    const weeklyModes = activeWeekPeriod?.kpiModes?.week ?? {};
-    const weeklyOverrides = aopTargets?.weekly ?? {};
     return collectWeeklyFlagKpis(data)
       .filter((row) => row?.id && !isCumulativeKpiName(row.name) && weeklyValues[row.id] !== undefined)
       .map((row) => {
         const actual = numberValue(weeklyValues[row.id]);
-        const mode = weeklyModes[row.id] ?? inferKpiMode(row.name);
-        const defaultTarget = numberValue(row.target);
-        const target = weeklyOverrides[row.id] !== undefined
-          ? numberValue(weeklyOverrides[row.id])
-          : mode === 'sum'
-            ? defaultTarget * 7
-            : defaultTarget;
+        const target = aopTargetValue(row);
         const flag = calcFlag(actual, target, row.direction);
         return {
           unit: row.unit,
@@ -378,7 +327,7 @@ export default function DashboardPage({ data, date, authToken, period }) {
           flag: flag.label
         };
       });
-  }, [activeWeekPeriod?.kpiModes?.week, activeWeekPeriod?.kpis?.week, aopTargets?.weekly, data]);
+  }, [activeWeekPeriod?.kpis?.week, data]);
   const weeklyRiskFlags = weeklyFlags.filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED');
   const weeklyFlagCounts = {
     on: weeklyFlags.filter((row) => row.flag === 'ON TRACK' || row.flag === 'OUTPERFORM').length,
@@ -650,7 +599,7 @@ export default function DashboardPage({ data, date, authToken, period }) {
               }
             ]} />
             <DataTable
-              columns={['Unit', 'KPI Name', 'Weekly AOP Target', 'Week Actual', '% vs Target', 'Flag']}
+              columns={['Unit', 'KPI Name', 'Weekly AOP Target', 'Week Actual', '% vs Target', 'Flag', 'Action Required']}
               numericFrom={2}
               rows={weeklyRiskFlags.map((row) => ({
                 key: `${row.unit}-${row.kpiName}`,
@@ -660,7 +609,8 @@ export default function DashboardPage({ data, date, authToken, period }) {
                   <span className="num">{row.aopTarget}</span>,
                   <span className="num">{row.weekActual}</span>,
                   <span className={`num font-semibold ${row.percentVsTarget >= 95 ? 'text-emerald-700' : row.percentVsTarget >= 85 ? 'text-amber-700' : 'text-rose-700'}`}>{row.percentVsTarget}%</span>,
-                  <FlagBadge label={row.flag} />
+                  <FlagBadge label={row.flag} />,
+                  <span className="block h-10 min-w-[220px] rounded-md border border-dashed border-outline-variant/80 bg-surface-container-lowest" aria-label="Blank action required field" />
                 ]
               }))}
             />
