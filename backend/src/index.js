@@ -916,7 +916,8 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     listDailyDates(monthPrefix),
     listDailyDates(yearPrefix)
   ]);
-  const weekDates = await listDailyDatesInRange(weekRange.start, weekRange.end);
+  const weekDates = (await listDailyDatesInRange(weekRange.start, weekRange.end))
+    .filter((dailyDate) => dailyDate <= date);
   const mtdDates = monthDates.filter((dailyDate) => dailyDate <= date);
   const ytdDates = yearDates.filter((dailyDate) => dailyDate <= date);
 
@@ -938,7 +939,8 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     week: weekAgg.pnl,
     mtd: mtdAgg.pnl,
     ytd: ytdAgg.pnl,
-    kpis: { week: weekAgg.kpis, mtd: mtdAgg.kpis, ytd: ytdAgg.kpis }
+    kpis: { week: weekAgg.kpis, mtd: mtdAgg.kpis, ytd: ytdAgg.kpis },
+    kpiModes: { week: weekAgg.kpiModes, mtd: mtdAgg.kpiModes, ytd: ytdAgg.kpiModes }
   };
   pnlPeriodCache.set(date, payload);
   res.json(payload);

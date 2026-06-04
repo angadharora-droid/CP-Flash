@@ -47,7 +47,11 @@ function RevenueTooltip({ active, payload, total }) {
   );
 }
 
-export default function RevenueShareDonut({ data }) {
+export default function RevenueShareDonut({
+  data,
+  title = 'Unit-wise Revenue Share',
+  subtitle = 'P&L revenue contribution by unit - today'
+}) {
   const [active, setActive] = useState(-1);
   const rows = pnlRows(data ?? {});
   const revenueShare = rows
@@ -61,9 +65,9 @@ export default function RevenueShareDonut({ data }) {
       <div className="flex items-start gap-3 border-b border-outline-variant/40 px-4 py-3.5">
         <span className="mt-0.5 min-h-8 w-[3px] shrink-0 self-stretch rounded-full bg-[#08786c]" />
         <div className="min-w-0">
-          <h3 className="text-[13px] font-bold text-on-surface">Unit-wise Revenue Share</h3>
+          <h3 className="text-[13px] font-bold text-on-surface">{title}</h3>
           <p className="mt-0.5 text-[11px] font-medium text-on-surface-variant/70">
-            P&L revenue contribution by unit - today
+            {subtitle}
           </p>
         </div>
       </div>
