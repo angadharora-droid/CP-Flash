@@ -94,7 +94,6 @@ export default function DashboardPage({ data }) {
           </div>
           <BankPositionTable rows={data?.bankPosition ?? []} />
           <RevenueShareDonut data={data} />
-          <FnbOutletSalesChart data={data} />
           <SectionCard
             title="CP Nagpur: Room Revenue & Occupancy"
             subtitle={`${roomRevenueRows.length} KPI${roomRevenueRows.length === 1 ? '' : 's'}`}
@@ -160,6 +159,7 @@ export default function DashboardPage({ data }) {
           >
             <KpiTable rows={cpNmForecastRows} />
           </SectionCard>
+          <FnbOutletSalesChart data={data} />
           <SectionCard
             title="Micky's: Leads Pipeline"
             subtitle={`${mickysLeadRows.length} KPI${mickysLeadRows.length === 1 ? '' : 's'}`}
