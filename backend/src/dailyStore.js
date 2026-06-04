@@ -32,19 +32,29 @@ export async function writeDailyJson(date, payload) {
 
 let _mongoClient = null;
 let _mongoDb = null;
+let _mongoFailed = false;
+let _mongoConnecting = null;
 async function getMongoDb() {
   if (!process.env.MONGODB_URI) return null;
   if (_mongoDb) return _mongoDb;
-  try {
-    _mongoClient = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
-    await _mongoClient.connect();
-    _mongoDb = _mongoClient.db('dailyflash');
-    return _mongoDb;
-  } catch (err) {
-    console.error('[dailyStore] MongoDB connection failed, using JSON files:', err.message);
-    _mongoClient = null;
-    return null;
-  }
+  if (_mongoFailed) return null;
+  if (_mongoConnecting) return _mongoConnecting;
+  _mongoConnecting = (async () => {
+    try {
+      _mongoClient = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
+      await _mongoClient.connect();
+      _mongoDb = _mongoClient.db('dailyflash');
+      return _mongoDb;
+    } catch (err) {
+      console.error('[dailyStore] MongoDB connection failed, using JSON files:', err.message);
+      _mongoClient = null;
+      _mongoFailed = true;
+      return null;
+    } finally {
+      _mongoConnecting = null;
+    }
+  })();
+  return _mongoConnecting;
 }
 
 // Short-lived scripts (CLI importers, the email-fetch task) must call this before

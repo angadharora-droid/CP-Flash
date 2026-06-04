@@ -55,19 +55,32 @@ let emailImportJob = {
 };
 
 // MongoDB — used when MONGODB_URI is set; falls back to local JSON files otherwise.
+// _mongoConnecting deduplicates concurrent connection attempts so only one
+// MongoClient is ever created. _mongoFailed caches permanent failure so
+// subsequent calls return null immediately without re-attempting.
 let _mongoDb = null;
+let _mongoFailed = false;
+let _mongoConnecting = null;
 async function getDb() {
   if (!process.env.MONGODB_URI) return null;
   if (_mongoDb) return _mongoDb;
-  try {
-    const client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
-    await client.connect();
-    _mongoDb = client.db('dailyflash');
-    return _mongoDb;
-  } catch (err) {
-    console.error('MongoDB connection failed, falling back to JSON files:', err.message);
-    return null;
-  }
+  if (_mongoFailed) return null;
+  if (_mongoConnecting) return _mongoConnecting;
+  _mongoConnecting = (async () => {
+    try {
+      const client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
+      await client.connect();
+      _mongoDb = client.db('dailyflash');
+      return _mongoDb;
+    } catch (err) {
+      console.error('MongoDB connection failed, falling back to JSON files:', err.message);
+      _mongoFailed = true;
+      return null;
+    } finally {
+      _mongoConnecting = null;
+    }
+  })();
+  return _mongoConnecting;
 }
 
 // Wrap async route handlers so Express 4 catches thrown errors.
@@ -386,6 +399,15 @@ function invalidateAopTargetsCache() {
   cachedAopTargets = null;
 }
 
+const pnlPeriodCache = new Map();
+function invalidatePnlPeriodCache(date) {
+  for (const key of pnlPeriodCache.keys()) {
+    if (!date || key === date || key.startsWith(date.slice(0, 7)) || key.startsWith(date.slice(0, 4))) {
+      pnlPeriodCache.delete(key);
+    }
+  }
+}
+
 async function readDailyData(date = dateKey()) {
   const db = await getDb();
   if (db) {
@@ -499,8 +521,8 @@ async function aggregatePeriodForDates(dates) {
   const kpiModes = Object.create(null);
 
   const sortedDates = [...dates].sort();
-  for (const date of sortedDates) {
-    const raw = await readDailyData(date);
+  const rawByDate = await Promise.all(sortedDates.map((date) => readDailyData(date).then((raw) => [date, raw])));
+  for (const [date, raw] of rawByDate) {
     if (!raw) continue;
     const merged = mergeDailyData(seedTemplate, raw);
 
@@ -785,6 +807,7 @@ for (const route of ['bank-position', 'pnl', 'hotels', 'fnb', 'rabbits', 'mickys
 app.post('/api/data', wrap(async (req, res) => {
   const date = req.body.date || dateKey();
   await writeDailyData(date, req.body.data ?? req.body);
+  invalidatePnlPeriodCache(date);
   res.json({ ok: true, date });
 }));
 
@@ -816,6 +839,12 @@ app.get('/api/source-status', wrap(async (req, res) => {
 
 app.get('/api/pnl-period', wrap(async (req, res) => {
   const date = String(req.query.date || dateKey());
+
+  if (pnlPeriodCache.has(date)) {
+    res.json(pnlPeriodCache.get(date));
+    return;
+  }
+
   const monthPrefix = date.slice(0, 7);
   const yearPrefix = date.slice(0, 4);
   const weekRange = weekRangeForDate(date);
@@ -834,7 +863,7 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     aggregateYtdFromMonthlyMtd(ytdDates)
   ]);
 
-  res.json({
+  const payload = {
     date,
     monthPrefix,
     yearPrefix,
@@ -847,7 +876,9 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     mtd: mtdAgg.pnl,
     ytd: ytdAgg.pnl,
     kpis: { week: weekAgg.kpis, mtd: mtdAgg.kpis, ytd: ytdAgg.kpis }
-  });
+  };
+  pnlPeriodCache.set(date, payload);
+  res.json(payload);
 }));
 
 app.get('/api/email-import', (_req, res) => {
@@ -999,6 +1030,8 @@ app.use((err, req, res, _next) => {
 
 app.listen(port, () => {
   console.log(`CP Flash Report API running on http://localhost:${port}`);
+  // Pre-warm the seed cache so the first real request doesn't pay the Excel parse cost.
+  setImmediate(() => { try { buildSeedData(); } catch { /* non-fatal */ } });
 
   // Keep Render free tier alive — ping self every 14 minutes.
   const selfUrl = process.env.CLOUD_API_URL;
