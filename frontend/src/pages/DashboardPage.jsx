@@ -6,9 +6,10 @@ import FlagBadge from '../components/FlagBadge';
 import { DonutChart } from '../components/DashboardCharts';
 import RevenueShareDonut from '../components/RevenueShareDonut';
 import SectionCard from '../components/SectionCard';
+import StatStrip from '../components/StatStrip';
 import { KpiTable, ReportValue, SECTION_ICONS } from '../components/DashboardUi';
 import { getAopTargets, getPnlPeriod } from '../lib/api';
-import { calcFlag, numberValue } from '../lib/calculations';
+import { calcFlag, money, numberValue, percent, pnlRows } from '../lib/calculations';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -51,6 +52,8 @@ function fmtAggregate(value) {
   const rounded = Math.round(numberValue(value) * 100) / 100;
   return String(rounded);
 }
+
+const EMPTY_WEEK_ENTRY = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0, fixedCost: 0 };
 
 function sourceBusinessNames() {
   return ['OTA (MMT/Booking.com)', 'Walk-ins', 'Group Bookings', 'Cancellations/No-shows'];
@@ -100,6 +103,33 @@ function WeeklyMixPie({ title, subtitle, rows }) {
       )}
     </SectionCard>
   );
+}
+
+function buildWeeklyPnlData(data, period) {
+  return {
+    ...(data ?? {}),
+    pnl: (data?.pnl ?? []).map((row) => {
+      const entry = period?.week?.[row.unit] ?? EMPTY_WEEK_ENTRY;
+      const fixed = numberValue(row.fixedCost || entry.fixedCost) * 7;
+      return {
+        ...row,
+        revenueToday: fmtAggregate(entry.revenue),
+        purchasesToday: fmtAggregate(entry.purchases),
+        fixedCost: fmtAggregate(fixed)
+      };
+    })
+  };
+}
+
+function collectWeeklyFlagKpis(data) {
+  return [
+    ...(data?.hotels ?? []),
+    ...(data?.fnb?.Pablo ?? []),
+    ...(data?.fnb?.Dali ?? []),
+    ...(data?.rabbits ?? []),
+    ...(data?.mickys ?? []),
+    ...(data?.purosoul ?? [])
+  ];
 }
 
 export default function DashboardPage({ data, date, authToken }) {
@@ -208,6 +238,48 @@ export default function DashboardPage({ data, date, authToken }) {
   const weekCpNmRoomRows = buildWeeklyRows('CP NM', 'Room Revenue & Occupancy');
   const weekCpNmSourceRows = buildWeeklyRows('CP NM', 'Market Segments', sourceBusinessNames());
   const weekCpNmMarketRows = buildWeeklyRows('CP NM', 'Market Segments', marketSegmentNames());
+  const weeklyPnlData = useMemo(() => buildWeeklyPnlData(data, weekPeriod), [data, weekPeriod]);
+  const weeklyPnlRows = useMemo(() => pnlRows(weeklyPnlData), [weeklyPnlData]);
+  const weeklyPnlTotals = weeklyPnlRows.reduce((acc, row) => {
+    acc.revenue += numberValue(row.revenueToday);
+    acc.purchases += row.tracksCogs ? numberValue(row.purchasesToday) : 0;
+    acc.gp += row.tracksCogs ? row.grossProfit : 0;
+    acc.fixed += row.hasFixedCost ? numberValue(row.fixedCost) : 0;
+    acc.net += row.estNetProfit;
+    return acc;
+  }, { revenue: 0, purchases: 0, gp: 0, fixed: 0, net: 0 });
+  const weeklyFlags = useMemo(() => {
+    const weeklyValues = weekPeriod?.kpis?.week ?? {};
+    const weeklyModes = weekPeriod?.kpiModes?.week ?? {};
+    const weeklyOverrides = aopTargets?.weekly ?? {};
+    return collectWeeklyFlagKpis(data)
+      .filter((row) => row?.id && !isCumulativeKpiName(row.name) && weeklyValues[row.id] !== undefined)
+      .map((row) => {
+        const actual = numberValue(weeklyValues[row.id]);
+        const mode = weeklyModes[row.id] ?? inferKpiMode(row.name);
+        const defaultTarget = numberValue(row.target);
+        const target = weeklyOverrides[row.id] !== undefined
+          ? numberValue(weeklyOverrides[row.id])
+          : mode === 'sum'
+            ? defaultTarget * 7
+            : defaultTarget;
+        const flag = calcFlag(actual, target, row.direction);
+        return {
+          unit: row.unit,
+          kpiName: row.name,
+          aopTarget: fmtAggregate(target),
+          weekActual: fmtAggregate(actual),
+          percentVsTarget: Math.round(flag.ratio),
+          flag: flag.label
+        };
+      });
+  }, [aopTargets?.weekly, data, weekPeriod?.kpiModes?.week, weekPeriod?.kpis?.week]);
+  const weeklyRiskFlags = weeklyFlags.filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED');
+  const weeklyFlagCounts = {
+    on: weeklyFlags.filter((row) => row.flag === 'ON TRACK' || row.flag === 'OUTPERFORM').length,
+    watch: weeklyFlags.filter((row) => row.flag === 'WATCH').length,
+    action: weeklyFlags.filter((row) => row.flag === 'ACTION NEEDED').length
+  };
 
   return (
     <div className="space-y-5">
@@ -380,6 +452,106 @@ export default function DashboardPage({ data, date, authToken }) {
               No saved reports found for this week up to {date}.
             </div>
           ) : null}
+          <SectionCard
+            title="Unit-wise Estimated P&L"
+            subtitle={weekPeriod ? `Week to date: ${weekPeriod.weekStart} - ${date} (${weekPeriod.weekDates?.length ?? 0} saved day${(weekPeriod.weekDates?.length ?? 0) === 1 ? '' : 's'})` : 'Loading week-to-date P&L...'}
+            icon={SECTION_ICONS.kpi}
+            tone="teal"
+            defaultOpen
+          >
+            <DataTable
+              columns={['Unit', 'Revenue WTD', 'Purchases WTD', 'Gross Profit', 'GP%', 'Fixed Cost (Week)', 'Est. Net Profit', 'Net Margin%', 'Days']}
+              numericFrom={1}
+              rows={weeklyPnlRows.map((row) => {
+                const entry = weekPeriod?.week?.[row.unit] ?? EMPTY_WEEK_ENTRY;
+                return {
+                  key: row.unit,
+                  cells: [
+                    <span className="font-semibold text-app-text">{row.unit}</span>,
+                    <ReportValue value={row.revenueToday} numeric />,
+                    row.tracksCogs ? <ReportValue value={row.purchasesToday} numeric /> : <span className="num text-on-surface-variant/35">-</span>,
+                    row.tracksCogs
+                      ? <span className="num font-medium text-app-text">{money(row.grossProfit)}</span>
+                      : <span className="num text-on-surface-variant/35">-</span>,
+                    row.tracksCogs
+                      ? <span className={`num font-semibold ${row.gpPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.gpPercent)}</span>
+                      : <span className="num text-on-surface-variant/35">-</span>,
+                    row.hasFixedCost ? <ReportValue value={row.fixedCost} numeric /> : <span className="num text-on-surface-variant/35">-</span>,
+                    <span className={`num font-semibold ${row.estNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(row.estNetProfit)}</span>,
+                    <span className={`num font-semibold ${row.netMargin >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.netMargin)}</span>,
+                    <span className="num text-app-text">{entry.days || 0}</span>
+                  ]
+                };
+              })}
+              footer={
+                <tr>
+                  <td className="px-4 py-3">GROUP TOTAL</td>
+                  <td className="num px-4 py-3 text-right">{money(weeklyPnlTotals.revenue)}</td>
+                  <td className="num px-4 py-3 text-right">{money(weeklyPnlTotals.purchases)}</td>
+                  <td className={`num px-4 py-3 text-right ${weeklyPnlTotals.gp >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(weeklyPnlTotals.gp)}</td>
+                  <td className="num px-4 py-3 text-right">{percent(weeklyPnlTotals.revenue ? (weeklyPnlTotals.gp / weeklyPnlTotals.revenue) * 100 : 0)}</td>
+                  <td className="num px-4 py-3 text-right">{money(weeklyPnlTotals.fixed)}</td>
+                  <td className={`num px-4 py-3 text-right ${weeklyPnlTotals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(weeklyPnlTotals.net)}</td>
+                  <td className={`num px-4 py-3 text-right ${weeklyPnlTotals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(weeklyPnlTotals.revenue ? (weeklyPnlTotals.net / weeklyPnlTotals.revenue) * 100 : 0)}</td>
+                  <td className="num px-4 py-3 text-right">-</td>
+                </tr>
+              }
+            />
+          </SectionCard>
+
+          <SectionCard
+            title="Watch Out Flag Summary"
+            subtitle={weekLoading ? 'Loading weekly target comparison...' : 'Weekly actuals compared with weekly AOP targets'}
+            icon={SECTION_ICONS.kpi}
+            tone="amber"
+            defaultOpen
+          >
+            <StatStrip items={[
+              {
+                label: 'On Track',
+                value: weeklyFlagCounts.on,
+                tone: 'text-emerald-700',
+                caption: 'Weekly KPIs tracking well',
+                icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              },
+              {
+                label: 'Watch',
+                value: weeklyFlagCounts.watch,
+                tone: 'text-amber-700',
+                caption: 'Weekly KPIs to monitor',
+                icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
+              },
+              {
+                label: 'Action Needed',
+                value: weeklyFlagCounts.action,
+                tone: 'text-rose-700',
+                caption: 'Weekly KPIs needing attention',
+                icon: <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              }
+            ]} />
+            <DataTable
+              columns={['Unit', 'KPI Name', 'Weekly AOP Target', 'Week Actual', '% vs Target', 'Flag']}
+              numericFrom={2}
+              rows={weeklyRiskFlags.map((row) => ({
+                key: `${row.unit}-${row.kpiName}`,
+                cells: [
+                  <span className="font-semibold text-app-text">{row.unit}</span>,
+                  <span className="text-app-text">{row.kpiName}</span>,
+                  <span className="num">{row.aopTarget}</span>,
+                  <span className="num">{row.weekActual}</span>,
+                  <span className={`num font-semibold ${row.percentVsTarget >= 95 ? 'text-emerald-700' : row.percentVsTarget >= 85 ? 'text-amber-700' : 'text-rose-700'}`}>{row.percentVsTarget}%</span>,
+                  <FlagBadge label={row.flag} />
+                ]
+              }))}
+            />
+          </SectionCard>
+
+          <RevenueShareDonut
+            data={weeklyPnlData}
+            title="Unit-wise Revenue Share"
+            subtitle={weekPeriod ? `P&L revenue contribution by unit - week to date (${weekPeriod.weekStart} - ${date})` : 'P&L revenue contribution by unit - week to date'}
+          />
+
           <SectionCard title="CP Nagpur: Room Revenue & Occupancy" subtitle="Week-to-date hotel KPIs" icon={SECTION_ICONS.hotel} tone="teal" defaultOpen>
             <WeeklyKpiTable rows={weekCpnRoomRows} />
           </SectionCard>
