@@ -26,7 +26,6 @@ export default function KpiRow({ kpi }) {
       <td className="px-1.5 py-2.5 sm:px-2 md:px-3"><Cell value={kpi.target} forceNumber={forceNumber} /></td>
       <td className="bg-primary/5 px-1.5 py-2.5 sm:px-2 md:px-3"><Cell value={kpi.actual} highlight forceNumber={forceNumber} /></td>
       <td className="px-1.5 py-2.5 sm:px-2 md:px-3"><Cell value={kpi.mtd} forceNumber={forceNumber} /></td>
-      <td className="px-1.5 py-2.5 sm:px-2 md:px-3"><Cell value={kpi.ytd} forceNumber={forceNumber} /></td>
       <td className="px-1.5 py-2.5 sm:px-2 md:px-3"><FlagBadge label={flag.label} /></td>
     </tr>
   );

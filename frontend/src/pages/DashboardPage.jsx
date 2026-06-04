@@ -541,7 +541,7 @@ export default function DashboardPage({ data, date, authToken, period }) {
             defaultOpen
           >
             <DataTable
-              columns={['SKU', 'Produced', 'Bill + Scheme Dispatched', 'Closing Stock', 'MTD Dispatched', 'YTD']}
+              columns={['SKU', 'Produced', 'Bill + Scheme Dispatched', 'Closing Stock', 'MTD Dispatched']}
               rows={purosoulSkuRows.map((row) => ({
                 key: row.sku,
                 cells: [
@@ -549,8 +549,7 @@ export default function DashboardPage({ data, date, authToken, period }) {
                   <ReportValue value={row.produced} />,
                   <ReportValue value={row.dispatched} />,
                   <ReportValue value={row.clStock} />,
-                  <ReportValue value={row.mtd} />,
-                  <ReportValue value={row.ytd} />
+                  <ReportValue value={row.mtd} />
                 ]
               }))}
             />
@@ -797,7 +796,7 @@ export default function DashboardPage({ data, date, authToken, period }) {
             defaultOpen
           >
             <DataTable
-              columns={['SKU', 'Produced', 'Bill + Scheme Dispatched', 'Closing Stock', 'MTD Dispatched', 'YTD']}
+              columns={['SKU', 'Produced', 'Bill + Scheme Dispatched', 'Closing Stock', 'MTD Dispatched']}
               rows={weekPurosoulSkuRows.map((row) => ({
                 key: row.sku,
                 cells: [
@@ -805,8 +804,7 @@ export default function DashboardPage({ data, date, authToken, period }) {
                   <ReportValue value={row.produced} />,
                   <ReportValue value={row.dispatched} />,
                   <ReportValue value={row.clStock} />,
-                  <ReportValue value={row.mtd} />,
-                  <ReportValue value={row.ytd} />
+                  <ReportValue value={row.mtd} />
                 ]
               }))}
             />
