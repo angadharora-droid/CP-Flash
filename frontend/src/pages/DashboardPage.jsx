@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import BankPositionTable from '../components/BankPositionTable';
+import RevenueShareDonut from '../components/RevenueShareDonut';
 
 export default function DashboardPage({ data }) {
   const [viewMode, setViewMode] = useState('day');
@@ -45,6 +46,7 @@ export default function DashboardPage({ data }) {
             </div>
           </div>
           <BankPositionTable rows={data?.bankPosition ?? []} />
+          <RevenueShareDonut data={data} />
         </section>
       ) : null}
     </div>
