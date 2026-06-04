@@ -400,6 +400,8 @@ function invalidateAopTargetsCache() {
 }
 
 const pnlPeriodCache = new Map();
+const dailyDataCache = new Map();
+const listDailyDatesCache = new Map();
 function invalidatePnlPeriodCache(date) {
   for (const key of pnlPeriodCache.keys()) {
     if (!date || key === date || key.startsWith(date.slice(0, 7)) || key.startsWith(date.slice(0, 4))) {
@@ -408,15 +410,55 @@ function invalidatePnlPeriodCache(date) {
   }
 }
 
+function decodeDailyDoc(doc) {
+  if (!doc) return null;
+  if (doc.payloadEnc) return decryptJson(doc.payloadEnc);
+  return doc.data ?? null;
+}
+
+function cacheDailyData(date, data) {
+  dailyDataCache.set(date, data ?? null);
+  return data ?? null;
+}
+
+function invalidateDailyCaches(date) {
+  if (date) dailyDataCache.delete(date);
+  else dailyDataCache.clear();
+  listDailyDatesCache.clear();
+}
+
 async function readDailyData(date = dateKey()) {
+  if (dailyDataCache.has(date)) return dailyDataCache.get(date);
   const db = await getDb();
   if (db) {
     const doc = await db.collection('reports').findOne({ date });
-    if (!doc) return null;
-    if (doc.payloadEnc) return decryptJson(doc.payloadEnc);
-    return doc.data ?? null;
+    return cacheDailyData(date, decodeDailyDoc(doc));
   }
-  return readDailyJson(date);
+  return cacheDailyData(date, await readDailyJson(date));
+}
+
+async function readDailyDataMany(dates) {
+  const uniqueDates = [...new Set(dates)].sort();
+  const missingDates = uniqueDates.filter((date) => !dailyDataCache.has(date));
+
+  if (missingDates.length) {
+    const db = await getDb();
+    if (db) {
+      const docs = await db.collection('reports')
+        .find({ date: { $in: missingDates } })
+        .toArray();
+      const docsByDate = new Map(docs.map((doc) => [doc.date, doc]));
+      for (const date of missingDates) {
+        cacheDailyData(date, decodeDailyDoc(docsByDate.get(date)));
+      }
+    } else {
+      await Promise.all(missingDates.map(async (date) => {
+        cacheDailyData(date, await readDailyJson(date));
+      }));
+    }
+  }
+
+  return uniqueDates.map((date) => [date, dailyDataCache.get(date) ?? null]);
 }
 
 async function writeDailyData(date, payload) {
@@ -428,28 +470,42 @@ async function writeDailyData(date, payload) {
       { $set: { date, payloadEnc: encryptJson(record) }, $unset: { data: '' } },
       { upsert: true }
     );
+    cacheDailyData(date, record);
+    invalidatePnlPeriodCache(date);
+    listDailyDatesCache.clear();
     return;
   }
   await writeDailyJson(date, payload);
+  cacheDailyData(date, record);
+  invalidatePnlPeriodCache(date);
+  listDailyDatesCache.clear();
 }
 
 async function listDailyDates(prefix) {
+  if (listDailyDatesCache.has(prefix)) return listDailyDatesCache.get(prefix);
   const db = await getDb();
   if (db) {
     const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const docs = await db.collection('reports')
       .find({ date: { $regex: `^${escaped}` } }, { projection: { date: 1 } })
       .toArray();
-    return docs.map((doc) => doc.date).filter(Boolean).sort();
+    const dates = docs.map((doc) => doc.date).filter(Boolean).sort();
+    listDailyDatesCache.set(prefix, dates);
+    return dates;
   }
   try {
     const entries = await fs.readdir(dataDir);
-    return entries
+    const dates = entries
       .filter((name) => name.endsWith('.json') && name.startsWith(prefix))
       .map((name) => name.slice(0, -5))
       .sort();
+    listDailyDatesCache.set(prefix, dates);
+    return dates;
   } catch (err) {
-    if (err.code === 'ENOENT') return [];
+    if (err.code === 'ENOENT') {
+      listDailyDatesCache.set(prefix, []);
+      return [];
+    }
     throw err;
   }
 }
@@ -521,7 +577,7 @@ async function aggregatePeriodForDates(dates) {
   const kpiModes = Object.create(null);
 
   const sortedDates = [...dates].sort();
-  const rawByDate = await Promise.all(sortedDates.map((date) => readDailyData(date).then((raw) => [date, raw])));
+  const rawByDate = await readDailyDataMany(sortedDates);
   for (const [date, raw] of rawByDate) {
     if (!raw) continue;
     const merged = mergeDailyData(seedTemplate, raw);

@@ -287,7 +287,7 @@ export default function App() {
     }
   }, [active]);
 
-  const loadData = React.useCallback(async (currentDate, token, silent = false) => {
+  const loadData = React.useCallback(async (currentDate, token, silent = false, options = {}) => {
     if (!token) return;
     const requestId = loadRequestRef.current + 1;
     loadRequestRef.current = requestId;
@@ -305,7 +305,7 @@ export default function App() {
       setStatus('Loading...');
     }
     try {
-      const { seed, saved } = await getSeed(currentDate, token);
+      const { seed, saved } = await getSeed(currentDate, token, { signal: options.signal });
       if (requestId !== loadRequestRef.current) return;
       const sameDateSnapshot = loadedDateRef.current === currentDate ? snapshot : null;
       setData(mergeWithSeed(seed, saved, sameDateSnapshot));
@@ -338,17 +338,20 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    loadData(date, authToken);
+    const controller = new AbortController();
+    loadData(date, authToken, false, { signal: controller.signal });
+    return () => controller.abort();
   }, [date, authToken]);
 
   useEffect(() => {
     if (!authToken || !date) return undefined;
+    const controller = new AbortController();
     let cancelled = false;
     setPeriod(null);
-    getPnlPeriod(date, authToken)
+    getPnlPeriod(date, authToken, { signal: controller.signal })
       .then((payload) => { if (!cancelled) setPeriod(payload); })
       .catch(() => { if (!cancelled) setPeriod(null); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, [date, authToken]);
 
   useEffect(() => {
