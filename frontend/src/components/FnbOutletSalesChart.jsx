@@ -1,6 +1,6 @@
 import React from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { fnbOutletSales } from './DashboardCharts';
+import { fnbOutletSales, fnbOutletSalesWeekly } from './DashboardCharts';
 import { moneyCompact } from '../lib/calculations';
 
 const PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a'];
@@ -25,8 +25,9 @@ function OutletTooltip({ active, payload, total }) {
   );
 }
 
-export default function FnbOutletSalesChart({ data }) {
-  const rows = fnbOutletSales(data ?? {})
+export default function FnbOutletSalesChart({ data, period = null, mode = 'today' }) {
+  const isWeek = mode === 'week';
+  const rows = (isWeek ? fnbOutletSalesWeekly(data ?? {}, period) : fnbOutletSales(data ?? {}))
     .filter((entry) => entry.value > 0)
     .sort((a, b) => b.value - a.value)
     .map((entry, index) => ({ ...entry, fill: PALETTE[index % PALETTE.length] }));
@@ -39,7 +40,7 @@ export default function FnbOutletSalesChart({ data }) {
         <div className="min-w-0">
           <h3 className="text-[13px] font-bold text-on-surface">F&B Outlet Sales</h3>
           <p className="mt-0.5 text-[11px] font-medium text-on-surface-variant/70">
-            Freakk - Pablo - Dali - Meeting Point - High Steaks - today
+            Freakk - Pablo - Dali - Meeting Point - High Steaks - {isWeek ? 'week to date' : 'today'}
           </p>
         </div>
       </div>
