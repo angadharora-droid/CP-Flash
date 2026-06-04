@@ -71,7 +71,7 @@ export default function AopTargetsPage({ authToken }) {
         if (cancelled) return;
         const daily = response.daily ?? {};
         const weekly = response.weekly ?? {};
-        setKpis(response.kpis ?? []);
+        setKpis((response.kpis ?? []).map((kpi) => ({ ...kpi, defaultTarget: 0 })));
         setDailyOverrides(daily);
         setWeeklyOverrides(weekly);
         setBaseline({ daily: { ...daily }, weekly: { ...weekly } });
