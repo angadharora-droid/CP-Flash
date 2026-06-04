@@ -204,7 +204,7 @@ function collectWeeklyFlagKpis(data) {
     ...(data?.hotels ?? []),
     ...(data?.fnb?.Pablo ?? []),
     ...(data?.fnb?.Dali ?? []),
-    ...(data?.rabbits ?? []),
+    ...(data?.rabbits ?? []).filter((row) => row.section !== 'Cost'),
     ...(data?.mickys ?? []),
     ...(data?.purosoul ?? [])
   ];
@@ -248,8 +248,8 @@ export default function DashboardPage({ data, date, authToken, period }) {
     }
   ];
   const options = [
-    { key: 'day', label: 'Day' },
-    { key: 'week', label: 'Week' }
+    { key: 'day', label: 'Daily' },
+    { key: 'week', label: 'Weekly' }
   ];
 
   useEffect(() => {
@@ -387,7 +387,7 @@ export default function DashboardPage({ data, date, authToken, period }) {
   };
   const pabloRows = data?.fnb?.Pablo ?? [];
   const daliRows = data?.fnb?.Dali ?? [];
-  const rabbitRows = data?.rabbits ?? [];
+  const rabbitRows = (data?.rabbits ?? []).filter((row) => row.section !== 'Cost');
   const mickysRows = data?.mickys ?? [];
   const purosoulRows = data?.purosoul ?? [];
   const pabloSections = [...new Set(pabloRows.map((row) => row.section))];
