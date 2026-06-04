@@ -28,19 +28,26 @@ async function readJson(res) {
 async function apiFetch(path, options = {}, fallbackMessage = 'Request failed') {
   const url = new URL(path, API_BASE);
   url.searchParams.set('_ts', Date.now().toString());
+  const { signal: externalSignal, ...fetchOptions } = options;
 
   let lastError;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let timer;
+    const abort = () => {
+      if (!controller.signal.aborted) controller.abort();
+    };
 
     try {
+      if (externalSignal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
+      externalSignal?.addEventListener('abort', abort, { once: true });
+      timer = setTimeout(abort, REQUEST_TIMEOUT_MS);
       const res = await fetch(url.toString(), {
-        ...options,
+        ...fetchOptions,
         signal: controller.signal,
         cache: 'no-store',
         headers: {
-          ...(options.headers ?? {})
+          ...(fetchOptions.headers ?? {})
         }
       });
       const json = await readJson(res);
@@ -55,6 +62,10 @@ async function apiFetch(path, options = {}, fallbackMessage = 'Request failed') 
       }
       return json;
     } catch (err) {
+      if (externalSignal?.aborted) {
+        lastError = err;
+        break;
+      }
       lastError = err.name === 'AbortError'
         ? new Error(`${fallbackMessage}: request timed out`)
         : err;
@@ -65,6 +76,7 @@ async function apiFetch(path, options = {}, fallbackMessage = 'Request failed') 
       break;
     } finally {
       clearTimeout(timer);
+      externalSignal?.removeEventListener('abort', abort);
     }
   }
 
@@ -80,9 +92,10 @@ export async function loginWithPin(pin) {
   return json.token;
 }
 
-export async function getSeed(date, token) {
+export async function getSeed(date, token, options = {}) {
   return apiFetch(`/api/seed?date=${encodeURIComponent(date)}`, {
-    headers: authHeaders(token)
+    ...options,
+    headers: { ...authHeaders(token), ...(options.headers ?? {}) }
   }, 'Unable to load seed data');
 }
 
@@ -100,9 +113,10 @@ export async function getSourceStatus(date, token) {
   }, 'Unable to load source status');
 }
 
-export async function getPnlPeriod(date, token) {
+export async function getPnlPeriod(date, token, options = {}) {
   return apiFetch(`/api/pnl-period?date=${encodeURIComponent(date)}`, {
-    headers: authHeaders(token)
+    ...options,
+    headers: { ...authHeaders(token), ...(options.headers ?? {}) }
   }, 'Unable to load MTD/YTD totals');
 }
 
