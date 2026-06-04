@@ -1,6 +1,5 @@
 import PDFDocument from 'pdfkit';
 import { UNITS, settlementModes, UNITS_WITHOUT_FIXED_COST } from './schema.js';
-import { collectFlags } from './flags.js';
 
 const SHEET_URLS = {
   bankPosition: 'https://docs.google.com/spreadsheets/d/1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf/',
@@ -8,8 +7,6 @@ const SHEET_URLS = {
   daliCost: 'https://docs.google.com/spreadsheets/d/1cgU6utD59v57HwlunQtSBCsVfpiMwX7F/',
   mickysLeads: 'https://docs.google.com/spreadsheets/d/1jvnmwP4AaNQW54E3QVlzR9ZMj589HXZugJfhBOye_gs/'
 };
-
-const PDF_SECTIONS = new Set(['summary', 'bank', 'pnl', 'flags', 'hotels', 'fnb', 'rabbits', 'mickys', 'purosoul', 'settlement']);
 
 const colors = {
   header:     '#0f172a',
@@ -51,7 +48,7 @@ function percent(value) {
 }
 
 function isMoneyKpi(name) {
-  return /revenue|sales|purchase|cost|profit|pipeline|balance|cheque|arr|revpar|bill/i.test(name);
+  return /revenue|sales|purchase|cost|profit|pipeline|balance|cheque|revpar|bill/i.test(name);
 }
 
 function formatValue(value, name = '') {
@@ -71,6 +68,10 @@ function calcFlag(actual, target, direction = 'min') {
   if (ratio >= 95) return { label: 'ON TRACK', ratio };
   if (ratio >= 85) return { label: 'WATCH', ratio };
   return { label: 'ACTION' };
+}
+
+function aopTargetValue() {
+  return 0;
 }
 
 function pnlRows(data) {
@@ -102,6 +103,31 @@ function groupRevenue(data) {
   return pnlRows(data).reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
 }
 
+function collectPdfKpis(data) {
+  return [
+    ...(data.hotels ?? []),
+    ...Object.values(data.fnb ?? {}).flat(),
+    ...(data.rabbits ?? []),
+    ...(data.mickys ?? []),
+    ...(data.purosoul ?? [])
+  ];
+}
+
+function collectPdfFlags(data) {
+  return collectPdfKpis(data).map((kpi) => {
+    const target = aopTargetValue(kpi);
+    const flag = calcFlag(kpi.actual, target, kpi.direction);
+    return {
+      unit: kpi.unit === 'Rabbit' + 's' ? 'Rabbit' : kpi.unit,
+      kpiName: kpi.name,
+      aopTarget: target,
+      todayActual: kpi.actual,
+      percentVsTarget: Math.round(flag.ratio),
+      flag: flag.label
+    };
+  });
+}
+
 function niceDate(date) {
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${date}T00:00:00`));
 }
@@ -116,11 +142,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
   const reportType = options.reportType === 'weekly' ? 'weekly' : 'daily';
   const isWeekly = reportType === 'weekly';
   const week = options.week ?? null;
-  const requestedSections = Array.isArray(options.sections)
-    ? options.sections.filter((section) => PDF_SECTIONS.has(section))
-    : [];
-  const enabledSections = requestedSections.length ? new Set(requestedSections) : new Set(PDF_SECTIONS);
+  const enabledSections = new Set(['summary', 'bank', 'pnl', 'flags', 'hotels', 'fnb', 'rabbits', 'mickys', 'purosoul', 'settlement']);
   if (isWeekly) enabledSections.delete('bank');
+  if (!isWeekly) enabledSections.delete('settlement');
 
   const FIRST_PAGE_TOP = 124;
   const SUBSEQUENT_PAGE_TOP = 44;
@@ -304,24 +328,68 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.y = y + 6;
   }
 
+  function barChart(title, subtitle, rows, options = {}) {
+    const chartRows = rows.filter((row) => numberValue(row.value) > 0);
+    if (!chartRows.length) return;
+    const rowHeight = options.rowHeight ?? 18;
+    const chartHeight = 44 + rowHeight * chartRows.length;
+    ensureSpace(chartHeight);
+    const y = doc.y;
+    const x = 36;
+    doc.roundedRect(x, y, width, chartHeight - 6, 8).fill(colors.white);
+    doc.roundedRect(x, y, width, chartHeight - 6, 8).strokeColor(colors.line).lineWidth(0.6).stroke();
+    doc.rect(x, y, 4, 34).fill(options.accent ?? colors.accent);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(title), x + 14, y + 11, { width: width - 28, lineBreak: false });
+    if (subtitle) doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(subtitle), x + 14, y + 24, { width: width - 28, lineBreak: false });
+
+    const max = Math.max(...chartRows.map((row) => numberValue(row.value)), 1);
+    let cy = y + 44;
+    chartRows.forEach((row, index) => {
+      const labelW = 104;
+      const valueW = 76;
+      const barX = x + 18 + labelW;
+      const barW = width - 36 - labelW - valueW;
+      const filled = Math.max(2, (numberValue(row.value) / max) * barW);
+      const color = row.color ?? [colors.accent, '#6f3d74', '#9a5a00', '#0f9487', colors.red, '#3f6fb5'][index % 6];
+      doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(7).text(safeText(row.name), x + 18, cy + 3, { width: labelW - 8, lineBreak: false });
+      doc.roundedRect(barX, cy + 3, barW, 8, 4).fill(colors.panelAlt);
+      doc.roundedRect(barX, cy + 3, filled, 8, 4).fill(color);
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(7).text(safeText(row.label ?? money(row.value)), barX + barW + 8, cy + 1, { width: valueW - 10, align: 'right', lineBreak: false });
+      cy += rowHeight;
+    });
+    doc.y = y + chartHeight;
+  }
+
+  function revenueShareChart(dataRows, title, subtitle) {
+    const total = dataRows.reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
+    const rows = dataRows
+      .map((row) => ({
+        name: row.unit,
+        value: numberValue(row.revenueToday),
+        label: `${money(row.revenueToday)} / ${total ? Math.round((numberValue(row.revenueToday) / total) * 100) : 0}%`
+      }))
+      .filter((row) => row.value > 0)
+      .sort((a, b) => b.value - a.value);
+    barChart(title, subtitle, rows, { accent: colors.accent });
+  }
+
   function flagCell(label) {
     const normalized = String(label).includes('ACTION') ? 'ACTION' : String(label);
     const color = normalized === 'ACTION' ? colors.red : normalized === 'WATCH' ? colors.amber : normalized === 'OUTPERFORM' ? colors.green : colors.headerSoft;
     return { text: normalized, color, bold: true };
   }
 
-  function kpiTable(title, rows, includeYtd = true) {
+  function kpiTable(title, rows) {
     const actualColumn = isWeekly ? 'Week' : 'Today';
-    const tableOptions = { widths: includeYtd ? [126, 70, 74, 74, 74, 105] : [145, 90, 86, 90, 112] };
-    sectionTitle(title, tablePreviewHeight(rows, tableOptions));
+    const visibleRows = rows.filter((row) => !/\bytd\b|year\s*to\s*date/i.test(row?.name ?? ''));
+    const tableOptions = { widths: [145, 90, 86, 90, 112] };
+    sectionTitle(title, tablePreviewHeight(visibleRows, tableOptions));
     table(
-      includeYtd ? ['KPI', actualColumn, 'AOP Target', 'MTD', 'YTD', 'Flag'] : ['KPI', actualColumn, 'AOP Target', 'MTD', 'Flag'],
-      rows.map((row) => {
-        const flag = calcFlag(row.actual, row.target, row.direction).label;
-        const base = [row.name, formatValue(row.actual, row.name), formatValue(row.target, row.name), formatValue(row.mtd, row.name)];
-        if (includeYtd) base.push(formatValue(row.ytd, row.name));
-        base.push(flagCell(flag));
-        return base;
+      ['KPI', actualColumn, 'AOP Target', 'MTD', 'Flag'],
+      visibleRows.map((row) => {
+        const target = aopTargetValue(row);
+        const flag = calcFlag(row.actual, target, row.direction).label;
+        return [row.name, formatValue(row.actual, row.name), formatValue(target, row.name), formatValue(row.mtd, row.name), flagCell(flag)];
       }),
       tableOptions
     );
@@ -371,7 +439,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     acc.net += row.netProfit;
     return acc;
   }, { revenue: 0, purchases: 0, gp: 0, net: 0 });
-  const flagCount = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length;
+  const flagCount = collectPdfFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length;
   const settlement = settlementTotals(data);
   const settlementDiff = groupRevenue(data) - settlement.groupTotal;
 
@@ -417,11 +485,16 @@ export function createDailyFlashPdf(data, date, options = {}) {
       pnlTableRows,
       pnlTableOptions
     );
+    revenueShareChart(
+      pnl,
+      'Unit-wise Revenue Share',
+      isWeekly ? 'P&L revenue contribution by unit - week to date' : 'P&L revenue contribution by unit - today'
+    );
   }
 
   if (hasSection('flags')) {
-    const flags = collectFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').slice(0, 16);
-    const flagTableRows = flags.map((row) => [row.unit, row.kpiName, formatValue(row.aopTarget, row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), actionFor(row, { isWeekly })]);
+    const flags = collectPdfFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').slice(0, 16);
+    const flagTableRows = flags.map((row) => [row.unit, row.kpiName, formatValue(aopTargetValue(row), row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), '']);
     if (flagTableRows.length) {
       const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
       sectionTitle('Watch Out Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
@@ -451,13 +524,15 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   if (hasSection('fnb')) {
+    const outletRows = fnbOutletRows(data);
+    barChart('F&B Outlet Sales', isWeekly ? 'Week-to-date outlet revenue' : 'Today outlet revenue', outletRows);
     const fnbRevenue = pnl.filter((row) => row.unit === 'Pablo' || row.unit === 'Dali').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
     hero('Standalone F&B', 'Pet Pooja API | Pablo & Dali', money(fnbRevenue), '');
     for (const brand of ['Pablo', 'Dali']) {
       const rows = data.fnb?.[brand] ?? [];
       sheetRef(brand === 'Pablo' ? SHEET_URLS.pabloCost : SHEET_URLS.daliCost);
       for (const section of [...new Set(rows.map((row) => row.section))]) {
-        kpiTable(`${brand} - ${section}`, rows.filter((row) => row.section === section), false);
+        kpiTable(`${brand} - ${section}`, rows.filter((row) => row.section === section));
       }
     }
   }
@@ -466,7 +541,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const rabbitsRows = data.rabbits ?? [];
     hero('Rabbit', 'POS EOD Email | Delivery Platforms', money(revenueFor(rabbitsRows)), '');
     for (const section of [...new Set(rabbitsRows.map((row) => row.section))]) {
-      kpiTable(`Rabbit - ${section}`, rabbitsRows.filter((row) => row.section === section), true);
+      kpiTable(`Rabbit - ${section}`, rabbitsRows.filter((row) => row.section === section));
     }
   }
 
@@ -475,7 +550,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     hero("Micky's by CP Foods", 'Google Sheet (Leads) | Tally Cloud (Day End)', money(revenueFor(mickysRows)), '');
     sheetRef(SHEET_URLS.mickysLeads);
     for (const section of [...new Set(mickysRows.map((row) => row.section))]) {
-      kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section), true);
+      kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section));
     }
   }
 
@@ -483,18 +558,18 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const purosoulRows = data.purosoul ?? [];
     hero('Purosoul', 'Google Drive (Daily Flash) | Tally Cloud (Day End)', money(revenueFor(purosoulRows)), '');
     for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
-      kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section), true);
+      kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
     }
     const skuTableRows = (data.purosoulSku ?? []).map((row) => {
       const rawCl = String(row.clStock ?? '').trim();
       const clStock = rawCl !== '' ? rawCl : String(numberValue(row.produced) - numberValue(row.dispatched));
-      return [row.sku, row.produced || '-', row.dispatched || '-', clStock || '-', row.mtd || '-', row.ytd || '-'];
+      return [row.sku, row.produced || '-', row.dispatched || '-', clStock || '-', row.mtd || '-'];
     });
     if (skuTableRows.length) {
-      const skuTableOptions = { widths: [100, 80, 90, 90, 80, 83] };
+      const skuTableOptions = { widths: [112, 94, 108, 108, 101] };
       sectionTitle('Purosoul - SKU Production & Dispatch', tablePreviewHeight(skuTableRows, skuTableOptions));
       table(
-        ['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD Dispatched', 'YTD'],
+        ['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD Dispatched'],
         skuTableRows,
         skuTableOptions
       );
@@ -535,10 +610,19 @@ function revenueFor(rows) {
   return revenueRow?.actual ?? 0;
 }
 
-function actionFor(row, { isWeekly = false } = {}) {
-  if (row.flag === 'ACTION NEEDED') return 'Manager review before noon.';
-  if (/occupancy/i.test(row.kpiName)) return isWeekly ? 'Push pickup and review occupancy pace.' : 'Push pickup and review forecast.';
-  if (/cost|purchase/i.test(row.kpiName)) return 'Check purchase and wastage today.';
-  if (/sales|revenue|orders|covers|apc/i.test(row.kpiName)) return 'Focus upsell, covers, and channel push.';
-  return 'Track closely in daily meeting.';
+function fnbOutletRows(data) {
+  const configs = [
+    { name: 'High Steaks', rows: data.hotels ?? [], kpi: 'High Steaks Revenue', color: colors.accent },
+    { name: 'Meeting Point', rows: data.hotels ?? [], kpi: 'Meeting Point Revenue', color: '#6f3d74' },
+    { name: 'Dali', rows: data.fnb?.Dali ?? [], kpi: 'Gross Sales', color: '#9a5a00' },
+    { name: 'Pablo', rows: data.fnb?.Pablo ?? [], kpi: 'Gross Sales', color: '#0f9487' },
+    { name: 'Freakk', rows: data.hotels ?? [], kpi: 'Freakk Revenue', color: colors.red }
+  ];
+  return configs.map((config) => ({
+    name: config.name,
+    color: config.color,
+    value: config.rows
+      .filter((row) => row.name === config.kpi)
+      .reduce((sum, row) => sum + numberValue(row.actual), 0)
+  })).sort((a, b) => b.value - a.value);
 }
