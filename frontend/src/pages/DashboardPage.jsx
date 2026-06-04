@@ -55,14 +55,6 @@ function fmtAggregate(value) {
 
 const EMPTY_WEEK_ENTRY = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0, fixedCost: 0 };
 
-function sourceBusinessNames() {
-  return ['OTA (MMT/Booking.com)', 'Walk-ins', 'Group Bookings', 'Cancellations/No-shows'];
-}
-
-function marketSegmentNames() {
-  return ['Corporate', 'FIT/Leisure'];
-}
-
 function WeeklyKpiTable({ rows }) {
   return (
     <DataTable
@@ -84,17 +76,40 @@ function WeeklyKpiTable({ rows }) {
   );
 }
 
-function WeeklyMixPie({ title, subtitle, rows }) {
-  const chartRows = rows
-    .map((row) => ({ name: row.name, value: numberValue(row.actual) }))
+function StatTile({ label, value, hint }) {
+  return (
+    <div className="rounded-xl border border-outline-variant/50 bg-surface-container-lowest px-4 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-on-surface-variant/60">{label}</p>
+      <p className="num mt-1 truncate text-[18px] font-bold leading-none text-on-surface">{value}</p>
+      {hint ? <p className="mt-1 truncate text-[11px] text-on-surface-variant/70">{hint}</p> : null}
+    </div>
+  );
+}
+
+function WeeklyMixCard({ title, subtitle, mix, kind }) {
+  const entries = kind === 'source' ? (mix?.sbo ?? []) : (mix?.segment ?? []);
+  const chartRows = entries
+    .map((row) => ({ name: row.name, value: numberValue(row.revenue), rooms: numberValue(row.rooms), pax: numberValue(row.pax) }))
     .filter((row) => row.value > 0)
     .sort((a, b) => b.value - a.value);
   const total = chartRows.reduce((sum, row) => sum + row.value, 0);
+  const top = chartRows[0] ?? null;
+  const label = kind === 'source' ? 'Channel' : 'Segment';
+  const totalRooms = numberValue(mix?.totalRooms);
+  const totalPax = numberValue(mix?.totalPax);
 
   return (
     <SectionCard title={title} subtitle={subtitle} icon={SECTION_ICONS.hotel} tone="amber" defaultOpen>
       {chartRows.length ? (
-        <DonutChart data={chartRows} total={total} />
+        <>
+          <div className="mb-5 grid grid-cols-2 gap-3">
+            <StatTile label="Rooms Occupied" value={fmtAggregate(totalRooms)} hint={`${fmtAggregate(totalPax)} pax`} />
+            <StatTile label="Room Revenue" value={money(mix?.totalRevenue)} />
+            <StatTile label={`Top ${label}`} value={top?.name ?? '-'} hint={top ? `${fmtAggregate(top.rooms)} rooms` : null} />
+            <StatTile label={`${label}s`} value={chartRows.length} hint="distinct" />
+          </div>
+          <DonutChart data={chartRows} total={total} />
+        </>
       ) : (
         <div className="grid place-items-center py-10 text-center text-on-surface-variant/50">
           <span className="material-symbols-outlined mb-2 text-[32px]">donut_small</span>
@@ -132,7 +147,7 @@ function collectWeeklyFlagKpis(data) {
   ];
 }
 
-export default function DashboardPage({ data, date, authToken }) {
+export default function DashboardPage({ data, date, authToken, period }) {
   const [viewMode, setViewMode] = useState('day');
   const [weekPeriod, setWeekPeriod] = useState(null);
   const [aopTargets, setAopTargets] = useState({ weekly: {} });
@@ -203,9 +218,11 @@ export default function DashboardPage({ data, date, authToken }) {
     return () => { cancelled = true; };
   }, [authToken, date, viewMode]);
 
+  const activeWeekPeriod = weekPeriod ?? period;
+
   const buildWeeklyRows = useMemo(() => {
-    const weeklyValues = weekPeriod?.kpis?.week ?? {};
-    const weeklyModes = weekPeriod?.kpiModes?.week ?? {};
+    const weeklyValues = activeWeekPeriod?.kpis?.week ?? {};
+    const weeklyModes = activeWeekPeriod?.kpiModes?.week ?? {};
     const weeklyOverrides = aopTargets?.weekly ?? {};
     return (unit, section, names = null) => (data?.hotels ?? [])
       .filter((row) => row.unit === unit && row.section === section && (!names || names.includes(row.name)))
@@ -228,17 +245,15 @@ export default function DashboardPage({ data, date, authToken }) {
           flag: flag.label
         };
       });
-  }, [aopTargets?.weekly, data?.hotels, weekPeriod?.kpiModes?.week, weekPeriod?.kpis?.week]);
+  }, [activeWeekPeriod?.kpiModes?.week, activeWeekPeriod?.kpis?.week, aopTargets?.weekly, data?.hotels]);
 
   const weekCpnRoomRows = buildWeeklyRows('CP Nagpur', 'Room Revenue & Occupancy');
   const weekCpnFnbRows = buildWeeklyRows('CP Nagpur', 'F&B Outlets');
   const weekCpnBanquetRows = buildWeeklyRows('CP Nagpur', 'Banquets');
-  const weekCpnSourceRows = buildWeeklyRows('CP Nagpur', 'Market Segments', sourceBusinessNames());
-  const weekCpnMarketRows = buildWeeklyRows('CP Nagpur', 'Market Segments', marketSegmentNames());
   const weekCpNmRoomRows = buildWeeklyRows('CP NM', 'Room Revenue & Occupancy');
-  const weekCpNmSourceRows = buildWeeklyRows('CP NM', 'Market Segments', sourceBusinessNames());
-  const weekCpNmMarketRows = buildWeeklyRows('CP NM', 'Market Segments', marketSegmentNames());
-  const weeklyPnlData = useMemo(() => buildWeeklyPnlData(data, weekPeriod), [data, weekPeriod]);
+  const weekCpnMix = activeWeekPeriod?.occupancyMix?.['CP Nagpur'];
+  const weekCpNmMix = activeWeekPeriod?.occupancyMix?.['CP NM'];
+  const weeklyPnlData = useMemo(() => buildWeeklyPnlData(data, activeWeekPeriod), [activeWeekPeriod, data]);
   const weeklyPnlRows = useMemo(() => pnlRows(weeklyPnlData), [weeklyPnlData]);
   const weeklyPnlTotals = weeklyPnlRows.reduce((acc, row) => {
     acc.revenue += numberValue(row.revenueToday);
@@ -249,8 +264,8 @@ export default function DashboardPage({ data, date, authToken }) {
     return acc;
   }, { revenue: 0, purchases: 0, gp: 0, fixed: 0, net: 0 });
   const weeklyFlags = useMemo(() => {
-    const weeklyValues = weekPeriod?.kpis?.week ?? {};
-    const weeklyModes = weekPeriod?.kpiModes?.week ?? {};
+    const weeklyValues = activeWeekPeriod?.kpis?.week ?? {};
+    const weeklyModes = activeWeekPeriod?.kpiModes?.week ?? {};
     const weeklyOverrides = aopTargets?.weekly ?? {};
     return collectWeeklyFlagKpis(data)
       .filter((row) => row?.id && !isCumulativeKpiName(row.name) && weeklyValues[row.id] !== undefined)
@@ -273,7 +288,7 @@ export default function DashboardPage({ data, date, authToken }) {
           flag: flag.label
         };
       });
-  }, [aopTargets?.weekly, data, weekPeriod?.kpiModes?.week, weekPeriod?.kpis?.week]);
+  }, [activeWeekPeriod?.kpiModes?.week, activeWeekPeriod?.kpis?.week, aopTargets?.weekly, data]);
   const weeklyRiskFlags = weeklyFlags.filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED');
   const weeklyFlagCounts = {
     on: weeklyFlags.filter((row) => row.flag === 'ON TRACK' || row.flag === 'OUTPERFORM').length,
@@ -442,19 +457,19 @@ export default function DashboardPage({ data, date, authToken }) {
               {weekError}
             </div>
           ) : null}
-          {weekLoading && !weekPeriod ? (
+          {weekLoading && !activeWeekPeriod ? (
             <div className="glass-card px-5 py-4 text-sm font-semibold text-on-surface-variant">
               Loading week-to-date data...
             </div>
           ) : null}
-          {!weekLoading && weekPeriod && !(weekPeriod.weekDates?.length) ? (
+          {!weekLoading && activeWeekPeriod && !(activeWeekPeriod.weekDates?.length) ? (
             <div className="glass-card border border-tertiary/25 bg-tertiary-container/45 px-5 py-4 text-sm font-semibold text-on-tertiary-container">
               No saved reports found for this week up to {date}.
             </div>
           ) : null}
           <SectionCard
             title="Unit-wise Estimated P&L"
-            subtitle={weekPeriod ? `Week to date: ${weekPeriod.weekStart} - ${date} (${weekPeriod.weekDates?.length ?? 0} saved day${(weekPeriod.weekDates?.length ?? 0) === 1 ? '' : 's'})` : 'Loading week-to-date P&L...'}
+            subtitle={activeWeekPeriod ? `Week to date: ${activeWeekPeriod.weekStart} - ${date} (${activeWeekPeriod.weekDates?.length ?? 0} saved day${(activeWeekPeriod.weekDates?.length ?? 0) === 1 ? '' : 's'})` : 'Loading week-to-date P&L...'}
             icon={SECTION_ICONS.kpi}
             tone="teal"
             defaultOpen
@@ -463,7 +478,7 @@ export default function DashboardPage({ data, date, authToken }) {
               columns={['Unit', 'Revenue WTD', 'Purchases WTD', 'Gross Profit', 'GP%', 'Fixed Cost (Week)', 'Est. Net Profit', 'Net Margin%', 'Days']}
               numericFrom={1}
               rows={weeklyPnlRows.map((row) => {
-                const entry = weekPeriod?.week?.[row.unit] ?? EMPTY_WEEK_ENTRY;
+                const entry = activeWeekPeriod?.week?.[row.unit] ?? EMPTY_WEEK_ENTRY;
                 return {
                   key: row.unit,
                   cells: [
@@ -549,7 +564,7 @@ export default function DashboardPage({ data, date, authToken }) {
           <RevenueShareDonut
             data={weeklyPnlData}
             title="Unit-wise Revenue Share"
-            subtitle={weekPeriod ? `P&L revenue contribution by unit - week to date (${weekPeriod.weekStart} - ${date})` : 'P&L revenue contribution by unit - week to date'}
+            subtitle={activeWeekPeriod ? `P&L revenue contribution by unit - week to date (${activeWeekPeriod.weekStart} - ${date})` : 'P&L revenue contribution by unit - week to date'}
           />
 
           <SectionCard title="CP Nagpur: Room Revenue & Occupancy" subtitle="Week-to-date hotel KPIs" icon={SECTION_ICONS.hotel} tone="teal" defaultOpen>
@@ -561,13 +576,37 @@ export default function DashboardPage({ data, date, authToken }) {
           <SectionCard title="CP Nagpur: Banquets" subtitle="Week-to-date banquet KPIs" icon={SECTION_ICONS.banquet} tone="amber" defaultOpen>
             <WeeklyKpiTable rows={weekCpnBanquetRows} />
           </SectionCard>
-          <WeeklyMixPie title="CP Nagpur: Source of Business" subtitle="Week-to-date room source mix" rows={weekCpnSourceRows} />
-          <WeeklyMixPie title="CP Nagpur: Market Segment" subtitle="Week-to-date room segment mix" rows={weekCpnMarketRows} />
+          <div className="grid gap-5 xl:grid-cols-2">
+            <WeeklyMixCard
+              title="CP Nagpur: Source of Business"
+              subtitle="Week-to-date room source mix"
+              mix={weekCpnMix}
+              kind="source"
+            />
+            <WeeklyMixCard
+              title="CP Nagpur: Market Segment"
+              subtitle="Week-to-date room segment mix"
+              mix={weekCpnMix}
+              kind="segment"
+            />
+          </div>
           <SectionCard title="CP NM: Room Revenue & Occupancy" subtitle="Week-to-date hotel KPIs" icon={SECTION_ICONS.hotel} tone="teal" defaultOpen>
             <WeeklyKpiTable rows={weekCpNmRoomRows} />
           </SectionCard>
-          <WeeklyMixPie title="CP NM: Source of Business" subtitle="Week-to-date room source mix" rows={weekCpNmSourceRows} />
-          <WeeklyMixPie title="CP NM: Market Segment" subtitle="Week-to-date room segment mix" rows={weekCpNmMarketRows} />
+          <div className="grid gap-5 xl:grid-cols-2">
+            <WeeklyMixCard
+              title="CP NM: Source of Business"
+              subtitle="Week-to-date room source mix"
+              mix={weekCpNmMix}
+              kind="source"
+            />
+            <WeeklyMixCard
+              title="CP NM: Market Segment"
+              subtitle="Week-to-date room segment mix"
+              mix={weekCpNmMix}
+              kind="segment"
+            />
+          </div>
         </section>
       )}
     </div>

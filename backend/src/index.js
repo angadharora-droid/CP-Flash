@@ -696,6 +696,49 @@ async function aggregateYtdFromMonthlyMtd(dates) {
   return { pnl: pnlByUnit, kpis };
 }
 
+async function aggregateOccupancyMixForDates(dates) {
+  const rawByDate = await readDailyDataMany(dates);
+  const byUnit = {};
+
+  for (const [, raw] of rawByDate) {
+    const mix = raw?.occupancyMix;
+    if (!mix) continue;
+    const unit = mix.unit || 'CP Nagpur';
+    const entry = byUnit[unit] ??= {
+      totalRooms: 0,
+      totalPax: 0,
+      totalRevenue: 0,
+      sbo: new Map(),
+      segment: new Map()
+    };
+    entry.totalRooms += numberValue(mix.totalRooms);
+    entry.totalPax += numberValue(mix.totalPax);
+    entry.totalRevenue += numberValue(mix.totalRevenue);
+
+    for (const key of ['sbo', 'segment']) {
+      for (const item of mix[key] ?? []) {
+        const name = String(item.name ?? '').trim() || 'Unspecified';
+        const bucket = entry[key].get(name) ?? { name, rooms: 0, pax: 0, revenue: 0 };
+        bucket.rooms += numberValue(item.rooms);
+        bucket.pax += numberValue(item.pax);
+        bucket.revenue += numberValue(item.revenue);
+        entry[key].set(name, bucket);
+      }
+    }
+  }
+
+  return Object.fromEntries(Object.entries(byUnit).map(([unit, entry]) => [
+    unit,
+    {
+      totalRooms: entry.totalRooms,
+      totalPax: entry.totalPax,
+      totalRevenue: Math.round(entry.totalRevenue),
+      sbo: [...entry.sbo.values()].map((item) => ({ ...item, revenue: Math.round(item.revenue) })).sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue),
+      segment: [...entry.segment.values()].map((item) => ({ ...item, revenue: Math.round(item.revenue) })).sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue)
+    }
+  ]));
+}
+
 function formatAggregate(value) {
   return String(Math.round(numberValue(value) * 100) / 100);
 }
@@ -921,10 +964,11 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
   const mtdDates = monthDates.filter((dailyDate) => dailyDate <= date);
   const ytdDates = yearDates.filter((dailyDate) => dailyDate <= date);
 
-  const [weekAgg, mtdAgg, ytdAgg] = await Promise.all([
+  const [weekAgg, mtdAgg, ytdAgg, occupancyMix] = await Promise.all([
     aggregatePeriodForDates(weekDates),
     aggregatePeriodForDates(mtdDates),
-    aggregateYtdFromMonthlyMtd(ytdDates)
+    aggregateYtdFromMonthlyMtd(ytdDates),
+    aggregateOccupancyMixForDates(weekDates)
   ]);
 
   const payload = {
@@ -937,6 +981,7 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     mtdDates,
     ytdDates,
     week: weekAgg.pnl,
+    occupancyMix,
     mtd: mtdAgg.pnl,
     ytd: ytdAgg.pnl,
     kpis: { week: weekAgg.kpis, mtd: mtdAgg.kpis, ytd: ytdAgg.kpis },
