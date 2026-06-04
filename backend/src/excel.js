@@ -20,16 +20,20 @@ export function readWorkbookSummary() {
   };
 }
 
+let _seedCache = null;
+export function invalidateSeedCache() { _seedCache = null; }
+
 export function buildSeedData() {
+  if (_seedCache) return _seedCache;
   const hotels = ['CP Nagpur', 'CP NM'].flatMap((unit) => schemaRowsToKpis(unit, 'hotels', pageSchemas.hotels));
   const fnb = {
     Pablo: schemaRowsToKpis('Pablo', 'fnb', pageSchemas.fnb.Pablo),
     Dali: schemaRowsToKpis('Dali', 'fnb', pageSchemas.fnb.Dali)
   };
 
-  return {
+  _seedCache = {
     generatedAt: new Date().toISOString(),
-    workbook: readWorkbookSummary(),
+    workbook: null,
     fixedCosts: fixedCostDefaults,
     bankPosition: UNITS.map((unit) => ({ unit, account: 'Consolidated', actualBalance: '', fdTotal: '', chequesIssued: '', chequeTotalAmount: '', chequesInHand: '', netBalance: '' })),
     pnl: UNITS.map((unit) => ({ unit, revenueToday: '', purchasesToday: '', fixedCost: fixedCostDefaults[unit], mtdNetProfit: '', ytdNetProfit: '' })),
@@ -44,4 +48,5 @@ export function buildSeedData() {
     topItems: { Pablo: ['', '', ''], Dali: ['', '', ''] },
     purosoulSku: ['250ml', '500ml', '1L'].map((sku) => ({ sku, produced: '', dispatched: '', clStock: '', mtd: '', ytd: '' }))
   };
+  return _seedCache;
 }
