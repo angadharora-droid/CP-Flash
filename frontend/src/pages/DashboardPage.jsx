@@ -28,6 +28,12 @@ export default function DashboardPage({ data }) {
   const banquetRows = (data?.hotels ?? []).filter(
     (row) => row.unit === 'CP Nagpur' && row.section === 'Banquets'
   );
+  const cpNmRoomRevenueRows = (data?.hotels ?? []).filter(
+    (row) => row.unit === 'CP NM' && row.section === 'Room Revenue & Occupancy'
+  );
+  const cpNmForecastRows = (data?.hotels ?? []).filter(
+    (row) => row.unit === 'CP NM' && row.section === 'Forecast'
+  );
   const banquetLists = [
     {
       key: 'banquetToday',
@@ -130,6 +136,24 @@ export default function DashboardPage({ data }) {
               />
             </SectionCard>
           ))}
+          <SectionCard
+            title="CP NM: Room Revenue & Occupancy"
+            subtitle={`${cpNmRoomRevenueRows.length} KPI${cpNmRoomRevenueRows.length === 1 ? '' : 's'}`}
+            icon={SECTION_ICONS.hotel}
+            tone="teal"
+            defaultOpen
+          >
+            <KpiTable rows={cpNmRoomRevenueRows} />
+          </SectionCard>
+          <SectionCard
+            title={`CP NM: Forecast${dateSuffix(data?.forecastDate)}`}
+            subtitle={`${cpNmForecastRows.length} KPI${cpNmForecastRows.length === 1 ? '' : 's'}`}
+            icon={SECTION_ICONS.hotel}
+            tone="teal"
+            defaultOpen
+          >
+            <KpiTable rows={cpNmForecastRows} />
+          </SectionCard>
         </section>
       ) : null}
     </div>
