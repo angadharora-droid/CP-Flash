@@ -411,7 +411,7 @@ export default function App() {
     if (!enrichedData) return null;
     const common = { data: enrichedData, setData, date, authToken };
     const activeKey = canonicalPageKey(renderedActive);
-    if (activeKey === 'dashboard') return <DashboardPage {...common} />;
+    if (activeKey === 'dashboard') return <DashboardPage {...common} period={period} />;
     if (activeKey === 'performance') return <PerformanceChartsPage {...common} />;
     if (activeKey === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
     if (activeKey === 'bank') return <BankPage {...common} />;
