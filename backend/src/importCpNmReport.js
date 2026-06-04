@@ -47,6 +47,16 @@ function setForecast(data, name, value) {
   if (row && value > 0) row.actual = String(value);
 }
 
+function makeMixEntry(name, rooms, totalRooms, totalRevenue) {
+  const roomCount = Math.max(0, num(rooms));
+  return {
+    name,
+    rooms: roomCount,
+    pax: roomCount,
+    revenue: totalRooms ? Math.round((totalRevenue * roomCount) / totalRooms) : 0
+  };
+}
+
 function ensureForecastRows(data) {
   const section = pageSchemas.hotels.find((s) => s.title === 'Forecast');
   if (!section) return;
@@ -224,11 +234,35 @@ export async function importCpNmManagerFlash(file, outDate) {
     );
   }
 
+  const mixTotalRooms = segCorporate + segFit + segOta + segGroup + segWalkIn + segNoShow || roomsSold;
+  const occupancyMix = {
+    unit: UNIT,
+    asOf: outDate,
+    totalRooms: mixTotalRooms,
+    totalPax: mixTotalRooms,
+    totalRevenue: Math.round(roomRevenue),
+    sbo: [
+      makeMixEntry('Travel Agent / OTA', segOta, mixTotalRooms, roomRevenue),
+      makeMixEntry('Walk-ins', segWalkIn, mixTotalRooms, roomRevenue),
+      makeMixEntry('Group Bookings', segGroup, mixTotalRooms, roomRevenue),
+      makeMixEntry('No-shows', segNoShow, mixTotalRooms, roomRevenue)
+    ].filter((entry) => entry.rooms > 0).sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue),
+    segment: [
+      makeMixEntry('Corporate', segCorporate, mixTotalRooms, roomRevenue),
+      makeMixEntry('FIT/Leisure', segFit, mixTotalRooms, roomRevenue),
+      makeMixEntry('Group Bookings', segGroup, mixTotalRooms, roomRevenue)
+    ].filter((entry) => entry.rooms > 0).sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue)
+  };
+
   data.importSource = {
     ...(data.importSource ?? {}),
     cpNmFile: path.basename(file),
     cpNmImportedAt: new Date().toISOString(),
     cpNmNotes: `occ=${occPct}%, rooms=${roomsSold}, arr=${arr}, revpar=${revpar}, roomRev=${roomRevenue}, fnb=${totalFnbRevenue}, total=${totalRevenue}, corp=${segCorporate}, fit=${segFit}, ota=${segOta}, grp=${segGroup}, walkin=${segWalkIn}, noshow=${segNoShow}`
+  };
+  data.occupancyMixByUnit = {
+    ...(data.occupancyMixByUnit ?? {}),
+    [UNIT]: occupancyMix
   };
 
   await writeDaily(outDate, data);
