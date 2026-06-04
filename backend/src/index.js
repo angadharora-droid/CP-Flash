@@ -14,7 +14,7 @@ import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
 import { buildSourceStatus } from './sources.js';
-import { normalizeRabbitCategoryBreakdown, UNITS, UNITS_WITHOUT_FIXED_COST } from './schema.js';
+import { normalizeRabbitCategoryBreakdown, settlementModes, UNITS, UNITS_WITHOUT_FIXED_COST } from './schema.js';
 import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
 import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
 import { readAopTargets, writeAopTargets, applyDailyTargetOverrides, collectKpiCatalog } from './aopTargets.js';
@@ -790,6 +790,66 @@ async function aggregateOccupancyMixForDates(dates) {
   ]));
 }
 
+async function aggregateSettlementForDates(dates) {
+  const seedTemplate = buildSeedData();
+  const rawByDate = await readDailyDataMany(dates);
+  const matrix = Object.fromEntries(settlementModes.map((mode) => [mode, {}]));
+
+  for (const [, raw] of rawByDate) {
+    if (!raw) continue;
+    const merged = mergeDailyData(seedTemplate, raw);
+    for (const mode of settlementModes) {
+      const sourceRow = merged.settlement?.[mode] ?? {};
+      for (const unit of UNITS) {
+        const value = unit === 'Rabbit'
+          ? numberValue(sourceRow.Rabbit ?? sourceRow['Rabbit' + 's'])
+          : numberValue(sourceRow[unit]);
+        if (!value) continue;
+        matrix[mode][unit] = String(numberValue(matrix[mode][unit]) + value);
+      }
+    }
+  }
+
+  return matrix;
+}
+
+async function aggregatePurosoulSkuForDates(dates) {
+  const rawByDate = await readDailyDataMany(dates);
+  const bySku = new Map();
+
+  for (const [date, raw] of rawByDate) {
+    if (!raw) continue;
+    for (const row of raw.purosoulSku ?? []) {
+      const sku = String(row.sku ?? '').trim();
+      if (!sku) continue;
+      const entry = bySku.get(sku) ?? {
+        sku,
+        produced: 0,
+        dispatched: 0,
+        clStock: '',
+        mtd: '',
+        ytd: '',
+        latestDate: ''
+      };
+      entry.produced += numberValue(row.produced);
+      entry.dispatched += numberValue(row.dispatched);
+      if (date >= entry.latestDate) {
+        entry.clStock = row.clStock ?? '';
+        entry.mtd = row.mtd ?? '';
+        entry.ytd = row.ytd ?? '';
+        entry.latestDate = date;
+      }
+      bySku.set(sku, entry);
+    }
+  }
+
+  return [...bySku.values()].map(({ latestDate, ...row }) => ({
+    ...row,
+    produced: String(row.produced),
+    dispatched: String(row.dispatched)
+  }));
+}
+
 function formatAggregate(value) {
   return String(Math.round(numberValue(value) * 100) / 100);
 }
@@ -1015,11 +1075,13 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
   const mtdDates = monthDates.filter((dailyDate) => dailyDate <= date);
   const ytdDates = yearDates.filter((dailyDate) => dailyDate <= date);
 
-  const [weekAgg, mtdAgg, ytdAgg, occupancyMix] = await Promise.all([
+  const [weekAgg, mtdAgg, ytdAgg, occupancyMix, settlement, purosoulSku] = await Promise.all([
     aggregatePeriodForDates(weekDates),
     aggregatePeriodForDates(mtdDates),
     aggregateYtdFromMonthlyMtd(ytdDates),
-    aggregateOccupancyMixForDates(weekDates)
+    aggregateOccupancyMixForDates(weekDates),
+    aggregateSettlementForDates(weekDates),
+    aggregatePurosoulSkuForDates(weekDates)
   ]);
 
   const payload = {
@@ -1032,6 +1094,8 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     mtdDates,
     ytdDates,
     week: weekAgg.pnl,
+    settlement,
+    purosoulSku,
     occupancyMix,
     mtd: mtdAgg.pnl,
     ytd: ytdAgg.pnl,
