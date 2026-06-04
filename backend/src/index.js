@@ -700,9 +700,51 @@ async function aggregateOccupancyMixForDates(dates) {
   const rawByDate = await readDailyDataMany(dates);
   const byUnit = {};
 
-  for (const [, raw] of rawByDate) {
-    const mix = raw?.occupancyMix;
-    if (!mix) continue;
+  function mixEntryFromNotes(raw) {
+    const notes = raw?.importSource?.cpNmNotes;
+    if (!notes) return null;
+    const get = (key) => {
+      const match = new RegExp(`${key}=([^,]+)`).exec(notes);
+      return match ? numberValue(match[1]) : 0;
+    };
+    const roomRevenue = get('roomRev');
+    const segments = {
+      corporate: get('corp'),
+      fit: get('fit'),
+      ota: get('ota'),
+      group: get('grp'),
+      walkin: get('walkin'),
+      noshow: get('noshow')
+    };
+    const totalRooms = Object.values(segments).reduce((sum, value) => sum + value, 0);
+    if (!totalRooms) return null;
+    const entry = (name, rooms) => ({
+      name,
+      rooms,
+      pax: rooms,
+      revenue: roomRevenue ? Math.round((roomRevenue * rooms) / totalRooms) : 0
+    });
+    return {
+      unit: 'CP NM',
+      totalRooms,
+      totalPax: totalRooms,
+      totalRevenue: Math.round(roomRevenue),
+      sbo: [
+        entry('Travel Agent / OTA', segments.ota),
+        entry('Walk-ins', segments.walkin),
+        entry('Group Bookings', segments.group),
+        entry('No-shows', segments.noshow)
+      ].filter((item) => item.rooms > 0),
+      segment: [
+        entry('Corporate', segments.corporate),
+        entry('FIT/Leisure', segments.fit),
+        entry('Group Bookings', segments.group)
+      ].filter((item) => item.rooms > 0)
+    };
+  }
+
+  function addMix(mix) {
+    if (!mix) return;
     const unit = mix.unit || 'CP Nagpur';
     const entry = byUnit[unit] ??= {
       totalRooms: 0,
@@ -725,6 +767,15 @@ async function aggregateOccupancyMixForDates(dates) {
         entry[key].set(name, bucket);
       }
     }
+  }
+
+  for (const [, raw] of rawByDate) {
+    if (!raw) continue;
+    for (const mix of Object.values(raw.occupancyMixByUnit ?? {})) {
+      addMix(mix);
+    }
+    if (raw.occupancyMix) addMix(raw.occupancyMix);
+    if (!raw.occupancyMixByUnit?.['CP NM']) addMix(mixEntryFromNotes(raw));
   }
 
   return Object.fromEntries(Object.entries(byUnit).map(([unit, entry]) => [

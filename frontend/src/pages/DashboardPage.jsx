@@ -76,16 +76,6 @@ function WeeklyKpiTable({ rows }) {
   );
 }
 
-function StatTile({ label, value, hint }) {
-  return (
-    <div className="rounded-xl border border-outline-variant/50 bg-surface-container-lowest px-4 py-3">
-      <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-on-surface-variant/60">{label}</p>
-      <p className="num mt-1 truncate text-[18px] font-bold leading-none text-on-surface">{value}</p>
-      {hint ? <p className="mt-1 truncate text-[11px] text-on-surface-variant/70">{hint}</p> : null}
-    </div>
-  );
-}
-
 function WeeklyMixCard({ title, subtitle, mix, kind }) {
   const entries = kind === 'source' ? (mix?.sbo ?? []) : (mix?.segment ?? []);
   const chartRows = entries
@@ -93,23 +83,11 @@ function WeeklyMixCard({ title, subtitle, mix, kind }) {
     .filter((row) => row.value > 0)
     .sort((a, b) => b.value - a.value);
   const total = chartRows.reduce((sum, row) => sum + row.value, 0);
-  const top = chartRows[0] ?? null;
-  const label = kind === 'source' ? 'Channel' : 'Segment';
-  const totalRooms = numberValue(mix?.totalRooms);
-  const totalPax = numberValue(mix?.totalPax);
 
   return (
     <SectionCard title={title} subtitle={subtitle} icon={SECTION_ICONS.hotel} tone="amber" defaultOpen>
       {chartRows.length ? (
-        <>
-          <div className="mb-5 grid grid-cols-2 gap-3">
-            <StatTile label="Rooms Occupied" value={fmtAggregate(totalRooms)} hint={`${fmtAggregate(totalPax)} pax`} />
-            <StatTile label="Room Revenue" value={money(mix?.totalRevenue)} />
-            <StatTile label={`Top ${label}`} value={top?.name ?? '-'} hint={top ? `${fmtAggregate(top.rooms)} rooms` : null} />
-            <StatTile label={`${label}s`} value={chartRows.length} hint="distinct" />
-          </div>
-          <DonutChart data={chartRows} total={total} />
-        </>
+        <DonutChart data={chartRows} total={total} />
       ) : (
         <div className="grid place-items-center py-10 text-center text-on-surface-variant/50">
           <span className="material-symbols-outlined mb-2 text-[32px]">donut_small</span>
