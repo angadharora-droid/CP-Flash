@@ -427,6 +427,12 @@ function invalidateDailyCaches(date) {
   listDailyDatesCache.clear();
 }
 
+function invalidateReportCaches(date) {
+  invalidateDailyCaches(date);
+  if (date) invalidatePnlPeriodCache(date);
+  else pnlPeriodCache.clear();
+}
+
 async function readDailyData(date = dateKey()) {
   if (dailyDataCache.has(date)) return dailyDataCache.get(date);
   const db = await getDb();
@@ -889,8 +895,9 @@ app.post('/api/aop-targets', wrap(async (req, res) => {
 
 app.get('/api/source-status', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
+  const seed = buildSeedData();
   const saved = await readDailyData(date);
-  res.json(buildSourceStatus({ ...(saved ?? {}), date }));
+  res.json(buildSourceStatus({ ...mergeDailyData(seed, saved), date }));
 }));
 
 app.get('/api/pnl-period', wrap(async (req, res) => {
@@ -974,12 +981,14 @@ app.post('/api/email-import', (req, res) => {
     emailImportJob.finishedAt = new Date().toISOString();
     emailImportJob.exitCode = 1;
     emailImportJob.error = err.message;
+    invalidateReportCaches();
     appendEmailImportOutput(`\n${err.message}\n`);
   });
   child.on('exit', (code) => {
     emailImportJob.running = false;
     emailImportJob.finishedAt = new Date().toISOString();
     emailImportJob.exitCode = code ?? 0;
+    invalidateReportCaches();
   });
 
   res.json({ ok: true, started: true, ...emailImportStatus() });
