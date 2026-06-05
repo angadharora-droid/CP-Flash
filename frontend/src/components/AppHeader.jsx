@@ -24,13 +24,14 @@ export default function AppHeader({
   desktopSidebarOpen = false
 }) {
   return (
-    <header className="fixed top-0 z-50 flex h-14 w-full border-b border-outline-variant/50 bg-white/95 shadow-[0_1px_0_rgba(202,211,218,0.5),0_8px_24px_-12px_rgba(8,120,108,0.18)] backdrop-blur-xl md:h-15">
-      {/* Brand block — anchors above the desktop sidebar. */}
-      <div className="hidden h-full w-72 shrink-0 items-center gap-3 border-r border-outline-variant/55 bg-gradient-to-br from-white via-white to-surface-container-lowest px-4 md:flex">
+    <header className="fixed top-0 z-50 flex h-14 w-full items-center border-b border-slate-200/80 bg-white shadow-[0_1px_0_rgba(0,0,0,0.05),0_4px_20px_-6px_rgba(0,0,0,0.07)] md:h-[58px]">
+
+      {/* Brand block — fixed width matches desktop sidebar */}
+      <div className="hidden h-full w-72 shrink-0 items-center gap-3 border-r border-slate-100 px-5 md:flex">
         <button
           type="button"
           onClick={onToggleDesktopSidebar ?? onHome}
-          className="group relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white p-1.5 ring-1 ring-outline-variant/55 shadow-sm transition-all hover:ring-primary/55 hover:shadow-md active:scale-95"
+          className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white p-1.5 ring-1 ring-slate-200 shadow-sm transition-all hover:ring-primary/50 hover:shadow-md active:scale-95"
           title={desktopSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
           aria-label={desktopSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
         >
@@ -39,61 +40,65 @@ export default function AppHeader({
         <button
           type="button"
           onClick={onHome}
-          className="flex min-w-0 flex-col items-start leading-tight"
+          className="flex min-w-0 flex-col items-start"
           aria-label="Home"
         >
-          <span className="truncate text-[15px] font-extrabold tracking-tight text-on-surface">DailyFlash</span>
-          <span className="mt-0.5 flex items-center gap-1.5 truncate text-[10px] font-bold uppercase tracking-[0.18em] text-primary/85">
-            <span className="size-1 rounded-full bg-primary/70" aria-hidden />
+          <span className="truncate text-[15px] font-extrabold tracking-tight text-slate-900">DailyFlash</span>
+          <span className="mt-0.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-primary/80">
+            <span className="size-1 rounded-full bg-primary/60" aria-hidden />
             Centre Point Group
           </span>
         </button>
       </div>
 
-      <div className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:px-5 lg:px-6 xl:px-8">
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 md:gap-4">
-          <button
-            type="button"
-            onClick={onOpenMenu}
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface sm:size-10 md:hidden"
-            aria-label="Open menu"
-          >
-            <MIcon name="menu" />
-          </button>
-          <div className="flex min-w-0 flex-1 items-center gap-3" />
-        </div>
+      {/* Mobile hamburger */}
+      <button
+        type="button"
+        onClick={onOpenMenu}
+        className="ml-3 flex size-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 md:hidden"
+        aria-label="Open menu"
+      >
+        <MIcon name="menu" />
+      </button>
 
-        <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 md:gap-2.5">
-          <DateControl value={date} onChange={onDateChange} latest={latestDate} />
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={refreshing}
-            title="Refresh (R)"
-            aria-label="Refresh data"
-            className="hidden size-10 items-center justify-center rounded-lg text-on-surface-variant transition-all hover:bg-surface-container-high hover:text-primary active:scale-90 disabled:opacity-40 md:flex"
-          >
-            <MIcon name="sync" rotating={refreshing} className={refreshing ? 'text-primary' : ''} />
-          </button>
-          <button
-            type="button"
-            onClick={onPreviewPdf}
-            disabled={!canPreviewPdf}
-            className="hidden h-10 items-center gap-2 rounded-lg bg-gradient-to-br from-primary to-primary/85 px-4 text-[12px] font-bold uppercase tracking-[0.05em] text-on-primary shadow-primary transition-all hover:shadow-lg hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:hover:brightness-100 lg:flex"
-          >
-            <MIcon name="picture_as_pdf" className="text-[18px]" />
-            Preview PDF
-          </button>
-          <button
-            type="button"
-            onClick={onPreviewPdf}
-            disabled={!canPreviewPdf}
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary shadow-primary active:scale-95 disabled:opacity-50 sm:size-10 lg:hidden"
-            aria-label="Preview PDF"
-          >
-            <MIcon name="picture_as_pdf" />
-          </button>
-        </div>
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Right controls */}
+      <div className="flex items-center gap-1 pr-3 sm:gap-1.5 sm:pr-4 md:gap-2 md:pr-5">
+        <DateControl value={date} onChange={onDateChange} latest={latestDate} />
+
+        <div className="mx-1 hidden h-6 w-px bg-slate-200 md:block" />
+
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          title="Refresh (R)"
+          aria-label="Refresh data"
+          className="hidden size-9 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-100 hover:text-primary active:scale-90 disabled:opacity-40 md:flex"
+        >
+          <MIcon name="sync" rotating={refreshing} className={refreshing ? 'text-primary' : ''} />
+        </button>
+
+        <button
+          type="button"
+          onClick={onPreviewPdf}
+          disabled={!canPreviewPdf}
+          className="hidden h-9 items-center gap-2 rounded-lg bg-primary px-4 text-[11.5px] font-bold uppercase tracking-[0.06em] text-white shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 lg:flex"
+        >
+          <MIcon name="picture_as_pdf" className="text-[17px]" />
+          Preview PDF
+        </button>
+        <button
+          type="button"
+          onClick={onPreviewPdf}
+          disabled={!canPreviewPdf}
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-white shadow-sm active:scale-95 disabled:opacity-50 lg:hidden"
+          aria-label="Preview PDF"
+        >
+          <MIcon name="picture_as_pdf" />
+        </button>
       </div>
     </header>
   );
