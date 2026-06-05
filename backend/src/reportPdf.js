@@ -374,14 +374,14 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const chartRows = entries.filter((e) => numberValue(e.value) > 0).sort((a, b) => b.value - a.value);
     if (!chartRows.length) return;
     const total = chartRows.reduce((sum, e) => sum + numberValue(e.value), 0);
-    const CARD_H = Math.max(210, 52 + chartRows.length * 22 + 14);
-    ensureSpace(CARD_H + 10);
+    const CARD_H = Math.max(188, 44 + chartRows.length * 20 + 10);
+    ensureSpace(CARD_H + 6);
     const y = doc.y;
     const x = 36;
-    const outerR = 70;
-    const innerR = 42;
-    const cx = x + 130;
-    const cy = y + 46 + outerR;
+    const outerR = 60;
+    const innerR = 36;
+    const cx = x + 120;
+    const cy = y + 44 + outerR;
 
     doc.roundedRect(x, y, width, CARD_H, 8).fill(colors.white);
     doc.roundedRect(x, y, width, CARD_H, 8).strokeColor(colors.line).lineWidth(0.6).stroke();
@@ -411,19 +411,19 @@ export function createDailyFlashPdf(data, date, options = {}) {
       startAngle = endAngle + 1;
     });
 
-    doc.fillColor(colors.subtle).font('Helvetica-Bold').fontSize(6).text('TOTAL', cx - 28, cy - 16, { width: 56, align: 'center', characterSpacing: 1, lineBreak: false });
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(11).text(safeText(moneyCompact(total)), cx - 36, cy - 5, { width: 72, align: 'center', lineBreak: false });
+    doc.fillColor(colors.subtle).font('Helvetica-Bold').fontSize(6).text('TOTAL', cx - 26, cy - 14, { width: 52, align: 'center', characterSpacing: 1, lineBreak: false });
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(moneyCompact(total)), cx - 32, cy - 4, { width: 64, align: 'center', lineBreak: false });
 
-    const legendX = cx + outerR + 22;
+    const legendX = cx + outerR + 20;
     const legendW = x + width - legendX - 4;
     chartRows.forEach((row, i) => {
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
       const share = total ? Math.round((numberValue(row.value) / total) * 100) : 0;
-      const ly = y + 46 + i * 22;
-      doc.circle(legendX + 5, ly + 7, 4).fill(color);
-      doc.fillColor(colors.muted).font('Helvetica').fontSize(8.5).text(safeText(row.name), legendX + 14, ly + 2, { width: legendW - 85, lineBreak: false });
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8.5).text(safeText(moneyCompact(row.value)), legendX + legendW - 80, ly + 2, { width: 55, align: 'right', lineBreak: false });
-      doc.fillColor(color).font('Helvetica-Bold').fontSize(8.5).text(`${share}%`, legendX + legendW - 22, ly + 2, { width: 24, align: 'right', lineBreak: false });
+      const ly = y + 44 + i * 20;
+      doc.circle(legendX + 5, ly + 6, 3.5).fill(color);
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(8).text(safeText(row.name), legendX + 13, ly + 1, { width: legendW - 82, lineBreak: false });
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8).text(safeText(moneyCompact(row.value)), legendX + legendW - 78, ly + 1, { width: 52, align: 'right', lineBreak: false });
+      doc.fillColor(color).font('Helvetica-Bold').fontSize(8).text(`${share}%`, legendX + legendW - 22, ly + 1, { width: 24, align: 'right', lineBreak: false });
     });
 
     doc.y = y + CARD_H + 6;
