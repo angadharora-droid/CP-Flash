@@ -68,14 +68,17 @@ export default function SectionCard({
             ) : null}
           </span>
         </button>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           {actions}
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/70 transition-colors duration-200 hover:text-on-surface"
+            aria-label={open ? 'Collapse section' : 'Expand section'}
+            className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant/50 transition-all duration-200 hover:bg-surface-container-high hover:text-on-surface"
           >
-            {open ? 'Hide' : 'Show'}
+            <span className={`material-symbols-outlined text-[20px] transition-transform duration-200 ${open ? '' : '-rotate-90'}`}>
+              expand_more
+            </span>
           </button>
         </div>
       </div>
