@@ -86,9 +86,12 @@ async function getDb() {
 // Wrap async route handlers so Express 4 catches thrown errors.
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
-app.use((_req, res, next) => {
+app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
+  // Allow the PDF to be embedded in an iframe on the frontend — skip X-Frame-Options for that route.
+  if (req.path !== '/api/report.pdf') {
+    res.setHeader('X-Frame-Options', 'DENY');
+  }
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   if (isProd) {
