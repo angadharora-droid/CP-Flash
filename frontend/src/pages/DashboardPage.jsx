@@ -499,7 +499,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             <KpiTable rows={cpNmForecastRows} />
           </SectionCard>
           <FnbOutletSalesChart data={data} />
-          {data?.importSource?.mickysSalesImportedAt && numberValue(mickysOrderRevenueRows.find(r => /order revenue/i.test(r.name))?.actual) > 0 ? (
+          {data?.importSource?.mickysSalesImportedAt ? (
             <>
               <SectionCard
                 title="Micky's: Leads Pipeline"
@@ -510,22 +510,34 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               >
                 <KpiTable rows={mickysLeadRows} />
               </SectionCard>
-              <SectionCard
-                title="Micky's: Orders & Revenue"
-                subtitle={`${mickysOrderRevenueRows.length} KPI${mickysOrderRevenueRows.length === 1 ? '' : 's'}`}
-                icon={SECTION_ICONS.restaurant}
-                tone="rose"
-                defaultOpen
-              >
-                <KpiTable rows={mickysOrderRevenueRows} />
-              </SectionCard>
+              {numberValue(mickysOrderRevenueRows.find(r => /order revenue/i.test(r.name))?.actual) > 0 ? (
+                <SectionCard
+                  title="Micky's: Orders & Revenue"
+                  subtitle={`${mickysOrderRevenueRows.length} KPI${mickysOrderRevenueRows.length === 1 ? '' : 's'}`}
+                  icon={SECTION_ICONS.restaurant}
+                  tone="rose"
+                  defaultOpen
+                >
+                  <KpiTable rows={mickysOrderRevenueRows} />
+                </SectionCard>
+              ) : (
+                <SectionCard title="Micky's: Orders & Revenue" subtitle="No sales recorded today" icon={SECTION_ICONS.restaurant} tone="amber" defaultOpen>
+                  <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-4">
+                    <span className="material-symbols-outlined shrink-0 text-[22px] text-amber-500">mark_email_read</span>
+                    <div>
+                      <p className="text-sm font-bold text-amber-700">Mail received — no sales recorded</p>
+                      <p className="mt-0.5 text-xs text-on-surface-variant">The daily sales email was received but no orders were recorded for this date.</p>
+                    </div>
+                  </div>
+                </SectionCard>
+              )}
             </>
           ) : (
             <MailStatusCard
               title="Micky's by CP Foods"
               icon={SECTION_ICONS.restaurant}
-              importedAt={data?.importSource?.mickysSalesImportedAt}
-              rows={mickysOrderRevenueRows}
+              importedAt={null}
+              rows={[]}
             />
           )}
           {data?.importSource?.purosoulSalesImportedAt && numberValue(purosoulRevenueRows.find(r => /total revenue/i.test(r.name))?.actual) > 0 ? (

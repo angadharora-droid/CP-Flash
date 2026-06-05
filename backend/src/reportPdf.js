@@ -826,16 +826,21 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 6. F&B Outlet Sales column chart
     if (hasSection('fnb')) renderFnbOutletChart();
 
-    // 7. Micky's: Leads Pipeline → Orders & Revenue
+    // 7. Micky's: Leads Pipeline always shows when mail received; amber notice on Orders & Revenue if no sales
     if (hasSection('mickys')) {
       const mickysRows = data.mickys ?? [];
       const mickysImportedAt = data.importSource?.mickysSalesImportedAt;
-      const mickysRevenue = revenueFor(mickysRows);
-      const mickysBlocked = mailStatusCard("Micky's by CP Foods", mickysImportedAt, mickysRevenue);
-      if (!mickysBlocked) {
-        for (const section of ['Leads Pipeline', 'Orders & Revenue']) {
-          const rows = mickysRows.filter((row) => row.section === section);
-          if (rows.length) kpiTable(`Micky's - ${section}`, rows);
+      if (!mickysImportedAt) {
+        mailStatusCard("Micky's by CP Foods", null, 0);
+      } else {
+        const leadsRows = mickysRows.filter((row) => row.section === 'Leads Pipeline');
+        if (leadsRows.length) kpiTable("Micky's - Leads Pipeline", leadsRows);
+        const orderRows = mickysRows.filter((row) => row.section === 'Orders & Revenue');
+        const orderRevenue = numberValue(revenueFor(orderRows));
+        if (orderRevenue > 0) {
+          if (orderRows.length) kpiTable("Micky's - Orders & Revenue", orderRows);
+        } else {
+          mailStatusCard("Micky's - Orders & Revenue", null, 0);
         }
       }
     }
