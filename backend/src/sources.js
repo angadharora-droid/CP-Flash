@@ -319,7 +319,7 @@ function pickMeta(importSource, source) {
     reportFiles,
     reports,
     importedAt,
-    notes: importSource[source.meta.notes] ?? '',
+    notes: importedAt ? (importSource[source.meta.notes] ?? '') : '',
     pendingNote: source.meta.pendingNote ?? ''
   };
 }
