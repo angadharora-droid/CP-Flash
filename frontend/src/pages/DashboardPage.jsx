@@ -328,11 +328,10 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
         };
       });
   }, [activeWeekPeriod?.kpis?.week, data]);
-  const weeklyRiskFlags = weeklyFlags.filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED');
+  const weeklyRiskFlags = weeklyFlags.filter((row) => row.flag === 'ACTION');
   const weeklyFlagCounts = {
-    on: weeklyFlags.filter((row) => row.flag === 'ON TRACK' || row.flag === 'OUTPERFORM').length,
-    watch: weeklyFlags.filter((row) => row.flag === 'WATCH').length,
-    action: weeklyFlags.filter((row) => row.flag === 'ACTION NEEDED').length
+    on: weeklyFlags.filter((row) => row.flag === 'ON TRACK').length,
+    action: weeklyFlags.filter((row) => row.flag === 'ACTION').length
   };
   const pabloRows = data?.fnb?.Pablo ?? [];
   const daliRows = data?.fnb?.Dali ?? [];
@@ -586,7 +585,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
           </SectionCard>
 
           <SectionCard
-            title="Watch Out Flag Summary"
+            title="Action Flag Summary"
             subtitle={weekLoading ? 'Loading weekly target comparison...' : 'Weekly actuals compared with weekly AOP targets'}
             icon={SECTION_ICONS.kpi}
             tone="amber"
@@ -601,14 +600,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
                 icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               },
               {
-                label: 'Watch',
-                value: weeklyFlagCounts.watch,
-                tone: 'text-amber-700',
-                caption: 'Weekly KPIs to monitor',
-                icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
-              },
-              {
-                label: 'Action Needed',
+                label: 'Action',
                 value: weeklyFlagCounts.action,
                 tone: 'text-rose-700',
                 caption: 'Weekly KPIs needing attention',
@@ -625,7 +617,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
                   <span className="text-app-text">{row.kpiName}</span>,
                   <span className="num">{row.aopTarget}</span>,
                   <span className="num">{row.weekActual}</span>,
-                  <span className={`num font-semibold ${row.percentVsTarget >= 95 ? 'text-emerald-700' : row.percentVsTarget >= 85 ? 'text-amber-700' : 'text-rose-700'}`}>{row.percentVsTarget}%</span>,
+                  <span className={`num font-semibold ${row.percentVsTarget >= 90 ? 'text-emerald-700' : 'text-rose-700'}`}>{row.percentVsTarget}%</span>,
                   <FlagBadge label={row.flag} />,
                   <span className="block h-10 min-w-[220px] rounded-md border border-dashed border-outline-variant/80 bg-surface-container-lowest" aria-label="Blank action required field" />
                 ]

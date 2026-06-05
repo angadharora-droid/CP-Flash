@@ -491,7 +491,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [authToken, handleRefresh]);
 
-  const riskCount = data ? withFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length : 0;
+  const riskCount = data ? withFlags(data).filter((row) => row.flag === 'ACTION').length : 0;
   const activePage = pages.find(([key]) => key === canonicalPageKey(active)) ?? pages[0];
   const activeNavItem = NAV_ITEM_BY_KEY[canonicalPageKey(active)];
 

@@ -70,12 +70,9 @@ function calcFlag(actual, target, direction = 'min') {
   const actualValue = numberValue(actual);
   const targetValue = numberValue(target);
   if (!targetValue && !actualValue) return { label: 'ON TRACK', ratio: 100 };
-  if (!targetValue) return { label: actualValue > 0 ? 'OUTPERFORM' : 'ON TRACK', ratio: 100 };
+  if (!targetValue) return { label: 'ON TRACK', ratio: 100 };
   const ratio = direction === 'max' ? (targetValue / Math.max(actualValue, 0.0001)) * 100 : (actualValue / targetValue) * 100;
-  if (ratio >= 110) return { label: 'OUTPERFORM', ratio };
-  if (ratio >= 95) return { label: 'ON TRACK', ratio };
-  if (ratio >= 85) return { label: 'WATCH', ratio };
-  return { label: 'ACTION' };
+  return { label: ratio >= 90 ? 'ON TRACK' : 'ACTION', ratio };
 }
 
 function aopTargetValue() {
@@ -607,7 +604,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   function flagCell(label) {
     const normalized = String(label).includes('ACTION') ? 'ACTION' : String(label);
-    const color = normalized === 'ACTION' ? colors.red : normalized === 'WATCH' ? colors.amber : normalized === 'OUTPERFORM' ? colors.green : colors.headerSoft;
+    const color = normalized === 'ACTION' ? colors.red : colors.headerSoft;
     return { text: normalized, color, bold: true };
   }
 
@@ -681,11 +678,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   // ── Helper: render flags table ───────────────────────────────────────────────
   function renderFlags() {
-    const flags = collectPdfFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').slice(0, 16);
+    const flags = collectPdfFlags(data).filter((row) => row.flag === 'ACTION').slice(0, 16);
     const flagTableRows = flags.map((row) => [row.unit, row.kpiName, formatValue(aopTargetValue(row), row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), '']);
     if (!flagTableRows.length) return;
     const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
-    sectionTitle('Watch Out Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
+    sectionTitle('Action Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
     table(['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'], flagTableRows, flagTableOptions);
   }
 
@@ -816,7 +813,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 1. P&L table
     if (hasSection('pnl')) renderPnlTable();
 
-    // 2. Watch Out Flag Summary
+    // 2. Action Flag Summary
     if (hasSection('flags')) renderFlags();
 
     // 3. Unit-wise Revenue Share donut

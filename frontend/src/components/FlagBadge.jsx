@@ -1,17 +1,13 @@
 import React from 'react';
 
 const styles = {
-  OUTPERFORM:      'bg-secondary/10 text-secondary border-secondary/20',
   'ON TRACK':      'bg-secondary-container/30 text-on-secondary-container border-secondary/15',
-  WATCH:           'bg-tertiary/10 text-tertiary border-tertiary/20',
-  'ACTION NEEDED': 'bg-error/10 text-error border-error/20'
+  ACTION:          'bg-error/10 text-error border-error/20'
 };
 
 const dots = {
-  OUTPERFORM:      'bg-secondary',
   'ON TRACK':      'bg-secondary',
-  WATCH:           'bg-tertiary',
-  'ACTION NEEDED': 'bg-error'
+  ACTION:          'bg-error'
 };
 
 export default function FlagBadge({ label }) {
