@@ -446,18 +446,19 @@ async function processMessage(parsed, date, existingData, touchedDates) {
   // Beyond the first match, also run any handlers flagged `bundled` that match the same
   // email so sibling attachments (HCP_OCC, HCP_POS_SALE, …) are all processed.
   const handlers = [primary, ...HANDLERS.filter((h) => h !== primary && h.bundled && h.matches(subject, parsed))];
-  // Run date-validating handlers (forecast/events) first: if one finds the email is from
-  // an older cycle, the whole bundle is stale, so skip the siblings that can't check
-  // their own date (occ-mix / pos-sales) rather than import yesterday's data.
+  // Run date-detecting handlers (forecast/events) first — they derive the true business
+  // date from file content. Subsequent bundled handlers (occ-mix / pos-sales) then receive
+  // the correct date via effectiveDate rather than always using yesterday's run date.
   handlers.sort((a, b) => (b.validatesDate ? 1 : 0) - (a.validatesDate ? 1 : 0));
-  let bundleStale = false;
+  let effectiveDate = date;
   for (const handler of handlers) {
-    if (bundleStale && handler.bundled) {
-      log(`  Skipping ${handler.name}: HCP bundle email is stale (older than run date).`);
-      continue;
+    const result = await runHandler(handler, parsed, effectiveDate, existingData, touchedDates);
+    // If a handler detected a different business date (backdated report), use it for the
+    // remaining bundled handlers so occ-mix / pos-sales file under the same correct date.
+    if (result?.detectedDate && result.detectedDate !== effectiveDate) {
+      log(`  Backdated bundle: effective date updated to ${result.detectedDate} (was ${effectiveDate}).`);
+      effectiveDate = result.detectedDate;
     }
-    const result = await runHandler(handler, parsed, date, existingData, touchedDates);
-    if (result?.pending && result?.reason === 'stale-report') bundleStale = true;
   }
 }
 

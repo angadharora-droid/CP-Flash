@@ -107,20 +107,14 @@ export async function importForecast(file, outDate, unit = 'CP Nagpur') {
   }
   if (!forecastDate) throw new Error('No forecast data row with a date found.');
 
-  // Stale-email guard: the forecast row is dated D+2 (the HCP email for business date D is
-  // generated the morning the D flash is read, and forecasts the day after that). A
-  // leftover email from a previous cycle forecasts D+1, which fails this check — so it
-  // stays Pending rather than importing yesterday's report.
-  const expectedForecastDate = isoAddDays(outDate, 2);
-  if (forecastDate !== expectedForecastDate) {
-    console.warn(`[importForecast] Skipping stale report: forecast is for ${forecastDate}, expected ${expectedForecastDate} (run date ${outDate}).`);
-    return { ok: false, pending: true, reason: 'stale-report', unit, forecastFor: forecastDate, expected: expectedForecastDate };
+  // Derive the business date from the file: forecastDate is always D+2 (the HCP email is
+  // generated the morning the D flash is read and forecasts the day after that).
+  // Using forecastDate − 2 means late/backdated emails automatically file under the
+  // correct business date instead of yesterday's run date.
+  const reportDate = isoAddDays(forecastDate, -2);
+  if (reportDate !== outDate) {
+    console.log(`[importForecast] Backdated report: forecast for ${forecastDate} → filing under ${reportDate} (run date ${outDate}).`);
   }
-
-  // File under the run's flash date (outDate). The forecast row is a forward-looking
-  // figure that belongs on the current report; it maps onto the existing "Tomorrow …"
-  // rows. `forecastDate` (the day being forecast) is persisted for the section header.
-  const reportDate = outDate;
 
   const data = (await readDaily(reportDate)) ?? buildSeedData();
   ensureSectionRows(data, unit);
@@ -143,7 +137,7 @@ export async function importForecast(file, outDate, unit = 'CP Nagpur') {
 
   await writeDaily(reportDate, data);
 
-  return { ok: true, date: reportDate, unit, forecastFor: forecastDate, mapped: { occPct, arrivals, departures } };
+  return { ok: true, date: reportDate, detectedDate: reportDate, unit, forecastFor: forecastDate, mapped: { occPct, arrivals, departures } };
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);

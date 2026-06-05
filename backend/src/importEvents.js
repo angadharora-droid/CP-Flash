@@ -207,23 +207,21 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   // The file spans business date D plus the two days ahead of it. Select by explicit
   // date rather than by index so a day with no functions doesn't shift the mapping.
   const dates = [...new Set(events.map((e) => e.date))].sort();
-  const businessDate = outDate;                 // D — closed business day (actuals)
-  const todayDate = isoAddDays(outDate, 1);     // D+1 — "today" from the reader's viewpoint
-  const tomorrowDate = isoAddDays(outDate, 2);  // D+2 — "tomorrow"
 
-  // Stale-email guard: a fresh file's earliest date is the business day (D). A leftover
-  // email from a previous cycle has earliest = D−1 — skip it so the source stays Pending
-  // instead of importing yesterday's functions. (ISO YYYY-MM-DD strings compare
-  // lexicographically.)
-  if (dates[0] < outDate) {
-    console.warn(`[importEvents] Skipping stale report: earliest event date ${dates[0]} < run date ${outDate}.`);
-    return { ok: false, pending: true, reason: 'stale-report', unit, earliest: dates[0] };
+  // Derive the business date from the file: the earliest event date IS the business day D.
+  // Using it directly means late/backdated emails automatically file under the correct
+  // business date instead of yesterday's run date.
+  const businessDate = dates[0];               // D — closed business day (actuals)
+  const todayDate = isoAddDays(businessDate, 1);   // D+1 — "today" from the reader's viewpoint
+  const tomorrowDate = isoAddDays(businessDate, 2); // D+2 — "tomorrow"
+  if (businessDate !== outDate) {
+    console.log(`[importEvents] Backdated report: earliest date ${businessDate} → filing under ${businessDate} (run date ${outDate}).`);
   }
 
   const businessEvents = events.filter((e) => e.date === businessDate);
   const today = events.filter((e) => e.date === todayDate);
   const next = events.filter((e) => e.date === tomorrowDate);
-  const reportDate = outDate;
+  const reportDate = businessDate;
 
   const strip = (e) => ({ marketSegment: e.marketSegment, pax: e.pax, venue: e.venue, session: e.session, revenue: e.revenue, notes: e.notes });
 
@@ -256,6 +254,7 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   return {
     ok: true,
     date: reportDate,
+    detectedDate: businessDate,
     unit,
     mapped: {
       business: `${businessDate} (${businessEvents.length} fn, ${businessPax} pax)`,
