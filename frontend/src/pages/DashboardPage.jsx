@@ -528,7 +528,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               rows={mickysOrderRevenueRows}
             />
           )}
-          {data?.importSource?.purosoulSalesImportedAt && numberValue(purosoulRevenueRows.find(r => /total revenue/i.test(r.name))?.actual) > 0 ? (
+          {numberValue(purosoulRevenueRows.find(r => /total revenue/i.test(r.name))?.actual) > 0 ? (
             <>
               <SectionCard
                 title="Purosoul: Revenue & Cost"
@@ -565,8 +565,8 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             <MailStatusCard
               title="Purosoul"
               icon={SECTION_ICONS.kpi}
-              importedAt={data?.importSource?.purosoulSalesImportedAt}
-              rows={purosoulRevenueRows}
+              importedAt={null}
+              rows={[]}
             />
           )}
         </section>
