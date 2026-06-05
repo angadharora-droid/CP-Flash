@@ -221,7 +221,7 @@ export const dailySources = [
       importedAt: 'mickysSalesImportedAt',
       notes: 'mickysSalesNotes',
       pendingNote: 'Report not uploaded.',
-      filePattern: /CP_FOODS|CP FOODS/i,
+      filePattern: /CP[_\s-]?FOODS/i,
       reportLabels: { mickysSalesFile: 'Daily Sales Report' }
     },
     cadence: 'Daily'
@@ -247,7 +247,7 @@ export const dailySources = [
       importedAt: 'purosoulSalesImportedAt',
       notes: 'purosoulSalesNotes',
       pendingNote: 'Report not uploaded.',
-      filePattern: /AFVPL/i,
+      filePattern: /AFVPL|purosoul/i,
       reportLabels: { purosoulSalesFile: 'Daily Sales Report' }
     },
     cadence: 'Daily'
