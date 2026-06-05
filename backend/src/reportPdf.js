@@ -370,8 +370,12 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   const CHART_PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a', '#3f6fb5', '#b5447a'];
 
+  function normalizedDonutRows(entries) {
+    return entries.filter((e) => numberValue(e.value) > 0).sort((a, b) => b.value - a.value);
+  }
+
   function donutChart(title, subtitle, entries, chartOptions = {}) {
-    const chartRows = entries.filter((e) => numberValue(e.value) > 0).sort((a, b) => b.value - a.value);
+    const chartRows = normalizedDonutRows(entries);
     if (!chartRows.length) return;
     const total = chartRows.reduce((sum, e) => sum + numberValue(e.value), 0);
     const CARD_H = Math.max(188, 44 + chartRows.length * 20 + 10);
@@ -427,6 +431,87 @@ export function createDailyFlashPdf(data, date, options = {}) {
     });
 
     doc.y = y + CARD_H + 6;
+  }
+
+  function compactDonutCardHeight(entries) {
+    const chartRows = normalizedDonutRows(entries);
+    return Math.max(166, 50 + chartRows.length * 16);
+  }
+
+  function drawCompactDonutCard(title, subtitle, entries, x, y, cardW, cardH, chartOptions = {}) {
+    const chartRows = normalizedDonutRows(entries);
+    if (!chartRows.length) return;
+    const total = chartRows.reduce((sum, e) => sum + numberValue(e.value), 0);
+    const outerR = 42;
+    const innerR = 25;
+    const cx = x + 62;
+    const cy = y + 50 + outerR;
+
+    doc.roundedRect(x, y, cardW, cardH, 7).fill(colors.white);
+    doc.roundedRect(x, y, cardW, cardH, 7).strokeColor(colors.line).lineWidth(0.6).stroke();
+    doc.rect(x, y, 4, 32).fill(chartOptions.accent ?? colors.accent);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8.5).text(safeText(title), x + 12, y + 10, { width: cardW - 24, lineBreak: false });
+    if (subtitle) {
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(5.8).text(safeText(subtitle), x + 12, y + 23, { width: cardW - 24, lineBreak: false });
+    }
+
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    let startAngle = -90;
+    chartRows.forEach((row, i) => {
+      const sliceAngle = (numberValue(row.value) / total) * 358;
+      const endAngle = startAngle + sliceAngle;
+      const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
+      const x1 = cx + outerR * Math.cos(toRad(startAngle));
+      const y1 = cy + outerR * Math.sin(toRad(startAngle));
+      const x2 = cx + outerR * Math.cos(toRad(endAngle));
+      const y2 = cy + outerR * Math.sin(toRad(endAngle));
+      const x3 = cx + innerR * Math.cos(toRad(endAngle));
+      const y3 = cy + innerR * Math.sin(toRad(endAngle));
+      const x4 = cx + innerR * Math.cos(toRad(startAngle));
+      const y4 = cy + innerR * Math.sin(toRad(startAngle));
+      const largeArc = sliceAngle > 180 ? 1 : 0;
+      const pathD = `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} L ${x3.toFixed(2)} ${y3.toFixed(2)} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x4.toFixed(2)} ${y4.toFixed(2)} Z`;
+      doc.path(pathD).fill(color);
+      startAngle = endAngle + 1;
+    });
+
+    doc.fillColor(colors.subtle).font('Helvetica-Bold').fontSize(5.3).text('TOTAL', cx - 22, cy - 13, { width: 44, align: 'center', characterSpacing: 0.6, lineBreak: false });
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(7.5).text(safeText(moneyCompact(total)), cx - 28, cy - 3, { width: 56, align: 'center', lineBreak: false });
+
+    const legendX = x + 122;
+    const legendW = x + cardW - legendX - 8;
+    chartRows.forEach((row, i) => {
+      const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
+      const share = total ? Math.round((numberValue(row.value) / total) * 100) : 0;
+      const ly = y + 48 + i * 16;
+      doc.circle(legendX + 4, ly + 5, 3).fill(color);
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(5.9).text(safeText(row.name), legendX + 10, ly, { width: legendW - 54, lineBreak: false });
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(5.9).text(safeText(moneyCompact(row.value)), legendX + legendW - 50, ly, { width: 34, align: 'right', lineBreak: false });
+      doc.fillColor(color).font('Helvetica-Bold').fontSize(5.9).text(`${share}%`, legendX + legendW - 14, ly, { width: 16, align: 'right', lineBreak: false });
+    });
+  }
+
+  function donutChartPair(left, right) {
+    const leftRows = normalizedDonutRows(left.entries ?? []);
+    const rightRows = normalizedDonutRows(right.entries ?? []);
+    if (!leftRows.length && !rightRows.length) return;
+    if (!leftRows.length) {
+      donutChart(right.title, right.subtitle, rightRows, right.options);
+      return;
+    }
+    if (!rightRows.length) {
+      donutChart(left.title, left.subtitle, leftRows, left.options);
+      return;
+    }
+
+    const gap = 8;
+    const cardW = (width - gap) / 2;
+    const cardH = Math.max(compactDonutCardHeight(leftRows), compactDonutCardHeight(rightRows));
+    ensureSpace(cardH + 8);
+    const y = doc.y;
+    drawCompactDonutCard(left.title, left.subtitle, leftRows, 36, y, cardW, cardH, left.options);
+    drawCompactDonutCard(right.title, right.subtitle, rightRows, 36 + cardW + gap, y, cardW, cardH, right.options);
+    doc.y = y + cardH + 8;
   }
 
   function columnChart(title, subtitle, entries, chartOptions = {}) {
@@ -744,8 +829,10 @@ export function createDailyFlashPdf(data, date, options = {}) {
       if (cpnMix) {
         const sobRows = (cpnMix.sbo ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
         const msRows  = (cpnMix.segment ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
-        if (sobRows.length) donutChart('CP Nagpur: Source of Business', 'Week-to-date room source mix', sobRows);
-        if (msRows.length)  donutChart('CP Nagpur: Market Segment', 'Week-to-date room segment mix', msRows);
+        donutChartPair(
+          { title: 'CP Nagpur: Source of Business', subtitle: 'Week-to-date room source mix', entries: sobRows },
+          { title: 'CP Nagpur: Market Segment', subtitle: 'Week-to-date room segment mix', entries: msRows }
+        );
       }
     }
 
@@ -756,8 +843,10 @@ export function createDailyFlashPdf(data, date, options = {}) {
       if (cpNmMix) {
         const sobRows = (cpNmMix.sbo ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
         const msRows  = (cpNmMix.segment ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
-        if (sobRows.length) donutChart('CP NM: Source of Business', 'Week-to-date room source mix', sobRows);
-        if (msRows.length)  donutChart('CP NM: Market Segment', 'Week-to-date room segment mix', msRows);
+        donutChartPair(
+          { title: 'CP NM: Source of Business', subtitle: 'Week-to-date room source mix', entries: sobRows },
+          { title: 'CP NM: Market Segment', subtitle: 'Week-to-date room segment mix', entries: msRows }
+        );
       }
     }
 
