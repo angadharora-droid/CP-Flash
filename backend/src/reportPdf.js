@@ -840,17 +840,17 @@ export function createDailyFlashPdf(data, date, options = {}) {
       }
     }
 
-    // 8. Purosoul sections + SKU
+    // 8. Purosoul sections + SKU — binary: revenue > 0 → tables, else → red "not uploaded"
     if (hasSection('purosoul')) {
       const purosoulRows = data.purosoul ?? [];
-      const purosoulImportedAt = data.importSource?.purosoulSalesImportedAt;
-      const purosoulRevenue = revenueFor(purosoulRows);
-      const purosoulBlocked = mailStatusCard('Purosoul', purosoulImportedAt, purosoulRevenue);
-      if (!purosoulBlocked) {
+      const purosoulRevenue = numberValue(revenueFor(purosoulRows));
+      if (purosoulRevenue > 0) {
         for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
           kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
         }
         renderSkuTable();
+      } else {
+        mailStatusCard('Purosoul', null, 0);
       }
     }
 
