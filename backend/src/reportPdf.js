@@ -450,9 +450,14 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(13).text(safeText(moneyCompact(total)), cx - 36, cy - 6, { width: 72, align: 'center', lineBreak: false });
 
     const legendX = cx + outerR + 22;
-    const legendW = x + width - legendX - 8;
-    const nameColW = legendW - 90;
-    const barMaxW = nameColW;
+    // Anchor columns from the card's right edge so nothing overflows
+    const cardRight = x + width - 10;
+    const pctColW = 28;
+    const valColW = 58;
+    const pctX = cardRight - pctColW;
+    const valX = pctX - 6 - valColW;
+    const nameX = legendX + 14;
+    const barMaxW = valX - nameX - 4;
 
     chartRows.forEach((row, i) => {
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
@@ -460,21 +465,22 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const share = Math.round(shareExact);
       const ly = y + 58 + i * ROW_H;
 
+      // Strip runs from legend start to card right — same boundary as text
       if (i % 2 === 0) {
-        doc.roundedRect(legendX - 4, ly - 2, legendW + 6, ROW_H - 2, 3).fill(colors.accentTint);
+        doc.roundedRect(legendX - 4, ly - 2, cardRight - (legendX - 4), ROW_H - 2, 3).fill(colors.accentTint);
       }
 
-      // Color square — 9×9 so it's clearly visible
+      // Color square — 9×9
       doc.roundedRect(legendX + 1, ly + 3, 9, 9, 2).fill(color);
-      doc.fillColor(colors.ink).font('Helvetica').fontSize(8).text(safeText(row.name), legendX + 14, ly + 5, { width: nameColW, lineBreak: false });
+      doc.fillColor(colors.ink).font('Helvetica').fontSize(8).text(safeText(row.name), nameX, ly + 5, { width: barMaxW, lineBreak: false });
 
-      // Progress bar — 4px tall, minimum filled width of 5px so even tiny slices register
+      // Progress bar — 4px tall, minimum 5px fill so tiny slices are visible
       const barW = Math.max(barMaxW * (shareExact / 100), shareExact > 0 ? 5 : 0);
-      doc.roundedRect(legendX + 14, ly + 17, barMaxW, 4, 2).fill(colors.lineSoft);
-      if (barW > 0) doc.roundedRect(legendX + 14, ly + 17, barW, 4, 2).fill(color);
+      doc.roundedRect(nameX, ly + 17, barMaxW, 4, 2).fill(colors.lineSoft);
+      if (barW > 0) doc.roundedRect(nameX, ly + 17, barW, 4, 2).fill(color);
 
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8).text(safeText(moneyCompact(row.value)), legendX + legendW - 82, ly + 5, { width: 56, align: 'right', lineBreak: false });
-      doc.fillColor(color).font('Helvetica-Bold').fontSize(9).text(`${share}%`, legendX + legendW - 22, ly + 4, { width: 26, align: 'right', lineBreak: false });
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8).text(safeText(moneyCompact(row.value)), valX, ly + 5, { width: valColW, align: 'right', lineBreak: false });
+      doc.fillColor(color).font('Helvetica-Bold').fontSize(9).text(`${share}%`, pctX, ly + 4, { width: pctColW, align: 'right', lineBreak: false });
     });
 
     doc.y = y + CARD_H + 6;

@@ -54,89 +54,6 @@ function summarizePnl(rows) {
   }, { revenue: 0, purchases: 0, gp: 0, fixed: 0, net: 0 });
 }
 
-function DashboardHero({ title, subtitle, meta, children, navItems }) {
-  return (
-    <div className="glass-card overflow-hidden">
-      <div className="border-b border-outline-variant/60 bg-[linear-gradient(135deg,rgba(8,120,108,0.10),rgba(111,61,116,0.08)_48%,rgba(154,90,0,0.08))] px-4 py-4 sm:px-5 md:px-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">Summary Dashboard</p>
-            <h2 className="mt-1 text-[24px] font-extrabold leading-tight tracking-normal text-on-surface md:text-[30px]">{title}</h2>
-            <p className="mt-1.5 max-w-3xl text-sm font-medium text-on-surface-variant md:text-[15px]">{subtitle}</p>
-          </div>
-          {meta ? (
-            <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
-              {meta.map((item) => (
-                <span key={item.label} className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/60 bg-white/80 px-3 py-2 text-xs font-bold text-on-surface shadow-sm">
-                  <span className="material-symbols-outlined text-[16px] text-primary" aria-hidden>{item.icon}</span>
-                  <span>{item.label}</span>
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
-      <div className="px-3.5 py-4 sm:px-5 md:px-6">
-        {children}
-        {navItems?.length ? <SummaryNav items={navItems} /> : null}
-      </div>
-    </div>
-  );
-}
-
-function SummaryNav({ items }) {
-  return (
-    <nav className="scroll-touch -mx-1 mt-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Summary sections">
-      {items.map((item) => (
-        <a
-          key={item.href}
-          href={item.href}
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3.5 py-2 text-xs font-bold text-on-surface-variant shadow-sm transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary"
-        >
-          <span className="material-symbols-outlined text-[16px]" aria-hidden>{item.icon}</span>
-          {item.label}
-        </a>
-      ))}
-    </nav>
-  );
-}
-
-function UnitHealthGrid({ rows, title = 'Unit Pulse', scope = 'today' }) {
-  const ranked = [...rows]
-    .sort((a, b) => numberValue(b.revenueToday) - numberValue(a.revenueToday))
-    .slice(0, 7);
-
-  return (
-    <div className="mb-5 rounded-xl border border-outline-variant/70 bg-surface-container-lowest p-3.5 sm:p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-extrabold text-on-surface">{title}</h3>
-          <p className="text-[11.5px] font-medium text-on-surface-variant">Revenue and estimated net margin by unit, {scope}</p>
-        </div>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {ranked.map((row) => {
-          const positive = row.estNetProfit >= 0;
-          return (
-            <div key={row.unit} className="rounded-lg border border-outline-variant/55 bg-white px-3 py-3 shadow-sm">
-              <div className="flex items-start justify-between gap-2">
-                <span className="min-w-0 truncate text-[13px] font-extrabold text-on-surface">{row.unit}</span>
-                <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${positive ? 'bg-secondary/10 text-secondary' : 'bg-error/10 text-error'}`}>
-                  {percent(row.netMargin)}
-                </span>
-              </div>
-              <div className="num mt-2 text-[19px] font-extrabold leading-none text-primary">{moneyCompact(row.revenueToday)}</div>
-              <div className={`num mt-1 text-xs font-bold ${positive ? 'text-secondary' : 'text-error'}`}>
-                Net {moneyCompact(row.estNetProfit)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 const EMPTY_WEEK_ENTRY = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0, fixedCost: 0 };
 
 const UNIT_REVENUE_META = {
@@ -471,7 +388,6 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
   const weeklyPnlData = useMemo(() => buildWeeklyPnlData(data, activeWeekPeriod), [activeWeekPeriod, data]);
   const weeklyPnlRows = useMemo(() => pnlRows(weeklyPnlData), [weeklyPnlData]);
   const dailyPnlRows = useMemo(() => pnlRows(data), [data]);
-  const dailyPnlTotals = useMemo(() => summarizePnl(dailyPnlRows), [dailyPnlRows]);
   const weeklyPnlTotals = useMemo(() => summarizePnl(weeklyPnlRows), [weeklyPnlRows]);
   const weeklyFlags = useMemo(() => {
     const weeklyValues = activeWeekPeriod?.kpis?.week ?? {};
@@ -512,30 +428,6 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
     [activeWeekPeriod?.settlement, data]
   );
   const weekLabel = activeWeekPeriod ? `${activeWeekPeriod.weekStart} - ${date}` : '';
-  const dailySourceStatus = [
-    data?.importSource?.mickysSalesImportedAt,
-    data?.importSource?.purosoulSalesImportedAt,
-    data?.bankPosition?.length,
-    data?.hotels?.length,
-    data?.pnl?.length
-  ];
-  const dailyReadySources = dailySourceStatus.filter(Boolean).length;
-  const dailyNavItems = [
-    { href: '#daily-bank', label: 'Bank', icon: 'account_balance_wallet' },
-    { href: '#daily-revenue', label: 'Revenue', icon: 'donut_large' },
-    { href: '#daily-hotels', label: 'Hotels', icon: 'hotel' },
-    { href: '#daily-fnb', label: 'F&B', icon: 'restaurant' },
-    { href: '#daily-specialty', label: 'Specialty', icon: 'hub' },
-    { href: '#daily-manufacturing', label: 'Purosoul', icon: 'factory' }
-  ];
-  const weeklyNavItems = [
-    { href: '#weekly-pnl', label: 'P&L', icon: 'monitoring' },
-    { href: '#weekly-flags', label: 'Flags', icon: 'flag' },
-    { href: '#weekly-revenue', label: 'Revenue Mix', icon: 'donut_large' },
-    { href: '#weekly-hotels', label: 'Hotels', icon: 'hotel' },
-    { href: '#weekly-fnb', label: 'F&B', icon: 'restaurant' },
-    { href: '#weekly-settlement', label: 'Settlement', icon: 'point_of_sale' }
-  ];
 
   return (
     <div className="space-y-5">
@@ -581,48 +473,6 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
 
       {viewMode === 'day' ? (
         <section className="space-y-5">
-          <DashboardHero
-            title="Daily Summary"
-            subtitle={`Operating view for ${fmtDate(date)} across bank position, revenue, outlets, hotels, and production.`}
-            meta={[
-              { label: `${dailyReadySources}/${dailySourceStatus.length} source groups ready`, icon: 'cloud_done' },
-              { label: `${dailyPnlRows.length} units`, icon: 'domain' }
-            ]}
-            navItems={dailyNavItems}
-          >
-            <StatStrip items={[
-              {
-                label: 'Revenue Today',
-                value: moneyCompact(dailyPnlTotals.revenue),
-                tone: 'text-teal-700',
-                caption: 'Group operating revenue',
-                icon: 'payments'
-              },
-              {
-                label: 'Est. Net Profit',
-                value: moneyCompact(dailyPnlTotals.net),
-                tone: dailyPnlTotals.net >= 0 ? 'text-emerald-700' : 'text-rose-700',
-                caption: `${percent(dailyPnlTotals.revenue ? (dailyPnlTotals.net / dailyPnlTotals.revenue) * 100 : 0)} net margin`,
-                icon: 'trending_up'
-              },
-              {
-                label: 'Tracked Purchases',
-                value: moneyCompact(dailyPnlTotals.purchases),
-                tone: 'text-amber-700',
-                caption: 'COGS-enabled units',
-                icon: 'shopping_cart'
-              },
-              {
-                label: 'Fixed Cost',
-                value: moneyCompact(dailyPnlTotals.fixed),
-                tone: 'text-rose-700',
-                caption: 'Modeled daily cost',
-                icon: 'receipt_long'
-              }
-            ]} />
-            <UnitHealthGrid rows={dailyPnlRows} />
-          </DashboardHero>
-
           <div id="daily-bank" className="scroll-mt-24">
             <div className="mb-3 flex items-center gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-on-secondary shadow-sm">
@@ -802,47 +652,6 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
         </section>
       ) : (
         <section className="space-y-5">
-          <DashboardHero
-            title="Weekly Summary"
-            subtitle={activeWeekPeriod ? `Week-to-date operating view from ${activeWeekPeriod.weekStart} to ${date}.` : 'Week-to-date operating view is loading from saved reports.'}
-            meta={[
-              { label: activeWeekPeriod ? `${activeWeekPeriod.weekDates?.length ?? 0} saved days` : 'Loading coverage', icon: weekLoading ? 'progress_activity' : 'event_available' },
-              { label: weeklyFlagCounts.action ? `${weeklyFlagCounts.action} action flags` : 'No action flags', icon: 'flag' }
-            ]}
-            navItems={weeklyNavItems}
-          >
-            <StatStrip items={[
-              {
-                label: 'Revenue WTD',
-                value: moneyCompact(weeklyPnlTotals.revenue),
-                tone: 'text-teal-700',
-                caption: 'Group week-to-date revenue',
-                icon: 'payments'
-              },
-              {
-                label: 'Est. Net Profit',
-                value: moneyCompact(weeklyPnlTotals.net),
-                tone: weeklyPnlTotals.net >= 0 ? 'text-emerald-700' : 'text-rose-700',
-                caption: `${percent(weeklyPnlTotals.revenue ? (weeklyPnlTotals.net / weeklyPnlTotals.revenue) * 100 : 0)} net margin`,
-                icon: 'trending_up'
-              },
-              {
-                label: 'Action Flags',
-                value: weeklyFlagCounts.action,
-                tone: weeklyFlagCounts.action ? 'text-rose-700' : 'text-emerald-700',
-                caption: `${weeklyFlagCounts.on} KPIs on track`,
-                icon: 'flag'
-              },
-              {
-                label: 'Tracked Days',
-                value: activeWeekPeriod?.weekDates?.length ?? 0,
-                tone: 'text-amber-700',
-                caption: activeWeekPeriod ? `${activeWeekPeriod.weekStart} to ${date}` : 'Waiting for saved reports',
-                icon: 'date_range'
-              }
-            ]} />
-            <UnitHealthGrid rows={weeklyPnlRows} title="Weekly Unit Pulse" scope="week to date" />
-          </DashboardHero>
           {weekError ? (
             <div className="glass-card border border-error/20 bg-error/10 px-5 py-4 text-sm font-semibold text-error">
               {weekError}
