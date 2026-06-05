@@ -936,10 +936,11 @@ async function buildWeeklyReportData(data, date, options = {}) {
     : weekRangeForDate(date);
   const { start, end } = range;
   const weekDates = await listDailyDatesInRange(start, end);
-  const [weeklyAggregate, weeklySettlement, weeklyPurosoulSku] = await Promise.all([
+  const [weeklyAggregate, weeklySettlement, weeklyPurosoulSku, weeklyOccupancyMix] = await Promise.all([
     aggregatePeriodForDates(weekDates),
     aggregateSettlementForDates(weekDates),
-    aggregatePurosoulSkuForDates(weekDates)
+    aggregatePurosoulSkuForDates(weekDates),
+    aggregateOccupancyMixForDates(weekDates)
   ]);
   const overrides = await getAopTargets();
   const withoutForecast = {
@@ -955,7 +956,7 @@ async function buildWeeklyReportData(data, date, options = {}) {
     settlement: weeklySettlement,
     purosoulSku: weeklyPurosoulSku.length ? weeklyPurosoulSku : withPnl.purosoulSku
   };
-  return { data: withDashboardWeekData, week: { start, end, dates: weekDates } };
+  return { data: withDashboardWeekData, week: { start, end, dates: weekDates, occupancyMix: weeklyOccupancyMix } };
 }
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
