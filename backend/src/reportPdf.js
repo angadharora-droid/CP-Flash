@@ -613,8 +613,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
       const share = total ? Math.round((numberValue(row.value) / total) * 100) : 0;
       const px = chartX + i * (pillW + 6);
-      doc.roundedRect(px, pillsY, pillW, 14, 7).fill(`${color}18`);
-      doc.roundedRect(px, pillsY, pillW, 14, 7).strokeColor(`${color}50`).lineWidth(0.4).stroke();
+      doc.fillColor(color).opacity(0.1).roundedRect(px, pillsY, pillW, 14, 7).fill();
+      doc.opacity(1);
+      doc.roundedRect(px, pillsY, pillW, 14, 7).strokeColor(color).lineWidth(0.35).stroke();
       doc.fillColor(color).font('Helvetica-Bold').fontSize(6.5).text(
         safeText(`${row.name}  ${share}%`), px + 4, pillsY + 3, { width: pillW - 8, align: 'center', lineBreak: false }
       );
