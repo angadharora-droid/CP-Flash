@@ -728,13 +728,10 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   // ── Helper: render flags table ───────────────────────────────────────────────
-  function renderUnitRevenueSummary() {
-    sectionTitle('Unit Revenue Summary', 26 + UNITS.length * 38);
-    for (const unit of UNITS) {
-      const row = pnl.find((item) => item.unit === unit);
-      const meta = UNIT_REVENUE_META[unit] ?? { title: unit, source: unit };
-      hero(meta.title, meta.source, money(row?.revenueToday));
-    }
+  function renderUnitRevenueHeader(unit) {
+    const row = pnl.find((item) => item.unit === unit);
+    const meta = UNIT_REVENUE_META[unit] ?? { title: unit, source: unit };
+    hero(meta.title, meta.source, money(row?.revenueToday));
   }
 
   function renderFlags() {
@@ -813,7 +810,6 @@ export function createDailyFlashPdf(data, date, options = {}) {
     }
 
     // 2. P&L table
-    if (hasSection('pnl')) renderUnitRevenueSummary();
     if (hasSection('pnl')) renderPnlTable();
 
     // 3. Unit-wise Revenue Share donut
@@ -821,6 +817,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
     // 4. CP Nagpur: Room Revenue & Occupancy → Forecast → Banquets → Banquet Function Lists
     if (hasSection('hotels')) {
+      renderUnitRevenueHeader('CP Nagpur');
       renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'Forecast', 'Banquets']);
       for (const list of [
         { title: 'CP Nagpur - Banquet Function List Today', rows: data.banquetToday ?? [] },
@@ -843,13 +840,39 @@ export function createDailyFlashPdf(data, date, options = {}) {
     }
 
     // 5. CP NM: Room Revenue & Occupancy → Forecast
-    if (hasSection('hotels')) renderHotelSections('CP NM', ['Room Revenue & Occupancy', 'Forecast']);
+    if (hasSection('hotels')) {
+      renderUnitRevenueHeader('CP NM');
+      renderHotelSections('CP NM', ['Room Revenue & Occupancy', 'Forecast']);
+    }
 
     // 6. F&B Outlet Sales column chart
     if (hasSection('fnb')) renderFnbOutletChart();
 
+    if (hasSection('fnb')) {
+      const pabloRows = data.fnb?.Pablo ?? [];
+      renderUnitRevenueHeader('Pablo');
+      for (const section of [...new Set(pabloRows.map((row) => row.section))]) {
+        kpiTable(`Pablo - ${section}`, pabloRows.filter((row) => row.section === section));
+      }
+
+      const daliRows = data.fnb?.Dali ?? [];
+      renderUnitRevenueHeader('Dali');
+      for (const section of [...new Set(daliRows.map((row) => row.section))]) {
+        kpiTable(`Dali - ${section}`, daliRows.filter((row) => row.section === section));
+      }
+    }
+
+    if (hasSection('rabbits')) {
+      const rabbitRows = (data.rabbits ?? []).filter((row) => row.section !== 'Cost');
+      renderUnitRevenueHeader('Rabbit');
+      for (const section of [...new Set(rabbitRows.map((row) => row.section))]) {
+        kpiTable(`Rabbit - ${section}`, rabbitRows.filter((row) => row.section === section));
+      }
+    }
+
     // 7. Micky's: Leads Pipeline always shows when mail received; amber notice on Orders & Revenue if no sales
     if (hasSection('mickys')) {
+      renderUnitRevenueHeader("Micky's");
       const mickysRows = data.mickys ?? [];
       const mickysImportedAt = data.importSource?.mickysSalesImportedAt;
       if (!mickysImportedAt) {
@@ -869,6 +892,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
     // 8. Purosoul sections + SKU
     if (hasSection('purosoul')) {
+      renderUnitRevenueHeader('Purosoul');
       const purosoulRows = data.purosoul ?? [];
       const purosoulImportedAt = data.importSource?.purosoulSalesImportedAt;
       const purosoulRevenue = revenueFor(purosoulRows);
@@ -892,7 +916,6 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // ════════════════════════════════════════════════════════════
 
     // 1. P&L table
-    if (hasSection('pnl')) renderUnitRevenueSummary();
     if (hasSection('pnl')) renderPnlTable();
 
     // 2. Action Flag Summary
@@ -903,6 +926,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
     // 4. CP Nagpur: Room Revenue & Occupancy → F&B Outlets → Banquets → SOB → MS
     if (hasSection('hotels')) {
+      renderUnitRevenueHeader('CP Nagpur');
       renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'F&B Outlets', 'Banquets']);
       const cpnMix = week?.occupancyMix?.['CP Nagpur'];
       if (cpnMix) {
@@ -917,6 +941,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
     // 5. CP NM: Room Revenue & Occupancy → SOB → MS
     if (hasSection('hotels')) {
+      renderUnitRevenueHeader('CP NM');
       renderHotelSections('CP NM', ['Room Revenue & Occupancy']);
       const cpNmMix = week?.occupancyMix?.['CP NM'];
       if (cpNmMix) {
@@ -935,6 +960,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 7. Pablo sections
     if (hasSection('fnb')) {
       const pabloRows = data.fnb?.Pablo ?? [];
+      renderUnitRevenueHeader('Pablo');
       for (const section of [...new Set(pabloRows.map((row) => row.section))]) {
         kpiTable(`Pablo - ${section}`, pabloRows.filter((row) => row.section === section));
       }
@@ -943,6 +969,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 8. Dali sections
     if (hasSection('fnb')) {
       const daliRows = data.fnb?.Dali ?? [];
+      renderUnitRevenueHeader('Dali');
       for (const section of [...new Set(daliRows.map((row) => row.section))]) {
         kpiTable(`Dali - ${section}`, daliRows.filter((row) => row.section === section));
       }
@@ -951,6 +978,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 9. Rabbit sections (excluding Cost — matches dashboard filter)
     if (hasSection('rabbits')) {
       const rabbitRows = (data.rabbits ?? []).filter((row) => row.section !== 'Cost');
+      renderUnitRevenueHeader('Rabbit');
       for (const section of [...new Set(rabbitRows.map((row) => row.section))]) {
         kpiTable(`Rabbit - ${section}`, rabbitRows.filter((row) => row.section === section));
       }
@@ -959,6 +987,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 10. Micky's sections
     if (hasSection('mickys')) {
       const mickysRows = data.mickys ?? [];
+      renderUnitRevenueHeader("Micky's");
       for (const section of [...new Set(mickysRows.map((row) => row.section))]) {
         kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section));
       }
@@ -967,6 +996,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 11. Purosoul sections + SKU
     if (hasSection('purosoul')) {
       const purosoulRows = data.purosoul ?? [];
+      renderUnitRevenueHeader('Purosoul');
       for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
         const rows = purosoulRows.filter((row) => (
           row.section === section
