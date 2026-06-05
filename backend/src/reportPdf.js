@@ -676,8 +676,28 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 3. Unit-wise Revenue Share donut
     if (hasSection('pnl')) revenueShareChart(pnl, 'Unit-wise Revenue Share', 'P&L revenue contribution by unit - today');
 
-    // 4. CP Nagpur: Room Revenue & Occupancy → Forecast → Banquets
-    if (hasSection('hotels')) renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'Forecast', 'Banquets']);
+    // 4. CP Nagpur: Room Revenue & Occupancy → Forecast → Banquets → Banquet Function Lists
+    if (hasSection('hotels')) {
+      renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'Forecast', 'Banquets']);
+      for (const list of [
+        { title: 'CP Nagpur - Banquet Function List Today', rows: data.banquetToday ?? [] },
+        { title: 'CP Nagpur - Banquet Function List Tomorrow', rows: data.banquetTomorrow ?? [] }
+      ]) {
+        const banqRows = list.rows.map((row) => [
+          String(row.marketSegment ?? '-'),
+          String(row.pax ?? '-'),
+          String(row.venue ?? '-'),
+          String(row.session ?? '-'),
+          row.revenue ? money(row.revenue) : '-',
+          String(row.notes ?? '-')
+        ]);
+        const banqOpts = { widths: [110, 40, 90, 70, 80, 133], fontSize: 7, leftColumns: [0, 2, 3, 5] };
+        sectionTitle(list.title, tablePreviewHeight(banqRows, banqOpts));
+        if (banqRows.length) {
+          table(['Party / Client', 'Pax', 'Hall/Venue', 'Session', 'Revenue', 'Notes'], banqRows, banqOpts);
+        }
+      }
+    }
 
     // 5. CP NM: Room Revenue & Occupancy → Forecast
     if (hasSection('hotels')) renderHotelSections('CP NM', ['Room Revenue & Occupancy', 'Forecast']);
