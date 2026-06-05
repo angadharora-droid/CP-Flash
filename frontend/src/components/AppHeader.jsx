@@ -24,7 +24,7 @@ export default function AppHeader({
   desktopSidebarOpen = false
 }) {
   return (
-    <header className="fixed top-0 z-50 flex h-14 w-full border-b border-outline-variant/60 bg-white/92 shadow-[0_1px_0_rgba(202,211,218,0.6),0_6px_22px_-16px_rgba(8,120,108,0.22)] backdrop-blur-xl md:h-16">
+    <header className="fixed top-0 z-50 flex h-14 w-full border-b border-outline-variant/50 bg-white/95 shadow-[0_1px_0_rgba(202,211,218,0.5),0_8px_24px_-12px_rgba(8,120,108,0.18)] backdrop-blur-xl md:h-15">
       {/* Brand block — anchors above the desktop sidebar. */}
       <div className="hidden h-full w-72 shrink-0 items-center gap-3 border-r border-outline-variant/55 bg-gradient-to-br from-white via-white to-surface-container-lowest px-4 md:flex">
         <button
@@ -61,19 +61,10 @@ export default function AppHeader({
             <MIcon name="menu" />
           </button>
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <span className="hidden size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/18 via-primary/10 to-primary/5 text-primary ring-1 ring-primary/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] md:flex">
-              <MIcon name={icon} filled className="text-[21px]" />
+            <span className="hidden size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15 md:flex">
+              <MIcon name={icon} filled className="text-[20px]" />
             </span>
-            <div className="min-w-0 leading-tight">
-              <h1 className="truncate text-base font-extrabold tracking-tight text-on-surface sm:text-lg md:text-xl">{title}</h1>
-              <p className="mt-0.5 hidden items-center gap-1.5 truncate text-[11px] font-medium text-on-surface-variant/70 md:flex">
-                <span
-                  className={`size-1.5 rounded-full ${refreshing ? 'bg-primary animate-pulse' : 'bg-emerald-500'}`}
-                  aria-hidden
-                />
-                {refreshing ? 'Refreshing data…' : 'Live • Auto-refresh every 2 min'}
-              </p>
-            </div>
+            <h1 className="truncate text-base font-extrabold tracking-tight text-on-surface sm:text-lg md:text-xl">{title}</h1>
           </div>
         </div>
 
