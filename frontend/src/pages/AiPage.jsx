@@ -10,14 +10,14 @@ export default function AiPage({ data, authToken }) {
   const [error, setError] = useState('');
 
   const buildPrompt = () => {
-    const risks = withFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED');
+    const risks = withFlags(data).filter((row) => row.flag === 'ACTION');
     const settlement = settlementTotals(data);
     return `Generate a daily management briefing for Centre Point Hospitality Group.
 
 Group P&L summary:
 ${pnlRows(data).map((row) => `- ${row.unit}: revenue ${money(row.revenueToday)}, purchases ${money(row.purchasesToday)}, estimated net profit ${money(row.estNetProfit)}, net margin ${percent(row.netMargin)}`).join('\n')}
 
-WATCH and ACTION flags:
+ACTION flags:
 ${risks.map((row) => `- ${row.unit} / ${row.kpiName}: target ${row.aopTarget}, actual ${row.todayActual}, ${row.percentVsTarget}% vs target, ${row.flag}`).join('\n') || '- None'}
 
 Settlement reconciliation:
