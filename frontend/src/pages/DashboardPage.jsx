@@ -57,29 +57,23 @@ const UNIT_REVENUE_META = {
 
 const HIDDEN_PUROSOUL_REVENUE_COST_ROWS = new Set(['RM Cost Today', 'RM Cost %', 'Revenue MTD', 'Purchase MTD']);
 
-function UnitRevenueCards({ rows, scope = 'today' }) {
+function UnitRevenueHeader({ unit, rows, scope = 'today' }) {
+  const row = rows.find((item) => item.unit === unit);
+  const meta = UNIT_REVENUE_META[unit] ?? { title: unit, source: unit };
   return (
-    <div className="grid gap-2.5">
-      {UNITS.map((unit) => {
-        const row = rows.find((item) => item.unit === unit);
-        const meta = UNIT_REVENUE_META[unit] ?? { title: unit, source: unit };
-        return (
-          <div key={unit} className="relative overflow-hidden rounded-lg bg-[#101827] px-4 py-3 text-white shadow-card">
-            <div className="absolute inset-y-0 left-0 w-1.5 bg-primary" />
-            <div className="flex items-center justify-between gap-4 pl-1.5">
-              <div className="min-w-0">
-                <div className="truncate text-[18px] font-extrabold leading-tight">{meta.title}</div>
-                <div className="mt-1 truncate text-[12px] font-medium text-white/65">{meta.source}</div>
-              </div>
-              <div className="shrink-0 text-right">
-                <div className="text-[9px] font-extrabold uppercase tracking-[0.28em] text-white/65">Revenue</div>
-                <div className="num mt-1 text-[20px] font-extrabold leading-none">{money(numberValue(row?.revenueToday))}</div>
-                <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white/45">{scope}</div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
+    <div className="relative mb-2.5 overflow-hidden rounded-lg bg-[#101827] px-4 py-3 text-white shadow-card">
+      <div className="absolute inset-y-0 left-0 w-1.5 bg-primary" />
+      <div className="flex items-center justify-between gap-4 pl-1.5">
+        <div className="min-w-0">
+          <div className="truncate text-[18px] font-extrabold leading-tight">{meta.title}</div>
+          <div className="mt-1 truncate text-[12px] font-medium text-white/65">{meta.source}</div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-[9px] font-extrabold uppercase tracking-[0.28em] text-white/65">Revenue</div>
+          <div className="num mt-1 text-[20px] font-extrabold leading-none">{money(numberValue(row?.revenueToday))}</div>
+          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white/45">{scope}</div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -474,10 +468,8 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             </div>
           </div>
           <BankPositionTable rows={data?.bankPosition ?? []} />
-          <SectionCard title="Unit Revenue Summary" subtitle="Revenue by unit and source" icon={SECTION_ICONS.kpi} tone="teal" defaultOpen>
-            <UnitRevenueCards rows={dailyPnlRows} />
-          </SectionCard>
           <RevenueShareDonut data={data} />
+          <UnitRevenueHeader unit="CP Nagpur" rows={dailyPnlRows} />
           <SectionCard
             title="CP Nagpur: Room Revenue & Occupancy"
             subtitle={`${roomRevenueRows.length} KPI${roomRevenueRows.length === 1 ? '' : 's'}`}
@@ -525,6 +517,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               />
             </SectionCard>
           ))}
+          <UnitRevenueHeader unit="CP NM" rows={dailyPnlRows} />
           <SectionCard
             title="CP NM: Room Revenue & Occupancy"
             subtitle={`${cpNmRoomRevenueRows.length} KPI${cpNmRoomRevenueRows.length === 1 ? '' : 's'}`}
@@ -544,6 +537,46 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             <KpiTable rows={cpNmForecastRows} />
           </SectionCard>
           <FnbOutletSalesChart data={data} />
+          <UnitRevenueHeader unit="Pablo" rows={dailyPnlRows} />
+          {pabloSections.map((section) => (
+            <SectionCard
+              key={`day-pablo-${section}`}
+              title={`Pablo: ${section}`}
+              subtitle={`${pabloRows.filter((row) => row.section === section).length} KPI${pabloRows.filter((row) => row.section === section).length === 1 ? '' : 's'}`}
+              icon={SECTION_ICONS.restaurant}
+              tone="teal"
+              defaultOpen
+            >
+              <KpiTable rows={pabloRows.filter((row) => row.section === section)} />
+            </SectionCard>
+          ))}
+          <UnitRevenueHeader unit="Dali" rows={dailyPnlRows} />
+          {daliSections.map((section) => (
+            <SectionCard
+              key={`day-dali-${section}`}
+              title={`Dali: ${section}`}
+              subtitle={`${daliRows.filter((row) => row.section === section).length} KPI${daliRows.filter((row) => row.section === section).length === 1 ? '' : 's'}`}
+              icon={SECTION_ICONS.restaurant}
+              tone="teal"
+              defaultOpen
+            >
+              <KpiTable rows={daliRows.filter((row) => row.section === section)} />
+            </SectionCard>
+          ))}
+          <UnitRevenueHeader unit="Rabbit" rows={dailyPnlRows} />
+          {rabbitSections.map((section, index) => (
+            <SectionCard
+              key={`day-rabbit-${section}`}
+              title={`Rabbit: ${section}`}
+              subtitle={`${rabbitRows.filter((row) => row.section === section).length} KPI${rabbitRows.filter((row) => row.section === section).length === 1 ? '' : 's'}`}
+              icon={SECTION_ICONS.restaurant}
+              tone={index % 2 === 0 ? 'indigo' : 'amber'}
+              defaultOpen
+            >
+              <KpiTable rows={rabbitRows.filter((row) => row.section === section)} />
+            </SectionCard>
+          ))}
+          <UnitRevenueHeader unit="Micky's" rows={dailyPnlRows} />
           {data?.importSource?.mickysSalesImportedAt ? (
             <>
               <SectionCard
@@ -585,6 +618,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               rows={[]}
             />
           )}
+          <UnitRevenueHeader unit="Purosoul" rows={dailyPnlRows} />
           {data?.importSource?.purosoulSalesImportedAt && numberValue(purosoulRevenueRows.find(r => /total revenue/i.test(r.name))?.actual) > 0 ? (
             <>
               <SectionCard
@@ -651,9 +685,6 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             tone="teal"
             defaultOpen
           >
-            <div className="mb-5">
-              <UnitRevenueCards rows={weeklyPnlRows} scope="week to date" />
-            </div>
             <DataTable
               columns={['Unit', 'Revenue WTD', 'Purchases WTD', 'Gross Profit', 'GP%', 'Fixed Cost (Week)', 'Est. Net Profit', 'Net Margin%', 'Days']}
               numericFrom={1}
@@ -741,6 +772,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             subtitle={activeWeekPeriod ? `P&L revenue contribution by unit - week to date (${activeWeekPeriod.weekStart} - ${date})` : 'P&L revenue contribution by unit - week to date'}
           />
 
+          <UnitRevenueHeader unit="CP Nagpur" rows={weeklyPnlRows} scope="week to date" />
           <SectionCard title="CP Nagpur: Room Revenue & Occupancy" subtitle="Week-to-date hotel KPIs" icon={SECTION_ICONS.hotel} tone="teal" defaultOpen>
             <WeeklyKpiTable rows={weekCpnRoomRows} />
           </SectionCard>
@@ -764,6 +796,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               kind="segment"
             />
           </div>
+          <UnitRevenueHeader unit="CP NM" rows={weeklyPnlRows} scope="week to date" />
           <SectionCard title="CP NM: Room Revenue & Occupancy" subtitle="Week-to-date hotel KPIs" icon={SECTION_ICONS.hotel} tone="teal" defaultOpen>
             <WeeklyKpiTable rows={weekCpNmRoomRows} />
           </SectionCard>
@@ -782,6 +815,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             />
           </div>
           <FnbOutletSalesChart data={data} period={activeWeekPeriod} mode="week" />
+          <UnitRevenueHeader unit="Pablo" rows={weeklyPnlRows} scope="week to date" />
           {pabloSections.map((section) => {
             const rows = buildWeeklyRowsFrom(pabloRows, section);
             return (
@@ -797,6 +831,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               </SectionCard>
             );
           })}
+          <UnitRevenueHeader unit="Dali" rows={weeklyPnlRows} scope="week to date" />
           {daliSections.map((section) => {
             const rows = buildWeeklyRowsFrom(daliRows, section);
             return (
@@ -812,6 +847,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               </SectionCard>
             );
           })}
+          <UnitRevenueHeader unit="Rabbit" rows={weeklyPnlRows} scope="week to date" />
           {rabbitSections.map((section, index) => {
             const rows = buildWeeklyRowsFrom(rabbitRows, section);
             return (
@@ -827,6 +863,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               </SectionCard>
             );
           })}
+          <UnitRevenueHeader unit="Micky's" rows={weeklyPnlRows} scope="week to date" />
           {mickysSections.map((section) => {
             const rows = buildWeeklyRowsFrom(mickysRows, section);
             return (
@@ -842,6 +879,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               </SectionCard>
             );
           })}
+          <UnitRevenueHeader unit="Purosoul" rows={weeklyPnlRows} scope="week to date" />
           {purosoulSections.map((section) => {
             const rows = buildWeeklyRowsFrom(purosoulRows, section);
             return (
