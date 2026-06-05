@@ -43,6 +43,14 @@ function money(value) {
   return `Rs. ${amount.toLocaleString('en-IN')}`;
 }
 
+function moneyCompact(value) {
+  const amount = numberValue(value);
+  if (Math.abs(amount) >= 10000000) return `Rs. ${+(amount / 10000000).toFixed(2)} Cr`;
+  if (Math.abs(amount) >= 100000) return `Rs. ${+(amount / 100000).toFixed(2)} L`;
+  if (Math.abs(amount) >= 1000) return `Rs. ${+(amount / 1000).toFixed(2)} K`;
+  return `Rs. ${Math.round(amount).toLocaleString('en-IN')}`;
+}
+
 function percent(value) {
   return `${numberValue(value).toFixed(1)}%`;
 }
@@ -360,17 +368,72 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.y = y + chartHeight;
   }
 
+  const CHART_PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a', '#3f6fb5', '#b5447a'];
+
+  function donutChart(title, subtitle, entries, chartOptions = {}) {
+    const chartRows = entries.filter((e) => numberValue(e.value) > 0).sort((a, b) => b.value - a.value);
+    if (!chartRows.length) return;
+    const total = chartRows.reduce((sum, e) => sum + numberValue(e.value), 0);
+    const CARD_H = Math.max(210, 52 + chartRows.length * 22 + 14);
+    ensureSpace(CARD_H + 10);
+    const y = doc.y;
+    const x = 36;
+    const outerR = 70;
+    const innerR = 42;
+    const cx = x + 130;
+    const cy = y + 46 + outerR;
+
+    doc.roundedRect(x, y, width, CARD_H, 8).fill(colors.white);
+    doc.roundedRect(x, y, width, CARD_H, 8).strokeColor(colors.line).lineWidth(0.6).stroke();
+    doc.rect(x, y, 4, 36).fill(chartOptions.accent ?? colors.accent);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(title), x + 14, y + 10, { width: width - 28, lineBreak: false });
+    if (subtitle) {
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(subtitle), x + 14, y + 24, { width: width - 28, lineBreak: false });
+    }
+
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    let startAngle = -90;
+    chartRows.forEach((row, i) => {
+      const sliceAngle = (numberValue(row.value) / total) * 358;
+      const endAngle = startAngle + sliceAngle;
+      const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
+      const x1 = cx + outerR * Math.cos(toRad(startAngle));
+      const y1 = cy + outerR * Math.sin(toRad(startAngle));
+      const x2 = cx + outerR * Math.cos(toRad(endAngle));
+      const y2 = cy + outerR * Math.sin(toRad(endAngle));
+      const x3 = cx + innerR * Math.cos(toRad(endAngle));
+      const y3 = cy + innerR * Math.sin(toRad(endAngle));
+      const x4 = cx + innerR * Math.cos(toRad(startAngle));
+      const y4 = cy + innerR * Math.sin(toRad(startAngle));
+      const largeArc = sliceAngle > 180 ? 1 : 0;
+      const pathD = `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} L ${x3.toFixed(2)} ${y3.toFixed(2)} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x4.toFixed(2)} ${y4.toFixed(2)} Z`;
+      doc.path(pathD).fill(color);
+      startAngle = endAngle + 1;
+    });
+
+    doc.fillColor(colors.subtle).font('Helvetica-Bold').fontSize(6).text('TOTAL', cx - 28, cy - 16, { width: 56, align: 'center', characterSpacing: 1, lineBreak: false });
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(11).text(safeText(moneyCompact(total)), cx - 36, cy - 5, { width: 72, align: 'center', lineBreak: false });
+
+    const legendX = cx + outerR + 22;
+    const legendW = x + width - legendX - 4;
+    chartRows.forEach((row, i) => {
+      const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
+      const share = total ? Math.round((numberValue(row.value) / total) * 100) : 0;
+      const ly = y + 46 + i * 22;
+      doc.circle(legendX + 5, ly + 7, 4).fill(color);
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(8.5).text(safeText(row.name), legendX + 14, ly + 2, { width: legendW - 85, lineBreak: false });
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8.5).text(safeText(moneyCompact(row.value)), legendX + legendW - 80, ly + 2, { width: 55, align: 'right', lineBreak: false });
+      doc.fillColor(color).font('Helvetica-Bold').fontSize(8.5).text(`${share}%`, legendX + legendW - 22, ly + 2, { width: 24, align: 'right', lineBreak: false });
+    });
+
+    doc.y = y + CARD_H + 6;
+  }
+
   function revenueShareChart(dataRows, title, subtitle) {
-    const total = dataRows.reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
-    const rows = dataRows
-      .map((row) => ({
-        name: row.unit,
-        value: numberValue(row.revenueToday),
-        label: `${money(row.revenueToday)} / ${total ? Math.round((numberValue(row.revenueToday) / total) * 100) : 0}%`
-      }))
-      .filter((row) => row.value > 0)
-      .sort((a, b) => b.value - a.value);
-    barChart(title, subtitle, rows, { accent: colors.accent });
+    const entries = dataRows
+      .map((row) => ({ name: row.unit, value: numberValue(row.revenueToday) }))
+      .filter((e) => e.value > 0);
+    donutChart(title, subtitle, entries, { accent: colors.accent });
   }
 
   function flagCell(label) {
