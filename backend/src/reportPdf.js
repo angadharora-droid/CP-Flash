@@ -650,12 +650,14 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   function mailStatusCard(title, importedAt, revenue) {
+    const noMail = !importedAt;
+    const noSales = !noMail && numberValue(revenue) === 0;
+    // mail received AND has sales → no card needed, show tables normally
+    if (!noMail && !noSales) return false;
     ensureSpace(62);
     const y = doc.y;
     const x = 36;
     const H = 56;
-    const noMail = !importedAt;
-    const noSales = !noMail && !revenue;
     const accentColor = noMail ? colors.red : colors.amber;
     const message = noMail
       ? 'Report not uploaded — daily sales email not received'
@@ -666,7 +668,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(safeText(title), x + 14, y + 10, { width: width - 28, lineBreak: false });
     doc.fillColor(accentColor).font('Helvetica-Bold').fontSize(8).text(safeText(message), x + 14, y + 28, { width: width - 28, lineBreak: false });
     doc.y = y + H + 6;
-    return noMail || noSales;
+    return true;
   }
 
   decoratePage();
