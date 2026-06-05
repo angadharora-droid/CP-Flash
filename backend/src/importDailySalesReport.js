@@ -151,6 +151,9 @@ function getInvoiceRows(wb, preferredSheetNames, reportName, targetDate) {
   }
 
   if (targetDate && best) {
+    if (Object.keys(best.parsed.byDate).length) {
+      throw new Error(`No ${targetDate} invoice rows found in ${reportName}; latest available is ${best.parsed.latestDate} on ${best.sheetName}`);
+    }
     return { ...best, noSaleDate: targetDate };
   }
   if (best) return best;
@@ -225,7 +228,7 @@ export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate)
   try {
     invoiceRows = getInvoiceRows(wb, ['Sales'], 'Purosoul report', targetDate);
   } catch (err) {
-    if (!targetDate) throw err;
+    if (!targetDate || !/^No invoice sheet found/.test(err.message)) throw err;
     const sheetName = wb.SheetNames[0] ?? 'Sales';
     const written = await writeNoSaleReport({
       date: targetDate,
@@ -267,7 +270,7 @@ export async function importMickysSalesReport(xlsBuffer, fileName, targetDate) {
   try {
     invoiceRows = getInvoiceRows(wb, ['Sheet1'], 'Micky\'s report', targetDate);
   } catch (err) {
-    if (!targetDate) throw err;
+    if (!targetDate || !/^No invoice sheet found/.test(err.message)) throw err;
     const sheetName = wb.SheetNames[0] ?? 'Sheet1';
     const written = await writeNoSaleReport({
       date: targetDate,
