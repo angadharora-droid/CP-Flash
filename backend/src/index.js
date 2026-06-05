@@ -14,7 +14,7 @@ import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
 import { buildSourceStatus } from './sources.js';
-import { normalizeRabbitCategoryBreakdown, settlementModes, UNITS, UNITS_WITHOUT_FIXED_COST } from './schema.js';
+import { normalizeRabbitCategoryBreakdown, settlementModes, UNITS } from './schema.js';
 import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
 import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
 import { readAopTargets, writeAopTargets, applyDailyTargetOverrides, collectKpiCatalog } from './aopTargets.js';
@@ -596,9 +596,7 @@ async function aggregatePeriodForDates(dates) {
       if (!entry) continue;
       const revenue = numberValue(row.revenueToday);
       const purchases = numberValue(row.purchasesToday);
-      const fixed = UNITS_WITHOUT_FIXED_COST.includes(row.unit)
-        ? 0
-        : (numberValue(row.fixedCost) || entry.fixedCost);
+      const fixed = numberValue(row.fixedCost) || entry.fixedCost;
       entry.revenue += revenue;
       entry.purchases += purchases;
       entry.gp += revenue - purchases;
@@ -912,9 +910,7 @@ function applyPnlAggregatesToWeeklyData(data, aggregate, options = {}) {
     ...data,
     pnl: (data.pnl ?? []).map((row) => {
       const weekRow = pnlByUnit[row.unit];
-      const dailyFixed = UNITS_WITHOUT_FIXED_COST.includes(row.unit)
-        ? 0
-        : (numberValue(row.fixedCost) || (weekRow ? weekRow.fixedCost : 0));
+      const dailyFixed = numberValue(row.fixedCost) || (weekRow ? weekRow.fixedCost : 0);
       const weeklyFixed = dailyFixed * periodDays;
       const revenue = weekRow ? weekRow.revenue : 0;
       const purchases = weekRow ? weekRow.purchases : 0;

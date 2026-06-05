@@ -431,7 +431,7 @@ export default function App() {
 
   const page = useMemo(() => {
     if (!enrichedData) return null;
-    const common = { data: enrichedData, setData, date, authToken };
+    const common = { data: enrichedData, setData, date, authToken, onSave: () => saveData(date, data, authToken) };
     const activeKey = canonicalPageKey(renderedActive);
     if (activeKey === 'dashboard') {
       return (
@@ -457,7 +457,7 @@ export default function App() {
     if (activeKey === 'settlement') return <SettlementPage {...common} />;
     if (activeKey === 'aop') return <AopTargetsPage authToken={authToken} />;
     return <AiPage data={enrichedData} authToken={authToken} />;
-  }, [renderedActive, enrichedData, date, authToken, period, openSourceReportPreview, handleRefresh, handleRefreshSources, sourceRefreshRunning, sourceRefreshError]);
+  }, [renderedActive, enrichedData, data, date, authToken, period, openSourceReportPreview, handleRefresh, handleRefreshSources, sourceRefreshRunning, sourceRefreshError]);
 
   const lockApp = React.useCallback(() => {
     localStorage.removeItem('dailyflashToken');
