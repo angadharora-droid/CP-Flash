@@ -61,19 +61,30 @@ function UnitRevenueHeader({ unit, rows, scope = 'today' }) {
   const row = rows.find((item) => item.unit === unit);
   const meta = UNIT_REVENUE_META[unit] ?? { title: unit, source: unit };
   return (
-    <div className="relative mb-2.5 overflow-hidden rounded-lg bg-[#101827] px-4 py-3 text-white shadow-card">
-      <div className="absolute inset-y-0 left-0 w-1.5 bg-primary" />
-      <div className="flex items-center justify-between gap-4 pl-1.5">
+    <div className="relative mb-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-[#0d1724] to-[#101827] px-4 py-3.5 text-white shadow-card">
+      <div className="absolute inset-y-0 left-0 w-1.5 rounded-r-full bg-primary" />
+      <div className="absolute right-0 top-0 h-full w-36 bg-gradient-to-l from-primary/10 to-transparent" />
+      <div className="relative flex items-center justify-between gap-4 pl-2.5">
         <div className="min-w-0">
           <div className="truncate text-[18px] font-extrabold leading-tight">{meta.title}</div>
-          <div className="mt-1 truncate text-[12px] font-medium text-white/65">{meta.source}</div>
+          <div className="mt-1 truncate text-[11.5px] font-medium text-white/55">{meta.source}</div>
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-[9px] font-extrabold uppercase tracking-[0.28em] text-white/65">Revenue</div>
+          <div className="text-[9px] font-extrabold uppercase tracking-[0.28em] text-white/50">Revenue</div>
           <div className="num mt-1 text-[20px] font-extrabold leading-none">{money(numberValue(row?.revenueToday))}</div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white/45">{scope}</div>
+          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white/35">{scope}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function GroupDivider({ label }) {
+  return (
+    <div className="flex items-center gap-3 py-1" role="separator" aria-hidden>
+      <div className="h-px flex-1 bg-outline-variant/35" />
+      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/40">{label}</span>
+      <div className="h-px flex-1 bg-outline-variant/35" />
     </div>
   );
 }
@@ -416,43 +427,53 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {sourceRefreshError ? (
-          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-error/20 bg-error/10 px-3 py-2 text-xs font-bold text-error">
-            <span className="material-symbols-outlined text-[16px]" aria-hidden>error</span>
-            <span className="max-w-[260px] truncate">{sourceRefreshError}</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-extrabold tracking-tight text-on-surface md:text-[17px]">
+            {viewMode === 'day' ? 'Daily Summary' : 'Weekly Summary'}
+          </h2>
+          <p className="mt-0.5 text-[11px] font-medium text-on-surface-variant">
+            {viewMode === 'day' ? fmtDate(date) : (weekLabel || fmtDate(date))}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {sourceRefreshError ? (
+            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-error/20 bg-error/10 px-3 py-2 text-xs font-bold text-error">
+              <span className="material-symbols-outlined text-[16px]" aria-hidden>error</span>
+              <span className="max-w-[260px] truncate">{sourceRefreshError}</span>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={onRefreshSources}
+            disabled={!onRefreshSources || sourceRefreshRunning}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-4 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
+          >
+            <span className={`material-symbols-outlined text-[18px] ${sourceRefreshRunning ? 'animate-spin text-primary' : ''}`} aria-hidden>
+              sync
+            </span>
+            {sourceRefreshRunning ? 'Refreshing...' : 'Refresh Sources'}
+          </button>
+          <div className="inline-flex gap-0.5 rounded-xl border border-outline-variant/60 bg-surface-container p-1">
+            {options.map((option) => {
+              const isActive = viewMode === option.key;
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setViewMode(option.key)}
+                  aria-pressed={isActive}
+                  className={`rounded-lg px-4 py-2 text-xs font-bold transition-all duration-200 ${
+                    isActive
+                      ? 'bg-primary text-on-primary shadow-sm'
+                      : 'text-on-surface-variant hover:bg-surface-container-high'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
-        ) : null}
-        <button
-          type="button"
-          onClick={onRefreshSources}
-          disabled={!onRefreshSources || sourceRefreshRunning}
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-4 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
-        >
-          <span className={`material-symbols-outlined text-[18px] ${sourceRefreshRunning ? 'animate-spin text-primary' : ''}`} aria-hidden>
-            sync
-          </span>
-          {sourceRefreshRunning ? 'Refreshing...' : 'Refresh Sources'}
-        </button>
-        <div className="inline-flex gap-0.5 rounded-xl border border-outline-variant/60 bg-surface-container p-1">
-          {options.map((option) => {
-            const isActive = viewMode === option.key;
-            return (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => setViewMode(option.key)}
-                aria-pressed={isActive}
-                className={`rounded-lg px-4 py-2 text-xs font-bold transition-all duration-200 ${
-                  isActive
-                    ? 'bg-primary text-on-primary shadow-sm'
-                    : 'text-on-surface-variant hover:bg-surface-container-high'
-                }`}
-              >
-                {option.label}
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -517,6 +538,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               />
             </SectionCard>
           ))}
+          <GroupDivider label="CP Navi Mumbai" />
           <UnitRevenueHeader unit="CP NM" rows={dailyPnlRows} />
           <SectionCard
             title="CP NM: Room Revenue & Occupancy"
@@ -537,6 +559,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             <KpiTable rows={cpNmForecastRows} />
           </SectionCard>
           <FnbOutletSalesChart data={data} />
+          <GroupDivider label="Cloud Kitchen & Specialty" />
           <UnitRevenueHeader unit="Micky's" rows={dailyPnlRows} />
           {data?.importSource?.mickysSalesImportedAt ? (
             <>
@@ -579,6 +602,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               rows={[]}
             />
           )}
+          <GroupDivider label="Manufacturing" />
           <UnitRevenueHeader unit="Purosoul" rows={dailyPnlRows} />
           {data?.importSource?.purosoulSalesImportedAt && numberValue(purosoulRevenueRows.find(r => /total revenue/i.test(r.name))?.actual) > 0 ? (
             <>
@@ -630,7 +654,8 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             </div>
           ) : null}
           {weekLoading && !activeWeekPeriod ? (
-            <div className="glass-card px-5 py-4 text-sm font-semibold text-on-surface-variant">
+            <div className="glass-card flex items-center gap-3 px-5 py-4 text-sm font-semibold text-on-surface-variant">
+              <span className="material-symbols-outlined animate-spin text-[20px] text-primary" aria-hidden>progress_activity</span>
               Loading week-to-date data...
             </div>
           ) : null}
