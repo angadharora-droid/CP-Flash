@@ -7,7 +7,6 @@ import { DonutChart } from '../components/DashboardCharts';
 import RevenueShareDonut from '../components/RevenueShareDonut';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import SourceNotice from '../components/SourceNotice';
 import { KpiTable, ReportValue, SECTION_ICONS } from '../components/DashboardUi';
 import { getPnlPeriod } from '../lib/api';
 import {
@@ -22,7 +21,6 @@ import {
   settlementTotals,
   UNITS
 } from '../lib/calculations';
-import { manualSalesNote } from '../lib/sourceNotes';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -46,6 +44,34 @@ function fmtAggregate(value) {
 }
 
 const EMPTY_WEEK_ENTRY = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0, fixedCost: 0 };
+
+function MailStatusCard({ title, icon, importedAt, rows }) {
+  const hasRevenue = (rows ?? []).some(
+    (row) => /total revenue|order revenue|revenue today/i.test(row.name) && numberValue(row.actual) > 0
+  );
+  const status = !importedAt ? 'not-uploaded' : !hasRevenue ? 'no-sales' : 'ok';
+  if (status === 'ok') return null;
+  const isNotUploaded = status === 'not-uploaded';
+  return (
+    <SectionCard title={title} subtitle={isNotUploaded ? 'Report not uploaded' : 'No sales recorded'} icon={icon} tone={isNotUploaded ? 'rose' : 'amber'} defaultOpen>
+      <div className={`flex items-start gap-3 rounded-xl border px-4 py-4 ${isNotUploaded ? 'border-rose-200 bg-rose-50/60' : 'border-amber-200 bg-amber-50/60'}`}>
+        <span className={`material-symbols-outlined shrink-0 text-[22px] ${isNotUploaded ? 'text-rose-500' : 'text-amber-500'}`}>
+          {isNotUploaded ? 'mail_off' : 'mark_email_read'}
+        </span>
+        <div>
+          <p className={`text-sm font-bold ${isNotUploaded ? 'text-rose-700' : 'text-amber-700'}`}>
+            {isNotUploaded ? 'Report not uploaded' : 'Mail received — no sales recorded'}
+          </p>
+          <p className="mt-0.5 text-xs text-on-surface-variant">
+            {isNotUploaded
+              ? 'Daily sales email not received. Data will appear once the report is sent.'
+              : 'The daily sales email was received but no sales were recorded for this date.'}
+          </p>
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
 
 function WeeklyKpiTable({ rows }) {
   return (
@@ -216,8 +242,6 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
   const mickysOrderRevenueRows = (data?.mickys ?? []).filter((row) => row.section === 'Orders & Revenue');
   const purosoulRevenueRows = (data?.purosoul ?? []).filter((row) => row.section === 'Revenue & Cost');
   const purosoulSkuRows = data?.purosoulSku ?? [];
-  const mickysSalesNote = manualSalesNote(data?.importSource, 'mickys');
-  const purosoulSalesNote = manualSalesNote(data?.importSource, 'purosoul');
   const banquetLists = [
     {
       key: 'banquetToday',
@@ -475,35 +499,53 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             <KpiTable rows={cpNmForecastRows} />
           </SectionCard>
           <FnbOutletSalesChart data={data} />
-          <SectionCard
-            title="Micky's: Leads Pipeline"
-            subtitle={`${mickysLeadRows.length} KPI${mickysLeadRows.length === 1 ? '' : 's'}`}
-            icon={SECTION_ICONS.restaurant}
-            tone="rose"
-            defaultOpen
-          >
-            <KpiTable rows={mickysLeadRows} />
-          </SectionCard>
-          <SectionCard
-            title="Micky's: Orders & Revenue"
-            subtitle={`${mickysOrderRevenueRows.length} KPI${mickysOrderRevenueRows.length === 1 ? '' : 's'}`}
-            icon={SECTION_ICONS.restaurant}
-            tone="rose"
-            defaultOpen
-          >
-            <SourceNotice text={mickysSalesNote} />
-            <KpiTable rows={mickysOrderRevenueRows} />
-          </SectionCard>
-          <SectionCard
-            title="Purosoul: Revenue & Cost"
-            subtitle="Daily revenue, raw material cost, and margin"
-            icon={SECTION_ICONS.kpi}
-            tone="teal"
-            defaultOpen
-          >
-            <SourceNotice text={purosoulSalesNote} />
-            <KpiTable rows={purosoulRevenueRows} />
-          </SectionCard>
+          {data?.importSource?.mickysSalesImportedAt && numberValue(mickysOrderRevenueRows.find(r => /order revenue/i.test(r.name))?.actual) > 0 ? (
+            <>
+              <SectionCard
+                title="Micky's: Leads Pipeline"
+                subtitle={`${mickysLeadRows.length} KPI${mickysLeadRows.length === 1 ? '' : 's'}`}
+                icon={SECTION_ICONS.restaurant}
+                tone="rose"
+                defaultOpen
+              >
+                <KpiTable rows={mickysLeadRows} />
+              </SectionCard>
+              <SectionCard
+                title="Micky's: Orders & Revenue"
+                subtitle={`${mickysOrderRevenueRows.length} KPI${mickysOrderRevenueRows.length === 1 ? '' : 's'}`}
+                icon={SECTION_ICONS.restaurant}
+                tone="rose"
+                defaultOpen
+              >
+                <KpiTable rows={mickysOrderRevenueRows} />
+              </SectionCard>
+            </>
+          ) : (
+            <MailStatusCard
+              title="Micky's by CP Foods"
+              icon={SECTION_ICONS.restaurant}
+              importedAt={data?.importSource?.mickysSalesImportedAt}
+              rows={mickysOrderRevenueRows}
+            />
+          )}
+          {data?.importSource?.purosoulSalesImportedAt && numberValue(purosoulRevenueRows.find(r => /total revenue/i.test(r.name))?.actual) > 0 ? (
+            <SectionCard
+              title="Purosoul: Revenue & Cost"
+              subtitle="Daily revenue, raw material cost, and margin"
+              icon={SECTION_ICONS.kpi}
+              tone="teal"
+              defaultOpen
+            >
+              <KpiTable rows={purosoulRevenueRows} />
+            </SectionCard>
+          ) : (
+            <MailStatusCard
+              title="Purosoul"
+              icon={SECTION_ICONS.kpi}
+              importedAt={data?.importSource?.purosoulSalesImportedAt}
+              rows={purosoulRevenueRows}
+            />
+          )}
           <SectionCard
             title="Purosoul: Daily Production & Dispatch"
             subtitle={`${purosoulSkuRows.length} SKU${purosoulSkuRows.length === 1 ? '' : 's'} tracked`}
