@@ -579,17 +579,17 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (!chartRows.length) return;
     const total = chartRows.reduce((sum, e) => sum + numberValue(e.value), 0);
     const maxVal = Math.max(...chartRows.map((e) => numberValue(e.value)));
-    const scaleMax = maxVal * 1.18;
-    const CARD_H = 280;
+    const scaleMax = maxVal * 1.14;
+    const CARD_H = 300;
     ensureSpace(CARD_H + 10);
     const y = doc.y;
     const x = 36;
-    const leftPad = 60;
-    const rightPad = 8;
+    const leftPad = 64;
+    const rightPad = 14;
     const chartX = x + leftPad;
-    const chartY = y + 48;
+    const chartY = y + 52;
     const chartW = width - leftPad - rightPad;
-    const chartH = 168;
+    const chartH = 182;
     const bottomY = chartY + chartH;
 
     doc.roundedRect(x, y, width, CARD_H, 8).fill(colors.white);
@@ -600,20 +600,23 @@ export function createDailyFlashPdf(data, date, options = {}) {
       doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(subtitle), x + 14, y + 24, { width: width - 28, lineBreak: false });
     }
 
+    // Subtle chart area background
+    doc.roundedRect(chartX, chartY, chartW, chartH, 4).fill(colors.panel);
+
     // Gridlines and Y-axis labels
     const gridCount = 4;
     for (let gi = 0; gi <= gridCount; gi++) {
       const lineY = bottomY - (chartH / gridCount) * gi;
       const lineVal = (scaleMax / gridCount) * gi;
-      doc.strokeColor(colors.lineSoft).lineWidth(0.4).dash(3, { space: 3 }).moveTo(chartX, lineY).lineTo(chartX + chartW, lineY).stroke().undash();
-      doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(safeText(moneyCompact(lineVal)), x + 4, lineY - 4, { width: leftPad - 8, align: 'right', lineBreak: false });
+      doc.strokeColor(colors.lineSoft).lineWidth(0.5).dash(4, { space: 4 }).moveTo(chartX, lineY).lineTo(chartX + chartW, lineY).stroke().undash();
+      doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(safeText(moneyCompact(lineVal)), x + 4, lineY - 4, { width: leftPad - 10, align: 'right', lineBreak: false });
     }
 
-    // Bars
+    // Bars — wider so the gap between them feels tighter
     const n = chartRows.length;
     const barGroupW = chartW / n;
-    const barW = Math.min(58, barGroupW * 0.54);
-    const r = 4;
+    const barW = Math.min(72, barGroupW * 0.72);
+    const r = 5;
 
     chartRows.forEach((row, i) => {
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
@@ -623,36 +626,41 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const bty = bottomY - barH;
 
       if (barH > r * 2) {
-        // Rounded top, square bottom
         doc.roundedRect(bx, bty, barW, barH, r).fill(color);
         doc.rect(bx, bottomY - r, barW, r).fill(color);
       } else if (barH > 0) {
         doc.rect(bx, bty, barW, barH).fill(color);
       }
 
-      // Value label above bar
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(7).text(
-        safeText(moneyCompact(value)), bx - 10, bty - 12, { width: barW + 20, align: 'center', lineBreak: false }
+      // Value label — pill badge above bar
+      const labelText = safeText(moneyCompact(value));
+      const labelW = barW + 16;
+      const labelX = bx - 8;
+      const labelY = bty - 18;
+      doc.roundedRect(labelX, labelY, labelW, 13, 6).fill(colors.panelAlt);
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(7.5).text(
+        labelText, labelX, labelY + 2.5, { width: labelW, align: 'center', lineBreak: false }
       );
 
-      // X-axis name
+      // X-axis name below baseline
       doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(
-        safeText(row.name), bx - 10, bottomY + 5, { width: barW + 20, align: 'center', lineBreak: false }
+        safeText(row.name), bx - 8, bottomY + 7, { width: barW + 16, align: 'center', lineBreak: false }
       );
     });
 
-    // Share pills
-    const pillsY = bottomY + 24;
-    const pillW = Math.floor(chartW / chartRows.length) - 6;
+    // Share pills — taller with more internal padding
+    const pillsY = bottomY + 26;
+    const pillGap = 8;
+    const pillW = Math.floor((chartW - pillGap * (n - 1)) / n);
     chartRows.forEach((row, i) => {
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
       const share = total ? Math.round((numberValue(row.value) / total) * 100) : 0;
-      const px = chartX + i * (pillW + 6);
-      doc.fillColor(color).opacity(0.1).roundedRect(px, pillsY, pillW, 14, 7).fill();
+      const px = chartX + i * (pillW + pillGap);
+      doc.fillColor(color).opacity(0.1).roundedRect(px, pillsY, pillW, 17, 8).fill();
       doc.opacity(1);
-      doc.roundedRect(px, pillsY, pillW, 14, 7).strokeColor(color).lineWidth(0.35).stroke();
-      doc.fillColor(color).font('Helvetica-Bold').fontSize(6.5).text(
-        safeText(`${row.name}  ${share}%`), px + 4, pillsY + 3, { width: pillW - 8, align: 'center', lineBreak: false }
+      doc.roundedRect(px, pillsY, pillW, 17, 8).strokeColor(color).lineWidth(0.5).stroke();
+      doc.fillColor(color).font('Helvetica-Bold').fontSize(7).text(
+        safeText(`${row.name}  ${share}%`), px + 6, pillsY + 4.5, { width: pillW - 12, align: 'center', lineBreak: false }
       );
     });
 
