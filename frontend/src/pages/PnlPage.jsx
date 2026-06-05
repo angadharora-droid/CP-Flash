@@ -2,7 +2,7 @@ import React from 'react';
 import DataTable from '../components/DataTable';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
-import { ReportValue, SECTION_ICONS } from '../components/DashboardUi';
+import { ActionButton, ReportValue, SECTION_ICONS } from '../components/DashboardUi';
 import { money, moneyCompact, numberValue, percent, pnlRows, UNITS } from '../lib/calculations';
 
 const EMPTY_PERIOD_ENTRY = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0 };
@@ -20,14 +20,38 @@ function sumPeriod(period) {
   }, { revenue: 0, purchases: 0, gp: 0, netProfit: 0 });
 }
 
-export default function PnlPage({ data, period }) {
+export default function PnlPage({ data, setData, onSave, period }) {
+  const [savingFixedCosts, setSavingFixedCosts] = React.useState(false);
+  const [fixedCostStatus, setFixedCostStatus] = React.useState('');
   const rows = pnlRows(data);
   const mtdByUnit = period?.mtd ?? {};
   const mtdTotals = sumPeriod(mtdByUnit);
+  const updateFixedCost = React.useCallback((unit, value) => {
+    setFixedCostStatus('');
+    setData((prev) => ({
+      ...prev,
+      pnl: (prev.pnl ?? []).map((row) => (
+        row.unit === unit ? { ...row, fixedCost: value } : row
+      ))
+    }));
+  }, [setData]);
+  const saveFixedCosts = React.useCallback(async () => {
+    if (!onSave) return;
+    setSavingFixedCosts(true);
+    setFixedCostStatus('');
+    try {
+      await onSave();
+      setFixedCostStatus('Saved');
+    } catch (err) {
+      setFixedCostStatus(err.message || 'Unable to save');
+    } finally {
+      setSavingFixedCosts(false);
+    }
+  }, [onSave]);
 
   const totals = rows.reduce((acc, row) => {
     acc.revenue += numberValue(row.revenueToday);
-    acc.fixed += row.hasFixedCost ? numberValue(row.fixedCost) : 0;
+    acc.fixed += numberValue(row.fixedCost);
     acc.net += row.estNetProfit;
     if (row.tracksCogs) {
       acc.purchases += numberValue(row.purchasesToday);
@@ -46,13 +70,36 @@ export default function PnlPage({ data, period }) {
         icon={SECTION_ICONS.config}
         tone="slate"
         defaultOpen={false}
+        actions={
+          <div className="flex items-center gap-2">
+            {fixedCostStatus ? (
+              <span className={`max-w-44 truncate text-xs font-bold ${fixedCostStatus === 'Saved' ? 'text-primary' : 'text-error'}`}>
+                {fixedCostStatus}
+              </span>
+            ) : null}
+            <ActionButton onClick={saveFixedCosts} disabled={savingFixedCosts} variant="primary" className="h-9 px-3 py-0 text-xs">
+              <span className="material-symbols-outlined text-[17px]" aria-hidden>save</span>
+              {savingFixedCosts ? 'Saving...' : 'Save'}
+            </ActionButton>
+          </div>
+        }
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {rows.filter((row) => row.hasFixedCost).map((row) => (
-            <div key={row.unit} className="flex items-center justify-between gap-3 rounded-xl border border-app-border bg-white/80 px-3.5 py-2.5">
+          {rows.map((row) => (
+            <label key={row.unit} className="flex items-center justify-between gap-3 rounded-xl border border-app-border bg-white/80 px-3.5 py-2.5 transition-colors duration-150 focus-within:border-primary/60 focus-within:bg-white">
               <span className="text-xs font-bold uppercase tracking-wider text-app-muted">{row.unit}</span>
-              <span className="num text-sm font-bold text-app-text">{money(row.fixedCost)}</span>
-            </div>
+              <span className="flex min-w-0 items-center justify-end gap-1.5">
+                <span className="num text-sm font-bold text-app-muted">₹</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={row.fixedCost ?? ''}
+                  onChange={(event) => updateFixedCost(row.unit, event.target.value.replace(/[^0-9.-]/g, ''))}
+                  aria-label={`${row.unit} daily fixed cost`}
+                  className="num w-24 border-0 bg-transparent p-0 text-right text-sm font-bold text-app-text outline-none focus:ring-0"
+                />
+              </span>
+            </label>
           ))}
         </div>
       </SectionCard>
@@ -102,9 +149,7 @@ export default function PnlPage({ data, period }) {
               row.tracksCogs
                 ? <span className={`num font-semibold ${row.gpPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.gpPercent)}</span>
                 : <span className="num text-on-surface-variant/35">-</span>,
-              row.hasFixedCost
-                ? <ReportValue value={row.fixedCost} numeric />
-                : <span className="num text-on-surface-variant/35">-</span>,
+              <ReportValue value={row.fixedCost} numeric />,
               <span className={`num font-semibold ${row.estNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(row.estNetProfit)}</span>,
               <span className={`num font-semibold ${row.netMargin >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{percent(row.netMargin)}</span>,
               <span className={`num font-semibold ${(mtdNet ?? 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{period ? money(mtdNet ?? 0) : '-'}</span>
