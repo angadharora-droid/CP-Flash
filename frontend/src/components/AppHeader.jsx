@@ -60,9 +60,7 @@ export default function AppHeader({
           >
             <MIcon name="menu" />
           </button>
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <h1 className="truncate text-base font-extrabold tracking-tight text-on-surface sm:text-lg md:text-xl">{title}</h1>
-          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-3" />
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 md:gap-2.5">
