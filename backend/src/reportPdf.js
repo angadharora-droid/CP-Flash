@@ -403,8 +403,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const chartRows = normalizedDonutRows(entries);
     if (!chartRows.length) return;
     const total = chartRows.reduce((sum, e) => sum + numberValue(e.value), 0);
-    const ROW_H = 26;
-    const CARD_H = Math.max(220, 58 + chartRows.length * ROW_H + 16);
+    const ROW_H = 28;
+    const CARD_H = Math.max(226, 58 + chartRows.length * ROW_H + 16);
     ensureSpace(CARD_H + 6);
     const y = doc.y;
     const x = 36;
@@ -451,27 +451,30 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
     const legendX = cx + outerR + 22;
     const legendW = x + width - legendX - 8;
-    const nameColW = legendW - 88;
-    const barMaxW = Math.min(nameColW, 96);
+    const nameColW = legendW - 90;
+    const barMaxW = nameColW;
 
     chartRows.forEach((row, i) => {
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
-      const share = total ? Math.round((numberValue(row.value) / total) * 100) : 0;
+      const shareExact = total ? (numberValue(row.value) / total) * 100 : 0;
+      const share = Math.round(shareExact);
       const ly = y + 58 + i * ROW_H;
 
       if (i % 2 === 0) {
         doc.roundedRect(legendX - 4, ly - 2, legendW + 6, ROW_H - 2, 3).fill(colors.accentTint);
       }
 
-      doc.roundedRect(legendX + 2, ly + 4, 7, 7, 1.5).fill(color);
-      doc.fillColor(colors.ink).font('Helvetica').fontSize(8).text(safeText(row.name), legendX + 13, ly + 5, { width: nameColW, lineBreak: false });
+      // Color square — 9×9 so it's clearly visible
+      doc.roundedRect(legendX + 1, ly + 3, 9, 9, 2).fill(color);
+      doc.fillColor(colors.ink).font('Helvetica').fontSize(8).text(safeText(row.name), legendX + 14, ly + 5, { width: nameColW, lineBreak: false });
 
-      const barW = barMaxW * (share / 100);
-      doc.roundedRect(legendX + 13, ly + 16, barMaxW, 2.5, 1.2).fill(colors.lineSoft);
-      if (barW > 1) doc.roundedRect(legendX + 13, ly + 16, barW, 2.5, 1.2).fill(color);
+      // Progress bar — 4px tall, minimum filled width of 5px so even tiny slices register
+      const barW = Math.max(barMaxW * (shareExact / 100), shareExact > 0 ? 5 : 0);
+      doc.roundedRect(legendX + 14, ly + 17, barMaxW, 4, 2).fill(colors.lineSoft);
+      if (barW > 0) doc.roundedRect(legendX + 14, ly + 17, barW, 4, 2).fill(color);
 
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8).text(safeText(moneyCompact(row.value)), legendX + legendW - 80, ly + 5, { width: 54, align: 'right', lineBreak: false });
-      doc.fillColor(color).font('Helvetica-Bold').fontSize(8.5).text(`${share}%`, legendX + legendW - 22, ly + 4, { width: 26, align: 'right', lineBreak: false });
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8).text(safeText(moneyCompact(row.value)), legendX + legendW - 82, ly + 5, { width: 56, align: 'right', lineBreak: false });
+      doc.fillColor(color).font('Helvetica-Bold').fontSize(9).text(`${share}%`, legendX + legendW - 22, ly + 4, { width: 26, align: 'right', lineBreak: false });
     });
 
     doc.y = y + CARD_H + 6;
