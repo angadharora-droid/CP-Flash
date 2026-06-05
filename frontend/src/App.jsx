@@ -269,6 +269,7 @@ export default function App() {
   const [initialLoaderVisible, setInitialLoaderVisible] = useState(false);
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('dailyflashToken') || '');
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
   const [period, setPeriod] = useState(null);
   const [sourceReportPreview, setSourceReportPreview] = useState(null);
   const [sourceReportPreviewLoading, setSourceReportPreviewLoading] = useState(false);
@@ -539,7 +540,9 @@ export default function App() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-surface text-on-surface">
       {/* ---- Expanded desktop sidebar ---- */}
-      <aside className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-4rem)] w-72 flex-col border-r border-outline-variant/55 bg-gradient-to-b from-surface-container-lowest via-surface-container-low to-surface-container-low transition-all duration-300 md:flex">
+      <aside className={`fixed left-0 top-16 z-40 hidden h-[calc(100vh-4rem)] w-72 flex-col border-r border-outline-variant/55 bg-gradient-to-b from-surface-container-lowest via-surface-container-low to-surface-container-low transition-all duration-300 md:flex ${
+        desktopSidebarOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-full opacity-0'
+      }`}>
         {/* Nav */}
         <nav className="flex flex-grow flex-col overflow-y-auto px-3 py-4">
           {NAV_GROUPS.map((group) => (
@@ -690,10 +693,14 @@ export default function App() {
         onPreviewPdf={() => { setPdfReturnTo(active); setActive('pdf'); }}
         canPreviewPdf={!!data}
         onHome={() => setActive('dashboard')}
+        onToggleDesktopSidebar={() => setDesktopSidebarOpen((open) => !open)}
+        desktopSidebarOpen={desktopSidebarOpen}
       />
 
       {/* ---- Main content ---- */}
-      <main className="min-h-screen px-3 pb-28 pt-16 transition-all duration-300 sm:px-4 md:ml-72 md:pb-12 md:pt-20 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
+      <main className={`min-h-screen px-3 pb-28 pt-16 transition-all duration-300 sm:px-4 md:pb-12 md:pt-20 md:px-6 lg:px-8 xl:px-10 2xl:px-12 ${
+        desktopSidebarOpen ? 'md:ml-72' : 'md:ml-0'
+      }`}>
         <div className="mx-auto max-w-[110rem] 2xl:max-w-[120rem]">
           {data && !Object.values(data.importSource ?? {}).some((v) => v) ? (
             <div className="glass-card mb-6 flex items-start gap-3 border border-tertiary/30 bg-tertiary-container/60 px-5 py-4 text-sm text-on-tertiary-container animate-fade-in-up">

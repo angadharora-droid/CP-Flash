@@ -19,7 +19,9 @@ export default function AppHeader({
   refreshing,
   onPreviewPdf,
   canPreviewPdf,
-  onHome
+  onHome,
+  onToggleDesktopSidebar,
+  desktopSidebarOpen = false
 }) {
   return (
     <header className="fixed top-0 z-50 flex h-14 w-full border-b border-outline-variant/60 bg-white/92 shadow-[0_1px_0_rgba(202,211,218,0.6),0_6px_22px_-16px_rgba(8,120,108,0.22)] backdrop-blur-xl md:h-16">
@@ -27,10 +29,10 @@ export default function AppHeader({
       <div className="hidden h-full w-72 shrink-0 items-center gap-3 border-r border-outline-variant/55 bg-gradient-to-br from-white via-white to-surface-container-lowest px-4 md:flex">
         <button
           type="button"
-          onClick={onHome}
+          onClick={onToggleDesktopSidebar ?? onHome}
           className="group relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white p-1.5 ring-1 ring-outline-variant/55 shadow-sm transition-all hover:ring-primary/55 hover:shadow-md active:scale-95"
-          title="Back to dashboard"
-          aria-label="Home"
+          title={desktopSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+          aria-label={desktopSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
         >
           <img src={cpLogo} alt="" className="h-full w-full object-contain" />
         </button>
