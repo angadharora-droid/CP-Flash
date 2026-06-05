@@ -190,7 +190,7 @@ function collectWeeklyFlagKpis(data) {
   ];
 }
 
-export default function DashboardPage({ data, date, authToken, period }) {
+export default function DashboardPage({ data, date, authToken, period, onRefreshSources, sourceRefreshRunning = false, sourceRefreshError = '' }) {
   const [viewMode, setViewMode] = useState('day');
   const [weekPeriod, setWeekPeriod] = useState(null);
   const [weekLoading, setWeekLoading] = useState(false);
@@ -353,7 +353,24 @@ export default function DashboardPage({ data, date, authToken, period }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {sourceRefreshError ? (
+          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-error/20 bg-error/10 px-3 py-2 text-xs font-bold text-error">
+            <span className="material-symbols-outlined text-[16px]" aria-hidden>error</span>
+            <span className="max-w-[260px] truncate">{sourceRefreshError}</span>
+          </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={onRefreshSources}
+          disabled={!onRefreshSources || sourceRefreshRunning}
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-4 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
+        >
+          <span className={`material-symbols-outlined text-[18px] ${sourceRefreshRunning ? 'animate-spin text-primary' : ''}`} aria-hidden>
+            sync
+          </span>
+          {sourceRefreshRunning ? 'Refreshing...' : 'Refresh Sources'}
+        </button>
         <div className="inline-flex gap-0.5 rounded-xl border border-outline-variant/60 bg-surface-container p-1">
           {options.map((option) => {
             const isActive = viewMode === option.key;

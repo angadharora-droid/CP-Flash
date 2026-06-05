@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getPnlPeriod, getSeed, getSourceReportPreview, saveData } from './lib/api';
+import { getEmailImportStatus, getPnlPeriod, getSeed, getSourceReportPreview, runEmailImport, saveData } from './lib/api';
 import { numberValue, withFlags } from './lib/calculations';
 import AppHeader from './components/AppHeader';
 import { BrandLoader, googleSheetPreviewUrl, PinGate } from './components/DashboardUi';
@@ -270,6 +270,8 @@ export default function App() {
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('dailyflashToken') || '');
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
+  const [sourceRefreshRunning, setSourceRefreshRunning] = useState(false);
+  const [sourceRefreshError, setSourceRefreshError] = useState('');
   const [period, setPeriod] = useState(null);
   const [sourceReportPreview, setSourceReportPreview] = useState(null);
   const [sourceReportPreviewLoading, setSourceReportPreviewLoading] = useState(false);
@@ -403,8 +405,27 @@ export default function App() {
   }, [date, authToken]);
 
   const handleRefresh = React.useCallback(() => {
-    if (authToken) loadData(date, authToken, true);
+    if (authToken) return loadData(date, authToken, true);
+    return Promise.resolve();
   }, [authToken, date, loadData]);
+
+  const handleRefreshSources = React.useCallback(async () => {
+    if (!authToken || sourceRefreshRunning) return;
+    setSourceRefreshRunning(true);
+    setSourceRefreshError('');
+    try {
+      let status = await runEmailImport(authToken, { force: true });
+      for (let attempt = 0; status?.running && attempt < 60; attempt += 1) {
+        await wait(5000);
+        status = await getEmailImportStatus(authToken);
+      }
+      await handleRefresh();
+    } catch (err) {
+      setSourceRefreshError(err.message);
+    } finally {
+      setSourceRefreshRunning(false);
+    }
+  }, [authToken, handleRefresh, sourceRefreshRunning]);
 
   const enrichedData = useMemo(() => applyPeriodToData(data, period), [data, period]);
 
@@ -412,7 +433,17 @@ export default function App() {
     if (!enrichedData) return null;
     const common = { data: enrichedData, setData, date, authToken };
     const activeKey = canonicalPageKey(renderedActive);
-    if (activeKey === 'dashboard') return <DashboardPage {...common} period={period} />;
+    if (activeKey === 'dashboard') {
+      return (
+        <DashboardPage
+          {...common}
+          period={period}
+          onRefreshSources={handleRefreshSources}
+          sourceRefreshRunning={sourceRefreshRunning}
+          sourceRefreshError={sourceRefreshError}
+        />
+      );
+    }
     if (activeKey === 'performance') return <PerformanceChartsPage {...common} />;
     if (activeKey === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
     if (activeKey === 'bank') return <BankPage {...common} />;
@@ -426,7 +457,7 @@ export default function App() {
     if (activeKey === 'settlement') return <SettlementPage {...common} />;
     if (activeKey === 'aop') return <AopTargetsPage authToken={authToken} />;
     return <AiPage data={enrichedData} authToken={authToken} />;
-  }, [renderedActive, enrichedData, date, authToken, period, openSourceReportPreview, handleRefresh]);
+  }, [renderedActive, enrichedData, date, authToken, period, openSourceReportPreview, handleRefresh, handleRefreshSources, sourceRefreshRunning, sourceRefreshError]);
 
   const lockApp = React.useCallback(() => {
     localStorage.removeItem('dailyflashToken');
