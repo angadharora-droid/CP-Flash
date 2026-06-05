@@ -403,14 +403,15 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const chartRows = normalizedDonutRows(entries);
     if (!chartRows.length) return;
     const total = chartRows.reduce((sum, e) => sum + numberValue(e.value), 0);
-    const CARD_H = Math.max(188, 44 + chartRows.length * 20 + 10);
+    const ROW_H = 26;
+    const CARD_H = Math.max(220, 58 + chartRows.length * ROW_H + 16);
     ensureSpace(CARD_H + 6);
     const y = doc.y;
     const x = 36;
-    const outerR = 60;
-    const innerR = 36;
-    const cx = x + 120;
-    const cy = y + 44 + outerR;
+    const outerR = 74;
+    const innerR = 46;
+    const cx = x + 130;
+    const cy = y + 52 + outerR;
 
     doc.roundedRect(x, y, width, CARD_H, 8).fill(colors.white);
     doc.roundedRect(x, y, width, CARD_H, 8).strokeColor(colors.line).lineWidth(0.6).stroke();
@@ -421,9 +422,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
     }
 
     const toRad = (deg) => (deg * Math.PI) / 180;
+    const GAP_DEG = 2.5;
+    const totalArc = 360 - GAP_DEG * chartRows.length;
     let startAngle = -90;
     chartRows.forEach((row, i) => {
-      const sliceAngle = (numberValue(row.value) / total) * 358;
+      const sliceAngle = (numberValue(row.value) / total) * totalArc;
       const endAngle = startAngle + sliceAngle;
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
       const x1 = cx + outerR * Math.cos(toRad(startAngle));
@@ -437,22 +440,38 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const largeArc = sliceAngle > 180 ? 1 : 0;
       const pathD = `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} L ${x3.toFixed(2)} ${y3.toFixed(2)} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x4.toFixed(2)} ${y4.toFixed(2)} Z`;
       doc.path(pathD).fill(color);
-      startAngle = endAngle + 1;
+      startAngle = endAngle + GAP_DEG;
     });
 
-    doc.fillColor(colors.subtle).font('Helvetica-Bold').fontSize(6).text('TOTAL', cx - 26, cy - 14, { width: 52, align: 'center', characterSpacing: 1, lineBreak: false });
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(moneyCompact(total)), cx - 32, cy - 4, { width: 64, align: 'center', lineBreak: false });
+    // White center ensures a clean hole regardless of floating-point arc seams
+    doc.circle(cx, cy, innerR - 1).fill(colors.white);
 
-    const legendX = cx + outerR + 20;
-    const legendW = x + width - legendX - 4;
+    doc.fillColor(colors.subtle).font('Helvetica-Bold').fontSize(6.5).text('TOTAL', cx - 30, cy - 18, { width: 60, align: 'center', characterSpacing: 1.2, lineBreak: false });
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(13).text(safeText(moneyCompact(total)), cx - 36, cy - 6, { width: 72, align: 'center', lineBreak: false });
+
+    const legendX = cx + outerR + 22;
+    const legendW = x + width - legendX - 8;
+    const nameColW = legendW - 88;
+    const barMaxW = Math.min(nameColW, 96);
+
     chartRows.forEach((row, i) => {
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
       const share = total ? Math.round((numberValue(row.value) / total) * 100) : 0;
-      const ly = y + 44 + i * 20;
-      doc.circle(legendX + 5, ly + 6, 3.5).fill(color);
-      doc.fillColor(colors.muted).font('Helvetica').fontSize(8).text(safeText(row.name), legendX + 13, ly + 1, { width: legendW - 82, lineBreak: false });
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8).text(safeText(moneyCompact(row.value)), legendX + legendW - 78, ly + 1, { width: 52, align: 'right', lineBreak: false });
-      doc.fillColor(color).font('Helvetica-Bold').fontSize(8).text(`${share}%`, legendX + legendW - 22, ly + 1, { width: 24, align: 'right', lineBreak: false });
+      const ly = y + 58 + i * ROW_H;
+
+      if (i % 2 === 0) {
+        doc.roundedRect(legendX - 4, ly - 2, legendW + 6, ROW_H - 2, 3).fill(colors.accentTint);
+      }
+
+      doc.roundedRect(legendX + 2, ly + 4, 7, 7, 1.5).fill(color);
+      doc.fillColor(colors.ink).font('Helvetica').fontSize(8).text(safeText(row.name), legendX + 13, ly + 5, { width: nameColW, lineBreak: false });
+
+      const barW = barMaxW * (share / 100);
+      doc.roundedRect(legendX + 13, ly + 16, barMaxW, 2.5, 1.2).fill(colors.lineSoft);
+      if (barW > 1) doc.roundedRect(legendX + 13, ly + 16, barW, 2.5, 1.2).fill(color);
+
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8).text(safeText(moneyCompact(row.value)), legendX + legendW - 80, ly + 5, { width: 54, align: 'right', lineBreak: false });
+      doc.fillColor(color).font('Helvetica-Bold').fontSize(8.5).text(`${share}%`, legendX + legendW - 22, ly + 4, { width: 26, align: 'right', lineBreak: false });
     });
 
     doc.y = y + CARD_H + 6;
@@ -460,16 +479,16 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   function compactDonutCardHeight(entries) {
     const chartRows = normalizedDonutRows(entries);
-    return Math.max(166, 50 + chartRows.length * 16);
+    return Math.max(186, 52 + chartRows.length * 19);
   }
 
   function drawCompactDonutCard(title, subtitle, entries, x, y, cardW, cardH, chartOptions = {}) {
     const chartRows = normalizedDonutRows(entries);
     if (!chartRows.length) return;
     const total = chartRows.reduce((sum, e) => sum + numberValue(e.value), 0);
-    const outerR = 42;
-    const innerR = 25;
-    const cx = x + 62;
+    const outerR = 46;
+    const innerR = 28;
+    const cx = x + 66;
     const cy = y + 50 + outerR;
 
     doc.roundedRect(x, y, cardW, cardH, 7).fill(colors.white);
@@ -481,9 +500,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
     }
 
     const toRad = (deg) => (deg * Math.PI) / 180;
+    const GAP_DEG = 2.5;
+    const totalArc = 360 - GAP_DEG * chartRows.length;
     let startAngle = -90;
     chartRows.forEach((row, i) => {
-      const sliceAngle = (numberValue(row.value) / total) * 358;
+      const sliceAngle = (numberValue(row.value) / total) * totalArc;
       const endAngle = startAngle + sliceAngle;
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
       const x1 = cx + outerR * Math.cos(toRad(startAngle));
@@ -497,22 +518,27 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const largeArc = sliceAngle > 180 ? 1 : 0;
       const pathD = `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} L ${x3.toFixed(2)} ${y3.toFixed(2)} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x4.toFixed(2)} ${y4.toFixed(2)} Z`;
       doc.path(pathD).fill(color);
-      startAngle = endAngle + 1;
+      startAngle = endAngle + GAP_DEG;
     });
 
-    doc.fillColor(colors.subtle).font('Helvetica-Bold').fontSize(5.3).text('TOTAL', cx - 22, cy - 13, { width: 44, align: 'center', characterSpacing: 0.6, lineBreak: false });
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(7.5).text(safeText(moneyCompact(total)), cx - 28, cy - 3, { width: 56, align: 'center', lineBreak: false });
+    doc.circle(cx, cy, innerR - 1).fill(colors.white);
 
-    const legendX = x + 122;
+    doc.fillColor(colors.subtle).font('Helvetica-Bold').fontSize(5.3).text('TOTAL', cx - 22, cy - 14, { width: 44, align: 'center', characterSpacing: 0.6, lineBreak: false });
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8.5).text(safeText(moneyCompact(total)), cx - 28, cy - 4, { width: 56, align: 'center', lineBreak: false });
+
+    const legendX = x + 128;
     const legendW = x + cardW - legendX - 8;
     chartRows.forEach((row, i) => {
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
       const share = total ? Math.round((numberValue(row.value) / total) * 100) : 0;
-      const ly = y + 48 + i * 16;
-      doc.circle(legendX + 4, ly + 5, 3).fill(color);
-      doc.fillColor(colors.muted).font('Helvetica').fontSize(5.9).text(safeText(row.name), legendX + 10, ly, { width: legendW - 54, lineBreak: false });
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(5.9).text(safeText(moneyCompact(row.value)), legendX + legendW - 50, ly, { width: 34, align: 'right', lineBreak: false });
-      doc.fillColor(color).font('Helvetica-Bold').fontSize(5.9).text(`${share}%`, legendX + legendW - 14, ly, { width: 16, align: 'right', lineBreak: false });
+      const ly = y + 48 + i * 19;
+      if (i % 2 === 0) {
+        doc.roundedRect(legendX - 3, ly - 1, legendW + 5, 17, 2.5).fill(colors.accentTint);
+      }
+      doc.roundedRect(legendX + 1, ly + 4, 6, 6, 1.2).fill(color);
+      doc.fillColor(colors.ink).font('Helvetica').fontSize(5.9).text(safeText(row.name), legendX + 10, ly + 5, { width: legendW - 52, lineBreak: false });
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(5.9).text(safeText(moneyCompact(row.value)), legendX + legendW - 48, ly + 5, { width: 32, align: 'right', lineBreak: false });
+      doc.fillColor(color).font('Helvetica-Bold').fontSize(6.2).text(`${share}%`, legendX + legendW - 14, ly + 4, { width: 16, align: 'right', lineBreak: false });
     });
   }
 
