@@ -529,15 +529,38 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             />
           )}
           {data?.importSource?.purosoulSalesImportedAt && numberValue(purosoulRevenueRows.find(r => /total revenue/i.test(r.name))?.actual) > 0 ? (
-            <SectionCard
-              title="Purosoul: Revenue & Cost"
-              subtitle="Daily revenue, raw material cost, and margin"
-              icon={SECTION_ICONS.kpi}
-              tone="teal"
-              defaultOpen
-            >
-              <KpiTable rows={purosoulRevenueRows} />
-            </SectionCard>
+            <>
+              <SectionCard
+                title="Purosoul: Revenue & Cost"
+                subtitle="Daily revenue, raw material cost, and margin"
+                icon={SECTION_ICONS.kpi}
+                tone="teal"
+                defaultOpen
+              >
+                <KpiTable rows={purosoulRevenueRows} />
+              </SectionCard>
+              <SectionCard
+                title="Purosoul: Daily Production & Dispatch"
+                subtitle={`${purosoulSkuRows.length} SKU${purosoulSkuRows.length === 1 ? '' : 's'} tracked`}
+                icon={SECTION_ICONS.sku}
+                tone="indigo"
+                defaultOpen
+              >
+                <DataTable
+                  columns={['SKU', 'Produced', 'Bill + Scheme Dispatched', 'Closing Stock', 'MTD Dispatched']}
+                  rows={purosoulSkuRows.map((row) => ({
+                    key: row.sku,
+                    cells: [
+                      <span className="font-semibold">{row.sku}</span>,
+                      <ReportValue value={row.produced} />,
+                      <ReportValue value={row.dispatched} />,
+                      <ReportValue value={row.clStock} />,
+                      <ReportValue value={row.mtd} />
+                    ]
+                  }))}
+                />
+              </SectionCard>
+            </>
           ) : (
             <MailStatusCard
               title="Purosoul"
@@ -546,27 +569,6 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               rows={purosoulRevenueRows}
             />
           )}
-          <SectionCard
-            title="Purosoul: Daily Production & Dispatch"
-            subtitle={`${purosoulSkuRows.length} SKU${purosoulSkuRows.length === 1 ? '' : 's'} tracked`}
-            icon={SECTION_ICONS.sku}
-            tone="indigo"
-            defaultOpen
-          >
-            <DataTable
-              columns={['SKU', 'Produced', 'Bill + Scheme Dispatched', 'Closing Stock', 'MTD Dispatched']}
-              rows={purosoulSkuRows.map((row) => ({
-                key: row.sku,
-                cells: [
-                  <span className="font-semibold">{row.sku}</span>,
-                  <ReportValue value={row.produced} />,
-                  <ReportValue value={row.dispatched} />,
-                  <ReportValue value={row.clStock} />,
-                  <ReportValue value={row.mtd} />
-                ]
-              }))}
-            />
-          </SectionCard>
         </section>
       ) : (
         <section className="space-y-5">
