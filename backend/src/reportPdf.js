@@ -848,28 +848,6 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 6. F&B Outlet Sales column chart
     if (hasSection('fnb')) renderFnbOutletChart();
 
-    if (hasSection('fnb')) {
-      const pabloRows = data.fnb?.Pablo ?? [];
-      renderUnitRevenueHeader('Pablo');
-      for (const section of [...new Set(pabloRows.map((row) => row.section))]) {
-        kpiTable(`Pablo - ${section}`, pabloRows.filter((row) => row.section === section));
-      }
-
-      const daliRows = data.fnb?.Dali ?? [];
-      renderUnitRevenueHeader('Dali');
-      for (const section of [...new Set(daliRows.map((row) => row.section))]) {
-        kpiTable(`Dali - ${section}`, daliRows.filter((row) => row.section === section));
-      }
-    }
-
-    if (hasSection('rabbits')) {
-      const rabbitRows = (data.rabbits ?? []).filter((row) => row.section !== 'Cost');
-      renderUnitRevenueHeader('Rabbit');
-      for (const section of [...new Set(rabbitRows.map((row) => row.section))]) {
-        kpiTable(`Rabbit - ${section}`, rabbitRows.filter((row) => row.section === section));
-      }
-    }
-
     // 7. Micky's: Leads Pipeline always shows when mail received; amber notice on Orders & Revenue if no sales
     if (hasSection('mickys')) {
       renderUnitRevenueHeader("Micky's");

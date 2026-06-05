@@ -537,45 +537,6 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             <KpiTable rows={cpNmForecastRows} />
           </SectionCard>
           <FnbOutletSalesChart data={data} />
-          <UnitRevenueHeader unit="Pablo" rows={dailyPnlRows} />
-          {pabloSections.map((section) => (
-            <SectionCard
-              key={`day-pablo-${section}`}
-              title={`Pablo: ${section}`}
-              subtitle={`${pabloRows.filter((row) => row.section === section).length} KPI${pabloRows.filter((row) => row.section === section).length === 1 ? '' : 's'}`}
-              icon={SECTION_ICONS.restaurant}
-              tone="teal"
-              defaultOpen
-            >
-              <KpiTable rows={pabloRows.filter((row) => row.section === section)} />
-            </SectionCard>
-          ))}
-          <UnitRevenueHeader unit="Dali" rows={dailyPnlRows} />
-          {daliSections.map((section) => (
-            <SectionCard
-              key={`day-dali-${section}`}
-              title={`Dali: ${section}`}
-              subtitle={`${daliRows.filter((row) => row.section === section).length} KPI${daliRows.filter((row) => row.section === section).length === 1 ? '' : 's'}`}
-              icon={SECTION_ICONS.restaurant}
-              tone="teal"
-              defaultOpen
-            >
-              <KpiTable rows={daliRows.filter((row) => row.section === section)} />
-            </SectionCard>
-          ))}
-          <UnitRevenueHeader unit="Rabbit" rows={dailyPnlRows} />
-          {rabbitSections.map((section, index) => (
-            <SectionCard
-              key={`day-rabbit-${section}`}
-              title={`Rabbit: ${section}`}
-              subtitle={`${rabbitRows.filter((row) => row.section === section).length} KPI${rabbitRows.filter((row) => row.section === section).length === 1 ? '' : 's'}`}
-              icon={SECTION_ICONS.restaurant}
-              tone={index % 2 === 0 ? 'indigo' : 'amber'}
-              defaultOpen
-            >
-              <KpiTable rows={rabbitRows.filter((row) => row.section === section)} />
-            </SectionCard>
-          ))}
           <UnitRevenueHeader unit="Micky's" rows={dailyPnlRows} />
           {data?.importSource?.mickysSalesImportedAt ? (
             <>
