@@ -449,15 +449,15 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.fillColor(colors.subtle).font('Helvetica-Bold').fontSize(6.5).text('TOTAL', cx - 30, cy - 18, { width: 60, align: 'center', characterSpacing: 1.2, lineBreak: false });
     doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(13).text(safeText(moneyCompact(total)), cx - 36, cy - 6, { width: 72, align: 'center', lineBreak: false });
 
-    const legendX = cx + outerR + 22;
+    const legendX = cx + outerR + 28;
     // Anchor columns from the card's right edge so nothing overflows
-    const cardRight = x + width - 10;
-    const pctColW = 28;
-    const valColW = 58;
+    const cardRight = x + width - 18;
+    const pctColW = 30;
+    const valColW = 60;
     const pctX = cardRight - pctColW;
-    const valX = pctX - 6 - valColW;
+    const valX = pctX - 10 - valColW;
     const nameX = legendX + 14;
-    const barMaxW = valX - nameX - 4;
+    const barMaxW = valX - nameX - 8;
 
     chartRows.forEach((row, i) => {
       const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
@@ -467,7 +467,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
       // Strip runs from legend start to card right — same boundary as text
       if (i % 2 === 0) {
-        doc.roundedRect(legendX - 4, ly - 2, cardRight - (legendX - 4), ROW_H - 2, 3).fill(colors.accentTint);
+        doc.roundedRect(legendX - 6, ly - 3, cardRight - (legendX - 6) + 6, ROW_H - 2, 3).fill(colors.accentTint);
       }
 
       // Color square — 9×9
