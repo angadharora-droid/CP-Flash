@@ -21,7 +21,7 @@ import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import { readDailyJson, closeDailyStore } from './dailyStore.js';
+import { readDailyJson, writeDailyJson, closeDailyStore } from './dailyStore.js';
 import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
 import { importOccupancyMix } from './importOccupancyMix.js';
@@ -90,6 +90,19 @@ function shouldRefreshSheetSource(importSource, key) {
   if (!Number.isFinite(importedTime)) return true;
   return Date.now() - importedTime >= SHEET_REFRESH_MS;
 }
+
+const MANUAL_SALES_SOURCES = {
+  mickys: {
+    kpiBucket: 'mickys',
+    kpiNames: ['Order Revenue Today', 'Revenue MTD'],
+    pnlUnit: "Micky's"
+  },
+  purosoul: {
+    kpiBucket: 'purosoul',
+    kpiNames: ['Total Revenue Today', 'Revenue MTD'],
+    pnlUnit: 'Purosoul'
+  }
+};
 
 function logSheetSkip(label, importedAt) {
   const nextAt = new Date(new Date(importedAt).getTime() + SHEET_REFRESH_MS);
@@ -560,6 +573,10 @@ async function run() {
     }
   }
 
+  if (forceImport) {
+    await clearManualSalesSourcesNotImported(date, existingData);
+  }
+
   // Fetch bank positions from Google Sheets (independent of email)
   if (!shouldRefreshSheetSource(existingData?.importSource, 'bankPositionImportedAt')) {
     logSheetSkip('Bank positions', existingData.importSource.bankPositionImportedAt);
@@ -629,6 +646,46 @@ async function run() {
   // (forward-looking reports may land on a different day than the run date).
   for (const d of [...touchedDates].sort()) {
     await syncToCloud(d);
+  }
+}
+
+async function clearManualSalesSourcesNotImported(date, runData) {
+  const data = await readDailyJson(date);
+  if (!data) return;
+
+  let changed = false;
+  const importSource = { ...(data.importSource ?? {}) };
+
+  for (const [prefix, config] of Object.entries(MANUAL_SALES_SOURCES)) {
+    const importedAtKey = `${prefix}SalesImportedAt`;
+    if (runData?.importSource?.[importedAtKey]) continue;
+
+    for (const suffix of ['File', 'Sheet', 'Date', 'ImportedAt', 'Notes']) {
+      const key = `${prefix}Sales${suffix}`;
+      if (importSource[key] !== undefined) {
+        delete importSource[key];
+        changed = true;
+      }
+    }
+
+    data[config.kpiBucket] = (data[config.kpiBucket] ?? []).map((row) => {
+      if (!config.kpiNames.includes(row.name)) return row;
+      if (!filled(row.actual) && !filled(row.mtd)) return row;
+      changed = true;
+      return { ...row, actual: '', mtd: '' };
+    });
+
+    data.pnl = (data.pnl ?? []).map((row) => {
+      if (row.unit !== config.pnlUnit || !filled(row.revenueToday)) return row;
+      changed = true;
+      return { ...row, revenueToday: '' };
+    });
+  }
+
+  if (changed) {
+    data.importSource = importSource;
+    await writeDailyJson(date, data);
+    log('Cleared manual sales sources not found in this forced refresh.');
   }
 }
 
