@@ -649,6 +649,26 @@ export function createDailyFlashPdf(data, date, options = {}) {
     return enabledSections.has(section);
   }
 
+  function mailStatusCard(title, importedAt, revenue) {
+    ensureSpace(62);
+    const y = doc.y;
+    const x = 36;
+    const H = 56;
+    const noMail = !importedAt;
+    const noSales = !noMail && !revenue;
+    const accentColor = noMail ? colors.red : colors.amber;
+    const message = noMail
+      ? 'Report not uploaded — daily sales email not received'
+      : 'Mail received — no sales recorded for this date';
+    doc.roundedRect(x, y, width, H, 6).fill(noMail ? colors.redSoft : colors.amberSoft);
+    doc.roundedRect(x, y, width, H, 6).strokeColor(accentColor).lineWidth(0.5).stroke();
+    doc.rect(x, y, 4, H).fill(accentColor);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(safeText(title), x + 14, y + 10, { width: width - 28, lineBreak: false });
+    doc.fillColor(accentColor).font('Helvetica-Bold').fontSize(8).text(safeText(message), x + 14, y + 28, { width: width - 28, lineBreak: false });
+    doc.y = y + H + 6;
+    return noMail || noSales;
+  }
+
   decoratePage();
 
   // ── Shared data ──────────────────────────────────────────────────────────────
@@ -807,19 +827,29 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 7. Micky's: Leads Pipeline → Orders & Revenue
     if (hasSection('mickys')) {
       const mickysRows = data.mickys ?? [];
-      for (const section of ['Leads Pipeline', 'Orders & Revenue']) {
-        const rows = mickysRows.filter((row) => row.section === section);
-        if (rows.length) kpiTable(`Micky's - ${section}`, rows, { note: section === 'Orders & Revenue' ? manualSalesNote('mickys') : '' });
+      const mickysImportedAt = data.importSource?.mickysSalesImportedAt;
+      const mickysRevenue = revenueFor(mickysRows);
+      const mickysBlocked = mailStatusCard("Micky's by CP Foods", mickysImportedAt, mickysRevenue);
+      if (!mickysBlocked) {
+        for (const section of ['Leads Pipeline', 'Orders & Revenue']) {
+          const rows = mickysRows.filter((row) => row.section === section);
+          if (rows.length) kpiTable(`Micky's - ${section}`, rows);
+        }
       }
     }
 
     // 8. Purosoul sections + SKU
     if (hasSection('purosoul')) {
       const purosoulRows = data.purosoul ?? [];
-      for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
-        kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section), { note: section === 'Revenue & Cost' ? manualSalesNote('purosoul') : '' });
+      const purosoulImportedAt = data.importSource?.purosoulSalesImportedAt;
+      const purosoulRevenue = revenueFor(purosoulRows);
+      const purosoulBlocked = mailStatusCard('Purosoul', purosoulImportedAt, purosoulRevenue);
+      if (!purosoulBlocked) {
+        for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
+          kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
+        }
+        renderSkuTable();
       }
-      renderSkuTable();
     }
 
   } else {
