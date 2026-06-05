@@ -528,7 +528,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               rows={mickysOrderRevenueRows}
             />
           )}
-          {numberValue(purosoulRevenueRows.find(r => /total revenue/i.test(r.name))?.actual) > 0 ? (
+          {data?.importSource?.purosoulSalesImportedAt && numberValue(purosoulRevenueRows.find(r => /total revenue/i.test(r.name))?.actual) > 0 ? (
             <>
               <SectionCard
                 title="Purosoul: Revenue & Cost"
