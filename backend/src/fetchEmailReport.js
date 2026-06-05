@@ -394,8 +394,8 @@ const HANDLERS = [
   {
     name: 'Purosoul Daily Sales Report',
     importSourceKey: 'purosoulSalesImportedAt',
-    matches: (s, parsed) => /(daily\s+sales|sales report)/i.test(s) && /amarjit fiscal|afvpl|purosoul/i.test(messageText(parsed)),
-    currentFile: (file) => /AFVPL/i.test(file),
+    matches: (s, parsed) => (/(daily\s+sales|sales report)/i.test(s) || !!findAttachmentByName(parsed, /AFVPL|purosoul/i)) && /amarjit fiscal|afvpl|purosoul/i.test(messageText(parsed)),
+    currentFile: (file) => /AFVPL|purosoul/i.test(file),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
@@ -407,8 +407,8 @@ const HANDLERS = [
   {
     name: "Micky's Daily Sales Report",
     importSourceKey: 'mickysSalesImportedAt',
-    matches: (s, parsed) => subjectContains(s, 'daily sales report') && /cp foods|cp_foods|cpfoods/i.test(messageText(parsed)),
-    currentFile: (file) => /CP_FOODS|CP FOODS/i.test(file),
+    matches: (s, parsed) => (subjectContains(s, 'daily sales report') || !!findAttachmentByName(parsed, /CP[_\s-]?FOODS/i)) && /cp[\s_-]?foods/i.test(messageText(parsed)),
+    currentFile: (file) => /CP[_\s-]?FOODS/i.test(file),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }

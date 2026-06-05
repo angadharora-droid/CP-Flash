@@ -895,7 +895,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (hasSection('mickys')) {
       const mickysRows = data.mickys ?? [];
       for (const section of [...new Set(mickysRows.map((row) => row.section))]) {
-        kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section), { note: section === 'Orders & Revenue' ? manualSalesNote('mickys') : '' });
+        kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section));
       }
     }
 
@@ -903,7 +903,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (hasSection('purosoul')) {
       const purosoulRows = data.purosoul ?? [];
       for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
-        kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section), { note: section === 'Revenue & Cost' ? manualSalesNote('purosoul') : '' });
+        kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
       }
       renderSkuTable();
     }
