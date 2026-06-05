@@ -45,6 +45,43 @@ function fmtAggregate(value) {
 
 const EMPTY_WEEK_ENTRY = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0, fixedCost: 0 };
 
+const UNIT_REVENUE_META = {
+  'CP Nagpur': { title: 'Centre Point Nagpur', source: 'IDS (CP Nagpur)' },
+  'CP NM': { title: 'Centre Point Navi Mumbai', source: 'Hotelogix (CP Navi Mumbai)' },
+  Pablo: { title: 'Pablo', source: 'Petpooja (Pablo)' },
+  Dali: { title: 'Dali', source: 'Petpooja (Dali)' },
+  Rabbit: { title: 'Rabbit', source: 'Petpooja (Rabbit)' },
+  "Micky's": { title: "Micky's", source: "Micky's Sales Report" },
+  Purosoul: { title: 'Purosoul', source: 'Purosoul Sales Report' }
+};
+
+function UnitRevenueCards({ rows, scope = 'today' }) {
+  return (
+    <div className="grid gap-2.5">
+      {UNITS.map((unit) => {
+        const row = rows.find((item) => item.unit === unit);
+        const meta = UNIT_REVENUE_META[unit] ?? { title: unit, source: unit };
+        return (
+          <div key={unit} className="relative overflow-hidden rounded-lg bg-[#101827] px-4 py-3 text-white shadow-card">
+            <div className="absolute inset-y-0 left-0 w-1.5 bg-primary" />
+            <div className="flex items-center justify-between gap-4 pl-1.5">
+              <div className="min-w-0">
+                <div className="truncate text-[18px] font-extrabold leading-tight">{meta.title}</div>
+                <div className="mt-1 truncate text-[12px] font-medium text-white/65">{meta.source}</div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-[9px] font-extrabold uppercase tracking-[0.28em] text-white/65">Revenue</div>
+                <div className="num mt-1 text-[20px] font-extrabold leading-none">{money(numberValue(row?.revenueToday))}</div>
+                <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white/45">{scope}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function MailStatusCard({ title, icon, importedAt, rows }) {
   const hasRevenue = (rows ?? []).some(
     (row) => /total revenue|order revenue|revenue today/i.test(row.name) && numberValue(row.actual) > 0
@@ -330,6 +367,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
   const weekCpNmMix = activeWeekPeriod?.occupancyMix?.['CP NM'];
   const weeklyPnlData = useMemo(() => buildWeeklyPnlData(data, activeWeekPeriod), [activeWeekPeriod, data]);
   const weeklyPnlRows = useMemo(() => pnlRows(weeklyPnlData), [weeklyPnlData]);
+  const dailyPnlRows = useMemo(() => pnlRows(data), [data]);
   const weeklyPnlTotals = weeklyPnlRows.reduce((acc, row) => {
     acc.revenue += numberValue(row.revenueToday);
     acc.purchases += row.tracksCogs ? numberValue(row.purchasesToday) : 0;
@@ -432,6 +470,9 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             </div>
           </div>
           <BankPositionTable rows={data?.bankPosition ?? []} />
+          <SectionCard title="Unit Revenue Summary" subtitle="Revenue by unit and source" icon={SECTION_ICONS.kpi} tone="teal" defaultOpen>
+            <UnitRevenueCards rows={dailyPnlRows} />
+          </SectionCard>
           <RevenueShareDonut data={data} />
           <SectionCard
             title="CP Nagpur: Room Revenue & Occupancy"
@@ -606,6 +647,9 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             tone="teal"
             defaultOpen
           >
+            <div className="mb-5">
+              <UnitRevenueCards rows={weeklyPnlRows} scope="week to date" />
+            </div>
             <DataTable
               columns={['Unit', 'Revenue WTD', 'Purchases WTD', 'Gross Profit', 'GP%', 'Fixed Cost (Week)', 'Est. Net Profit', 'Net Margin%', 'Days']}
               numericFrom={1}

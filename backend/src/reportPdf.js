@@ -8,6 +8,16 @@ const SHEET_URLS = {
   mickysLeads: 'https://docs.google.com/spreadsheets/d/1jvnmwP4AaNQW54E3QVlzR9ZMj589HXZugJfhBOye_gs/'
 };
 
+const UNIT_REVENUE_META = {
+  'CP Nagpur': { title: 'Centre Point Nagpur', source: 'IDS (CP Nagpur)' },
+  'CP NM': { title: 'Centre Point Navi Mumbai', source: 'Hotelogix (CP Navi Mumbai)' },
+  Pablo: { title: 'Pablo', source: 'Petpooja (Pablo)' },
+  Dali: { title: 'Dali', source: 'Petpooja (Dali)' },
+  Rabbit: { title: 'Rabbit', source: 'Petpooja (Rabbit)' },
+  "Micky's": { title: "Micky's", source: "Micky's Sales Report" },
+  Purosoul: { title: 'Purosoul', source: 'Purosoul Sales Report' }
+};
+
 const colors = {
   header:     '#0f172a',
   headerSoft: '#475569',
@@ -716,6 +726,15 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   // ── Helper: render flags table ───────────────────────────────────────────────
+  function renderUnitRevenueSummary() {
+    sectionTitle('Unit Revenue Summary', 26 + UNITS.length * 38);
+    for (const unit of UNITS) {
+      const row = pnl.find((item) => item.unit === unit);
+      const meta = UNIT_REVENUE_META[unit] ?? { title: unit, source: unit };
+      hero(meta.title, meta.source, money(row?.revenueToday));
+    }
+  }
+
   function renderFlags() {
     const flags = collectPdfFlags(data).filter((row) => row.flag === 'ACTION').slice(0, 16);
     const flagTableRows = flags.map((row) => [row.unit, row.kpiName, formatValue(aopTargetValue(row), row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), '']);
@@ -792,6 +811,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     }
 
     // 2. P&L table
+    if (hasSection('pnl')) renderUnitRevenueSummary();
     if (hasSection('pnl')) renderPnlTable();
 
     // 3. Unit-wise Revenue Share donut
@@ -866,6 +886,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // ════════════════════════════════════════════════════════════
 
     // 1. P&L table
+    if (hasSection('pnl')) renderUnitRevenueSummary();
     if (hasSection('pnl')) renderPnlTable();
 
     // 2. Action Flag Summary
