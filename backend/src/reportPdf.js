@@ -552,6 +552,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   decoratePage();
 
+  // ── Shared data ──────────────────────────────────────────────────────────────
   const bankRowsRaw = data.bankPosition ?? [];
   const bankNet = (row) => String(row.netBalance ?? '').trim() !== ''
     ? numberValue(row.netBalance)
@@ -571,151 +572,75 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
   const bankRows = [...bankByUnit.values()];
   const bankTotals = bankRows.reduce((acc, row) => {
-    acc.actual += row.actual;
-    acc.fd += row.fd;
-    acc.issued += row.issued;
-    acc.hand += row.hand;
-    acc.net += row.net;
-    return acc;
+    acc.actual += row.actual; acc.fd += row.fd; acc.issued += row.issued;
+    acc.hand += row.hand; acc.net += row.net; return acc;
   }, { actual: 0, fd: 0, issued: 0, hand: 0, net: 0 });
   const pnl = pnlRows(data);
   const pnlTotals = pnl.reduce((acc, row) => {
-    acc.revenue += numberValue(row.revenueToday);
-    acc.purchases += numberValue(row.purchasesToday);
-    acc.gp += row.grossProfit;
-    acc.net += row.netProfit;
-    return acc;
+    acc.revenue += numberValue(row.revenueToday); acc.purchases += numberValue(row.purchasesToday);
+    acc.gp += row.grossProfit; acc.net += row.netProfit; return acc;
   }, { revenue: 0, purchases: 0, gp: 0, net: 0 });
   const settlement = settlementTotals(data);
   const settlementDiff = groupRevenue(data) - settlement.groupTotal;
 
-  if (hasSection('bank')) {
-    const bankTableRows = [
-      ...bankRows.map((row) => [row.unit, money(row.actual), money(row.fd), money(row.issued), money(row.hand), { text: money(row.net), color: colors.green, bold: true }]),
-      [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true }, { text: money(bankTotals.fd), bold: true }, { text: money(bankTotals.issued), bold: true }, { text: money(bankTotals.hand), bold: true }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
-    ];
-    const bankTableOptions = { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 };
-    sectionTitle('Bank Position - Daily Cash Summary', tablePreviewHeight(bankTableRows, bankTableOptions));
-    sheetRef(SHEET_URLS.bankPosition);
-    table(
-      ['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'],
-      bankTableRows,
-      bankTableOptions
-    );
-  }
-
-  if (hasSection('pnl')) {
+  // ── Helper: render P&L table ─────────────────────────────────────────────────
+  function renderPnlTable() {
     const pnlTableRows = [
       ...pnl.map((row) => [row.unit, money(row.revenueToday), money(row.purchasesToday), money(row.grossProfit), percent(row.gpPercent), { text: money(row.netProfit), color: row.netProfit >= 0 ? colors.green : colors.red, bold: true }]),
       [{ text: 'GROUP TOTAL', bold: true }, { text: money(pnlTotals.revenue), bold: true }, { text: money(pnlTotals.purchases), bold: true }, { text: money(pnlTotals.gp), bold: true }, '', { text: money(pnlTotals.net), bold: true, color: pnlTotals.net >= 0 ? colors.green : colors.red }]
     ];
     const pnlTableOptions = { widths: [112, 88, 88, 88, 62, 85] };
     sectionTitle('Unit-wise Estimated P&L', tablePreviewHeight(pnlTableRows, pnlTableOptions));
-    table(
-      ['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'],
-      pnlTableRows,
-      pnlTableOptions
-    );
-    revenueShareChart(
-      pnl,
-      'Unit-wise Revenue Share',
-      isWeekly ? 'P&L revenue contribution by unit - week to date' : 'P&L revenue contribution by unit - today'
-    );
+    table(['Unit', isWeekly ? 'Revenue WTD' : 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'], pnlTableRows, pnlTableOptions);
   }
 
-  if (hasSection('flags')) {
+  // ── Helper: render flags table ───────────────────────────────────────────────
+  function renderFlags() {
     const flags = collectPdfFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').slice(0, 16);
     const flagTableRows = flags.map((row) => [row.unit, row.kpiName, formatValue(aopTargetValue(row), row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), '']);
-    if (flagTableRows.length) {
-      const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
-      sectionTitle('Watch Out Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
-      table(
-        ['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'],
-        flagTableRows,
-        flagTableOptions
-      );
+    if (!flagTableRows.length) return;
+    const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
+    sectionTitle('Watch Out Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
+    table(['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'], flagTableRows, flagTableOptions);
+  }
+
+  // ── Helper: render hotel section for a unit ──────────────────────────────────
+  function renderHotelSections(unit, sectionNames) {
+    const label = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
+    const hotelRows = data.hotels ?? [];
+    for (const section of sectionNames) {
+      const rows = hotelRows.filter((row) => row.unit === unit && row.section === section);
+      if (rows.length) kpiTable(`${label} - ${section}`, rows);
     }
   }
 
-  if (hasSection('hotels')) {
-    const hotelRevenue = pnl.filter((row) => row.unit === 'CP Nagpur' || row.unit === 'CP NM').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
-    hero('Hotels', 'IDS (CP Nagpur) | Hotelogix (CP Navi Mumbai)', money(hotelRevenue), '');
-    const cpNmExclude = ['F&B Outlets', 'Banquets'];
-    for (const unit of ['CP Nagpur', 'CP NM']) {
-      const label = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
-      const rows = (data.hotels ?? []).filter((row) => row.unit === unit);
-      const sections = [...new Set(rows.map((row) => row.section))].filter(
-        (s) => unit !== 'CP NM' || !cpNmExclude.includes(s)
-      );
-      for (const section of sections) {
-        kpiTable(`${label} - ${section}`, rows.filter((row) => row.section === section), false);
-      }
-      unitDivider();
-    }
-  }
-
-  if (hasSection('fnb')) {
+  // ── Helper: render F&B outlet column chart ───────────────────────────────────
+  function renderFnbOutletChart() {
     const outletRows = fnbOutletRows(data);
-    columnChart('F&B Outlet Sales', isWeekly ? 'Week-to-date outlet revenue' : 'Today outlet revenue', outletRows);
-    const fnbRevenue = pnl.filter((row) => row.unit === 'Pablo' || row.unit === 'Dali').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
-    hero('Standalone F&B', 'Pet Pooja API | Pablo & Dali', money(fnbRevenue), '');
-    for (const brand of ['Pablo', 'Dali']) {
-      const rows = data.fnb?.[brand] ?? [];
-      sheetRef(brand === 'Pablo' ? SHEET_URLS.pabloCost : SHEET_URLS.daliCost);
-      for (const section of [...new Set(rows.map((row) => row.section))]) {
-        kpiTable(`${brand} - ${section}`, rows.filter((row) => row.section === section));
-      }
+    if (outletRows.filter((e) => e.value > 0).length) {
+      columnChart('F&B Outlet Sales', isWeekly ? 'Week-to-date outlet revenue' : 'Today outlet revenue', outletRows);
     }
   }
 
-  if (hasSection('rabbits')) {
-    const rabbitsRows = data.rabbits ?? [];
-    hero('Rabbit', 'POS EOD Email | Delivery Platforms', money(revenueFor(rabbitsRows)), '');
-    for (const section of [...new Set(rabbitsRows.map((row) => row.section))]) {
-      kpiTable(`Rabbit - ${section}`, rabbitsRows.filter((row) => row.section === section));
-    }
-  }
-
-  if (hasSection('mickys')) {
-    const mickysRows = data.mickys ?? [];
-    hero("Micky's by CP Foods", 'Google Sheet (Leads) | Tally Cloud (Day End)', money(revenueFor(mickysRows)), '');
-    sheetRef(SHEET_URLS.mickysLeads);
-    for (const section of [...new Set(mickysRows.map((row) => row.section))]) {
-      kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section));
-    }
-  }
-
-  if (hasSection('purosoul')) {
-    const purosoulRows = data.purosoul ?? [];
-    hero('Purosoul', 'Google Drive (Daily Flash) | Tally Cloud (Day End)', money(revenueFor(purosoulRows)), '');
-    for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
-      kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
-    }
+  // ── Helper: render SKU table ─────────────────────────────────────────────────
+  function renderSkuTable() {
     const skuTableRows = (data.purosoulSku ?? []).map((row) => {
       const rawCl = String(row.clStock ?? '').trim();
       const clStock = rawCl !== '' ? rawCl : String(numberValue(row.produced) - numberValue(row.dispatched));
       return [row.sku, row.produced || '-', row.dispatched || '-', clStock || '-', row.mtd || '-'];
     });
-    if (skuTableRows.length) {
-      const skuTableOptions = { widths: [112, 94, 108, 108, 101] };
-      sectionTitle('Purosoul - SKU Production & Dispatch', tablePreviewHeight(skuTableRows, skuTableOptions));
-      table(
-        ['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD Dispatched'],
-        skuTableRows,
-        skuTableOptions
-      );
-    }
+    if (!skuTableRows.length) return;
+    const skuOpts = { widths: [112, 94, 108, 108, 101] };
+    sectionTitle('Purosoul - SKU Production & Dispatch', tablePreviewHeight(skuTableRows, skuOpts));
+    table(['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD Dispatched'], skuTableRows, skuOpts);
   }
 
-  if (hasSection('settlement')) {
+  // ── Helper: render settlement ────────────────────────────────────────────────
+  function renderSettlement() {
     const settlementRows = settlementModes.map((mode) => [mode, ...UNITS.map((unit) => money(data.settlement?.[mode]?.[unit])), { text: money(settlement.rowTotals[mode]), bold: true }]);
     const settlementOptions = { widths: [95, 50, 50, 50, 50, 50, 50, 50, 78], fontSize: 6.3, leftColumns: [0] };
-    sectionTitle('Settlement', tablePreviewHeight(settlementRows, settlementOptions));
-    table(
-      ['Mode', ...UNITS, 'Group Total'],
-      settlementRows,
-      settlementOptions
-    );
+    sectionTitle('Settlement Summary', tablePreviewHeight(settlementRows, settlementOptions));
+    table(['Mode', ...UNITS, 'Group Total'], settlementRows, settlementOptions);
     sectionTitle('Reconciliation', 54);
     summaryCards([
       { label: 'Total Revenue', value: money(groupRevenue(data)), tone: colors.header },
@@ -723,14 +648,127 @@ export function createDailyFlashPdf(data, date, options = {}) {
       { label: 'Difference', value: money(settlementDiff), tone: settlementDiff === 0 ? colors.green : colors.red },
       { label: 'Status', value: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', tone: settlementDiff === 0 ? colors.green : colors.red }
     ]);
-    const reconciliationRows = [[money(groupRevenue(data)), money(settlement.groupTotal), { text: money(settlementDiff), color: settlementDiff === 0 ? colors.green : colors.red, bold: true }, { text: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', color: settlementDiff === 0 ? colors.green : colors.red, bold: true }]];
-    const reconciliationOptions = { widths: [132, 132, 132, 127] };
-    ensureSpace(tablePreviewHeight(reconciliationRows, reconciliationOptions));
-    table(
-      ['Total Revenue Today', 'Total Settled', 'Difference', 'Status'],
-      reconciliationRows,
-      reconciliationOptions
-    );
+    const recRows = [[money(groupRevenue(data)), money(settlement.groupTotal), { text: money(settlementDiff), color: settlementDiff === 0 ? colors.green : colors.red, bold: true }, { text: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', color: settlementDiff === 0 ? colors.green : colors.red, bold: true }]];
+    const recOpts = { widths: [132, 132, 132, 127] };
+    ensureSpace(tablePreviewHeight(recRows, recOpts));
+    table(['Total Revenue', 'Total Settled', 'Difference', 'Status'], recRows, recOpts);
+  }
+
+  if (!isWeekly) {
+    // ════════════════════════════════════════════════════════════
+    // DAILY — matches dashboard daily tab order
+    // ════════════════════════════════════════════════════════════
+
+    // 1. Bank Position
+    if (hasSection('bank')) {
+      const bankTableRows = [
+        ...bankRows.map((row) => [row.unit, money(row.actual), money(row.fd), money(row.issued), money(row.hand), { text: money(row.net), color: colors.green, bold: true }]),
+        [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true }, { text: money(bankTotals.fd), bold: true }, { text: money(bankTotals.issued), bold: true }, { text: money(bankTotals.hand), bold: true }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
+      ];
+      const bankTableOptions = { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 };
+      sectionTitle('Bank Position - Daily Cash Summary', tablePreviewHeight(bankTableRows, bankTableOptions));
+      table(['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'], bankTableRows, bankTableOptions);
+    }
+
+    // 2. P&L table
+    if (hasSection('pnl')) renderPnlTable();
+
+    // 3. Unit-wise Revenue Share donut
+    if (hasSection('pnl')) revenueShareChart(pnl, 'Unit-wise Revenue Share', 'P&L revenue contribution by unit - today');
+
+    // 4. CP Nagpur: Room Revenue & Occupancy → Forecast → Banquets
+    if (hasSection('hotels')) renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'Forecast', 'Banquets']);
+
+    // 5. CP NM: Room Revenue & Occupancy → Forecast
+    if (hasSection('hotels')) renderHotelSections('CP NM', ['Room Revenue & Occupancy', 'Forecast']);
+
+    // 6. F&B Outlet Sales column chart
+    if (hasSection('fnb')) renderFnbOutletChart();
+
+    // 7. Micky's: Leads Pipeline → Orders & Revenue
+    if (hasSection('mickys')) {
+      const mickysRows = data.mickys ?? [];
+      for (const section of ['Leads Pipeline', 'Orders & Revenue']) {
+        const rows = mickysRows.filter((row) => row.section === section);
+        if (rows.length) kpiTable(`Micky's - ${section}`, rows);
+      }
+    }
+
+    // 8. Purosoul sections + SKU
+    if (hasSection('purosoul')) {
+      const purosoulRows = data.purosoul ?? [];
+      for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
+        kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
+      }
+      renderSkuTable();
+    }
+
+  } else {
+    // ════════════════════════════════════════════════════════════
+    // WEEKLY — matches dashboard weekly tab order
+    // ════════════════════════════════════════════════════════════
+
+    // 1. P&L table
+    if (hasSection('pnl')) renderPnlTable();
+
+    // 2. Watch Out Flag Summary
+    if (hasSection('flags')) renderFlags();
+
+    // 3. Unit-wise Revenue Share donut
+    if (hasSection('pnl')) revenueShareChart(pnl, 'Unit-wise Revenue Share', 'P&L revenue contribution by unit - week to date');
+
+    // 4. CP Nagpur: Room Revenue & Occupancy → F&B Outlets → Banquets
+    if (hasSection('hotels')) renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'F&B Outlets', 'Banquets']);
+
+    // 5. CP NM: Room Revenue & Occupancy
+    if (hasSection('hotels')) renderHotelSections('CP NM', ['Room Revenue & Occupancy']);
+
+    // 6. F&B Outlet Sales column chart
+    if (hasSection('fnb')) renderFnbOutletChart();
+
+    // 7. Pablo sections
+    if (hasSection('fnb')) {
+      const pabloRows = data.fnb?.Pablo ?? [];
+      for (const section of [...new Set(pabloRows.map((row) => row.section))]) {
+        kpiTable(`Pablo - ${section}`, pabloRows.filter((row) => row.section === section));
+      }
+    }
+
+    // 8. Dali sections
+    if (hasSection('fnb')) {
+      const daliRows = data.fnb?.Dali ?? [];
+      for (const section of [...new Set(daliRows.map((row) => row.section))]) {
+        kpiTable(`Dali - ${section}`, daliRows.filter((row) => row.section === section));
+      }
+    }
+
+    // 9. Rabbit sections (excluding Cost — matches dashboard filter)
+    if (hasSection('rabbits')) {
+      const rabbitRows = (data.rabbits ?? []).filter((row) => row.section !== 'Cost');
+      for (const section of [...new Set(rabbitRows.map((row) => row.section))]) {
+        kpiTable(`Rabbit - ${section}`, rabbitRows.filter((row) => row.section === section));
+      }
+    }
+
+    // 10. Micky's sections
+    if (hasSection('mickys')) {
+      const mickysRows = data.mickys ?? [];
+      for (const section of [...new Set(mickysRows.map((row) => row.section))]) {
+        kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section));
+      }
+    }
+
+    // 11. Purosoul sections + SKU
+    if (hasSection('purosoul')) {
+      const purosoulRows = data.purosoul ?? [];
+      for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
+        kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
+      }
+      renderSkuTable();
+    }
+
+    // 12. Settlement Summary
+    if (hasSection('settlement')) renderSettlement();
   }
 
   return doc;
