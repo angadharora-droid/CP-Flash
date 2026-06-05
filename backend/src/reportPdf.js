@@ -737,11 +737,29 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 3. Unit-wise Revenue Share donut
     if (hasSection('pnl')) revenueShareChart(pnl, 'Unit-wise Revenue Share', 'P&L revenue contribution by unit - week to date');
 
-    // 4. CP Nagpur: Room Revenue & Occupancy → F&B Outlets → Banquets
-    if (hasSection('hotels')) renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'F&B Outlets', 'Banquets']);
+    // 4. CP Nagpur: Room Revenue & Occupancy → F&B Outlets → Banquets → SOB → MS
+    if (hasSection('hotels')) {
+      renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'F&B Outlets', 'Banquets']);
+      const cpnMix = week?.occupancyMix?.['CP Nagpur'];
+      if (cpnMix) {
+        const sobRows = (cpnMix.sbo ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
+        const msRows  = (cpnMix.segment ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
+        if (sobRows.length) donutChart('CP Nagpur: Source of Business', 'Week-to-date room source mix', sobRows);
+        if (msRows.length)  donutChart('CP Nagpur: Market Segment', 'Week-to-date room segment mix', msRows);
+      }
+    }
 
-    // 5. CP NM: Room Revenue & Occupancy
-    if (hasSection('hotels')) renderHotelSections('CP NM', ['Room Revenue & Occupancy']);
+    // 5. CP NM: Room Revenue & Occupancy → SOB → MS
+    if (hasSection('hotels')) {
+      renderHotelSections('CP NM', ['Room Revenue & Occupancy']);
+      const cpNmMix = week?.occupancyMix?.['CP NM'];
+      if (cpNmMix) {
+        const sobRows = (cpNmMix.sbo ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
+        const msRows  = (cpNmMix.segment ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
+        if (sobRows.length) donutChart('CP NM: Source of Business', 'Week-to-date room source mix', sobRows);
+        if (msRows.length)  donutChart('CP NM: Market Segment', 'Week-to-date room segment mix', msRows);
+      }
+    }
 
     // 6. F&B Outlet Sales column chart
     if (hasSection('fnb')) renderFnbOutletChart();
