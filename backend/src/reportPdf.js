@@ -643,11 +643,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
     sectionTitle(title, (options.note ? 20 : 0) + tablePreviewHeight(visibleRows, tableOptions));
     sourceNotice(options.note);
     table(
-      ['KPI', actualColumn, 'AOP Target', 'MTD', 'Flag'],
+      ['KPI', 'AOP Target', actualColumn, 'MTD', 'Flag'],
       visibleRows.map((row) => {
         const target = aopTargetValue(row);
         const flag = calcFlag(row.actual, target, row.direction).label;
-        return [row.name, formatValue(row.actual, row.name), formatValue(target, row.name), formatValue(row.mtd, row.name), flagCell(flag)];
+        return [row.name, formatValue(target, row.name), formatValue(row.actual, row.name), formatValue(row.mtd, row.name), flagCell(flag)];
       }),
       tableOptions
     );
@@ -740,7 +740,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (!flagTableRows.length) return;
     const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
     sectionTitle('Action Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
-    table(['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'], flagTableRows, flagTableOptions);
+    table(['Unit', 'KPI', 'AOP Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'], flagTableRows, flagTableOptions);
   }
 
   // ── Helper: render hotel section for a unit ──────────────────────────────────
