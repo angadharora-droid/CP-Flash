@@ -224,6 +224,22 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.y = y + 26;
   }
 
+  function sourceNotice(text) {
+    if (!text) return;
+    ensureSpace(18);
+    const y = doc.y;
+    doc.roundedRect(36, y, width, 16, 3).fill(colors.amberSoft);
+    doc.fillColor(colors.amber).font('Helvetica-Bold').fontSize(7).text(safeText(text), 44, y + 5, { width: width - 16, lineBreak: false });
+    doc.y = y + 20;
+  }
+
+  function manualSalesNote(prefix) {
+    const importSource = data.importSource ?? {};
+    const note = importSource[`${prefix}SalesNotes`];
+    if (note) return note;
+    return importSource[`${prefix}SalesImportedAt`] ? '' : 'Report not uploaded.';
+  }
+
   function hero(title, source, value, change = '') {
     ensureSpace(38);
     const y = doc.y;
@@ -608,11 +624,12 @@ export function createDailyFlashPdf(data, date, options = {}) {
     return { text: normalized, color, bold: true };
   }
 
-  function kpiTable(title, rows) {
+  function kpiTable(title, rows, options = {}) {
     const actualColumn = isWeekly ? 'Week' : 'Today';
     const visibleRows = rows.filter((row) => !/\bytd\b|year\s*to\s*date/i.test(row?.name ?? ''));
     const tableOptions = { widths: [145, 90, 86, 90, 112] };
-    sectionTitle(title, tablePreviewHeight(visibleRows, tableOptions));
+    sectionTitle(title, (options.note ? 20 : 0) + tablePreviewHeight(visibleRows, tableOptions));
+    sourceNotice(options.note);
     table(
       ['KPI', actualColumn, 'AOP Target', 'MTD', 'Flag'],
       visibleRows.map((row) => {
@@ -792,7 +809,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const mickysRows = data.mickys ?? [];
       for (const section of ['Leads Pipeline', 'Orders & Revenue']) {
         const rows = mickysRows.filter((row) => row.section === section);
-        if (rows.length) kpiTable(`Micky's - ${section}`, rows);
+        if (rows.length) kpiTable(`Micky's - ${section}`, rows, { note: section === 'Orders & Revenue' ? manualSalesNote('mickys') : '' });
       }
     }
 
@@ -800,7 +817,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (hasSection('purosoul')) {
       const purosoulRows = data.purosoul ?? [];
       for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
-        kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
+        kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section), { note: section === 'Revenue & Cost' ? manualSalesNote('purosoul') : '' });
       }
       renderSkuTable();
     }
@@ -878,7 +895,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (hasSection('mickys')) {
       const mickysRows = data.mickys ?? [];
       for (const section of [...new Set(mickysRows.map((row) => row.section))]) {
-        kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section));
+        kpiTable(`Micky's - ${section}`, mickysRows.filter((row) => row.section === section), { note: section === 'Orders & Revenue' ? manualSalesNote('mickys') : '' });
       }
     }
 
@@ -886,7 +903,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (hasSection('purosoul')) {
       const purosoulRows = data.purosoul ?? [];
       for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
-        kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
+        kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section), { note: section === 'Revenue & Cost' ? manualSalesNote('purosoul') : '' });
       }
       renderSkuTable();
     }

@@ -144,14 +144,14 @@ function getInvoiceRows(wb, preferredSheetNames, reportName, targetDate) {
     try {
       const parsed = parseInvoiceSheet(rows);
       if (targetDate && Object.hasOwn(parsed.byDate, targetDate)) return { rows, sheetName, parsed };
-      if (Object.keys(parsed.byDate).length && !best) best = { rows, sheetName, parsed };
+      if ((targetDate || Object.keys(parsed.byDate).length) && !best) best = { rows, sheetName, parsed };
     } catch (err) {
       errors.push(`${sheetName}: ${err.message}`);
     }
   }
 
   if (targetDate && best) {
-    throw new Error(`No ${targetDate} invoice rows found in ${reportName}; latest available is ${best.parsed.latestDate} on ${best.sheetName}`);
+    return { ...best, noSaleDate: targetDate };
   }
   if (best) return best;
   throw new Error(`No invoice sheet found in ${reportName}. Tried: ${errors.join('; ')}`);
@@ -171,7 +171,7 @@ function buildMtdByDate(byDate) {
   return mtdByDate;
 }
 
-async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiRevenueName, pnlUnit, sourceKeyPrefix }) {
+async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiRevenueName, pnlUnit, sourceKeyPrefix, notesByDate = {} }) {
   const mtdByDate = buildMtdByDate(byDate);
   const importedAt = new Date().toISOString();
   const written = [];
@@ -194,6 +194,7 @@ async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiR
       [`${sourceKeyPrefix}SalesDate`]: date,
       [`${sourceKeyPrefix}SalesImportedAt`]: importedAt,
     };
+    if (notesByDate[date]) data.importSource[`${sourceKeyPrefix}SalesNotes`] = notesByDate[date];
 
     await writeDaily(date, data);
     written.push({ date, revenueToday: revenue, mtd: mtdForDate });
@@ -207,20 +208,23 @@ async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiR
 export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate) {
   const wb = XLSX.read(xlsBuffer, { type: 'buffer', cellDates: true });
 
-  const { sheetName, parsed } = getInvoiceRows(wb, ['Sales'], 'Purosoul report', targetDate);
+  const { sheetName, parsed, noSaleDate } = getInvoiceRows(wb, ['Sales'], 'Purosoul report', targetDate);
   const { latestDate, mtd: grandTotal, byDate } = parsed;
-  if (!latestDate) throw new Error('No dated invoice rows found in Purosoul report');
+  if (!latestDate && !noSaleDate) throw new Error('No dated invoice rows found in Purosoul report');
+  const writeByDate = noSaleDate ? { ...byDate, [noSaleDate]: 0 } : byDate;
+  const notesByDate = noSaleDate ? { [noSaleDate]: `Mail received for ${noSaleDate}; no sale done on this date.` } : {};
 
   const written = await writeInvoiceReport({
-    byDate, fileName, sheetName,
+    byDate: writeByDate, fileName, sheetName,
     kpiBucket: 'purosoul',
     kpiRevenueName: 'Total Revenue Today',
     pnlUnit: 'Purosoul',
-    sourceKeyPrefix: 'purosoul'
+    sourceKeyPrefix: 'purosoul',
+    notesByDate
   });
 
-  const focusDate = targetDate && Object.hasOwn(byDate, targetDate) ? targetDate : latestDate;
-  return { ok: true, date: focusDate, sheetName, dates: written, grandTotal };
+  const focusDate = noSaleDate ?? (targetDate && Object.hasOwn(byDate, targetDate) ? targetDate : latestDate);
+  return { ok: true, date: focusDate, sheetName, dates: written, grandTotal, noSale: Boolean(noSaleDate) };
 }
 
 // ─── Micky's ─────────────────────────────────────────────────────────────────
@@ -228,18 +232,21 @@ export async function importPurosoulSalesReport(xlsBuffer, fileName, targetDate)
 export async function importMickysSalesReport(xlsBuffer, fileName, targetDate) {
   const wb = XLSX.read(xlsBuffer, { type: 'buffer', cellDates: true });
 
-  const { sheetName, parsed } = getInvoiceRows(wb, ['Sheet1'], 'Micky\'s report', targetDate);
+  const { sheetName, parsed, noSaleDate } = getInvoiceRows(wb, ['Sheet1'], 'Micky\'s report', targetDate);
   const { latestDate, mtd: grandTotal, byDate } = parsed;
-  if (!latestDate) throw new Error('No dated invoice rows found in Micky\'s report');
+  if (!latestDate && !noSaleDate) throw new Error('No dated invoice rows found in Micky\'s report');
+  const writeByDate = noSaleDate ? { ...byDate, [noSaleDate]: 0 } : byDate;
+  const notesByDate = noSaleDate ? { [noSaleDate]: `Mail received for ${noSaleDate}; no sale done on this date.` } : {};
 
   const written = await writeInvoiceReport({
-    byDate, fileName, sheetName,
+    byDate: writeByDate, fileName, sheetName,
     kpiBucket: 'mickys',
     kpiRevenueName: 'Order Revenue Today',
     pnlUnit: "Micky's",
-    sourceKeyPrefix: 'mickys'
+    sourceKeyPrefix: 'mickys',
+    notesByDate
   });
 
-  const focusDate = targetDate && Object.hasOwn(byDate, targetDate) ? targetDate : latestDate;
-  return { ok: true, date: focusDate, sheetName, dates: written, grandTotal };
+  const focusDate = noSaleDate ?? (targetDate && Object.hasOwn(byDate, targetDate) ? targetDate : latestDate);
+  return { ok: true, date: focusDate, sheetName, dates: written, grandTotal, noSale: Boolean(noSaleDate) };
 }

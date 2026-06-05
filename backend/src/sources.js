@@ -219,6 +219,8 @@ export const dailySources = [
     meta: {
       file: 'mickysSalesFile',
       importedAt: 'mickysSalesImportedAt',
+      notes: 'mickysSalesNotes',
+      pendingNote: 'Report not uploaded.',
       filePattern: /CP_FOODS|CP FOODS/i,
       reportLabels: { mickysSalesFile: 'Daily Sales Report' }
     },
@@ -243,6 +245,8 @@ export const dailySources = [
     meta: {
       file: 'purosoulSalesFile',
       importedAt: 'purosoulSalesImportedAt',
+      notes: 'purosoulSalesNotes',
+      pendingNote: 'Report not uploaded.',
       filePattern: /AFVPL/i,
       reportLabels: { purosoulSalesFile: 'Daily Sales Report' }
     },
@@ -315,7 +319,8 @@ function pickMeta(importSource, source) {
     reportFiles,
     reports,
     importedAt,
-    notes: importSource[source.meta.notes] ?? ''
+    notes: importSource[source.meta.notes] ?? '',
+    pendingNote: source.meta.pendingNote ?? ''
   };
 }
 
@@ -346,7 +351,7 @@ export function buildSourceStatus(data = {}) {
       file: meta.file,
       reportFiles: meta.reportFiles ?? [],
       reports: meta.reports ?? [],
-      notes: meta.notes
+      notes: meta.notes || (status === 'Pending' ? meta.pendingNote : '')
     };
   });
 

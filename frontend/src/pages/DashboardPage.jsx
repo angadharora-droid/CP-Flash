@@ -7,6 +7,7 @@ import { DonutChart } from '../components/DashboardCharts';
 import RevenueShareDonut from '../components/RevenueShareDonut';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
+import SourceNotice from '../components/SourceNotice';
 import { KpiTable, ReportValue, SECTION_ICONS } from '../components/DashboardUi';
 import { getPnlPeriod } from '../lib/api';
 import {
@@ -21,6 +22,7 @@ import {
   settlementTotals,
   UNITS
 } from '../lib/calculations';
+import { manualSalesNote } from '../lib/sourceNotes';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -214,6 +216,8 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
   const mickysOrderRevenueRows = (data?.mickys ?? []).filter((row) => row.section === 'Orders & Revenue');
   const purosoulRevenueRows = (data?.purosoul ?? []).filter((row) => row.section === 'Revenue & Cost');
   const purosoulSkuRows = data?.purosoulSku ?? [];
+  const mickysSalesNote = manualSalesNote(data?.importSource, 'mickys');
+  const purosoulSalesNote = manualSalesNote(data?.importSource, 'purosoul');
   const banquetLists = [
     {
       key: 'banquetToday',
@@ -487,6 +491,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             tone="rose"
             defaultOpen
           >
+            <SourceNotice text={mickysSalesNote} />
             <KpiTable rows={mickysOrderRevenueRows} />
           </SectionCard>
           <SectionCard
@@ -496,6 +501,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             tone="teal"
             defaultOpen
           >
+            <SourceNotice text={purosoulSalesNote} />
             <KpiTable rows={purosoulRevenueRows} />
           </SectionCard>
           <SectionCard
