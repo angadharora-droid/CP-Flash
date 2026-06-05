@@ -18,6 +18,8 @@ const UNIT_REVENUE_META = {
   Purosoul: { title: 'Purosoul', source: 'Purosoul Sales Report' }
 };
 
+const HIDDEN_PUROSOUL_REVENUE_COST_ROWS = new Set(['RM Cost Today', 'RM Cost %', 'Revenue MTD', 'Purchase MTD']);
+
 const colors = {
   header:     '#0f172a',
   headerSoft: '#475569',
@@ -872,7 +874,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const purosoulRevenue = revenueFor(purosoulRows);
       if (purosoulImportedAt && numberValue(purosoulRevenue) > 0) {
         for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
-          kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
+          const rows = purosoulRows.filter((row) => (
+            row.section === section
+            && !(section === 'Revenue & Cost' && HIDDEN_PUROSOUL_REVENUE_COST_ROWS.has(row.name))
+          ));
+          if (rows.length) kpiTable(`Purosoul - ${section}`, rows);
         }
         renderSkuTable();
       } else {
@@ -962,7 +968,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (hasSection('purosoul')) {
       const purosoulRows = data.purosoul ?? [];
       for (const section of [...new Set(purosoulRows.map((row) => row.section))]) {
-        kpiTable(`Purosoul - ${section}`, purosoulRows.filter((row) => row.section === section));
+        const rows = purosoulRows.filter((row) => (
+          row.section === section
+          && !(section === 'Revenue & Cost' && HIDDEN_PUROSOUL_REVENUE_COST_ROWS.has(row.name))
+        ));
+        if (rows.length) kpiTable(`Purosoul - ${section}`, rows);
       }
       renderSkuTable();
     }

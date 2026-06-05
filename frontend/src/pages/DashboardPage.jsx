@@ -55,6 +55,8 @@ const UNIT_REVENUE_META = {
   Purosoul: { title: 'Purosoul', source: 'Purosoul Sales Report' }
 };
 
+const HIDDEN_PUROSOUL_REVENUE_COST_ROWS = new Set(['RM Cost Today', 'RM Cost %', 'Revenue MTD', 'Purchase MTD']);
+
 function UnitRevenueCards({ rows, scope = 'today' }) {
   return (
     <div className="grid gap-2.5">
@@ -277,7 +279,9 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
   );
   const mickysLeadRows = (data?.mickys ?? []).filter((row) => row.section === 'Leads Pipeline');
   const mickysOrderRevenueRows = (data?.mickys ?? []).filter((row) => row.section === 'Orders & Revenue');
-  const purosoulRevenueRows = (data?.purosoul ?? []).filter((row) => row.section === 'Revenue & Cost');
+  const purosoulRevenueRows = (data?.purosoul ?? []).filter((row) => (
+    row.section === 'Revenue & Cost' && !HIDDEN_PUROSOUL_REVENUE_COST_ROWS.has(row.name)
+  ));
   const purosoulSkuRows = data?.purosoulSku ?? [];
   const banquetLists = [
     {
