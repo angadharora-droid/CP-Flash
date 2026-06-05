@@ -1,11 +1,6 @@
-import React, { useMemo, useState } from 'react';
-import { DonutChart } from '../components/DashboardCharts';
+import React, { useState } from 'react';
 import { ActionButton, BrandLoader } from '../components/DashboardUi';
-import FnbOutletSalesChart from '../components/FnbOutletSalesChart';
-import RevenueShareDonut from '../components/RevenueShareDonut';
-import SectionCard from '../components/SectionCard';
-import { reportPdfUrl } from '../lib/api';
-import { numberValue } from '../lib/calculations';
+import { reportPdfPreviewUrl, reportPdfUrl } from '../lib/api';
 import {
   buildMonthOptions,
   buildWeekOptions,
@@ -24,42 +19,6 @@ const REPORT_TYPES = [
   { key: 'weekly', label: 'Weekly', icon: 'date_range' }
 ];
 
-const EMPTY_WEEK = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 0, fixedCost: 0 };
-
-function buildWeeklyPnlData(data, period) {
-  return {
-    ...(data ?? {}),
-    pnl: (data?.pnl ?? []).map((row) => {
-      const entry = period?.week?.[row.unit] ?? EMPTY_WEEK;
-      return {
-        ...row,
-        revenueToday: String(Math.round((entry.revenue ?? 0) * 100) / 100),
-        purchasesToday: String(Math.round((entry.purchases ?? 0) * 100) / 100),
-        fixedCost: String(Math.round(((numberValue(row.fixedCost) || (entry.fixedCost ?? 0)) * 7) * 100) / 100),
-      };
-    }),
-  };
-}
-
-function mixChartRows(mix, kind) {
-  const entries = kind === 'source' ? (mix?.sbo ?? []) : (mix?.segment ?? []);
-  return entries
-    .map((row) => ({ name: row.name, value: numberValue(row.revenue) }))
-    .filter((row) => row.value > 0)
-    .sort((a, b) => b.value - a.value);
-}
-
-function MixDonutCard({ title, subtitle, mix, kind }) {
-  const rows = mixChartRows(mix, kind);
-  if (!rows.length) return null;
-  const total = rows.reduce((s, r) => s + r.value, 0);
-  return (
-    <SectionCard title={title} subtitle={subtitle} icon="hotel" tone="amber" defaultOpen>
-      <DonutChart data={rows} total={total} />
-    </SectionCard>
-  );
-}
-
 export default function PdfPreviewPage({ date, authToken, onSave, onClose, data = null, period = null }) {
   const initialWeekStart = weekStartContaining(date);
   const [saving, setSaving] = useState(false);
@@ -72,22 +31,21 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose, data 
   const [draftWeekStart, setDraftWeekStart] = useState(initialWeekStart);
   const [showSetup, setShowSetup] = useState(true);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const monthOptions = buildMonthOptions(date, 12);
   const draftWeekOptions = buildWeekOptions(draftWeekMonth);
-  const activeDraftWeekStart = draftWeekOptions.find((week) => week.key === draftWeekStart)?.key
+  const activeDraftWeekStart = draftWeekOptions.find((w) => w.key === draftWeekStart)?.key
     ?? draftWeekOptions[0]?.key
     ?? initialWeekStart;
   const activeWeekEnd = weekEndFromStart(weekStart);
-  const downloadUrl = reportPdfUrl(date, authToken, [], reportType, reportType === 'weekly' ? weekStart : '');
-  const headerDateLabel = reportType === 'weekly'
+  const isWeekly = reportType === 'weekly';
+  const headerDateLabel = isWeekly
     ? `${formatShortDate(weekStart)} - ${formatShortDate(activeWeekEnd)}`
     : date;
-
-  const isWeekly = reportType === 'weekly';
-  const weeklyPnlData = useMemo(() => buildWeeklyPnlData(data, period), [data, period]);
-  const cpnMix = period?.occupancyMix?.['CP Nagpur'];
-  const cpNmMix = period?.occupancyMix?.['CP NM'];
+  const weekParam = isWeekly ? weekStart : '';
+  const previewUrl = reportPdfPreviewUrl(date, authToken, [], reportType, weekParam);
+  const downloadUrl = reportPdfUrl(date, authToken, [], reportType, weekParam);
 
   const changeDraftWeekMonth = (monthKey) => {
     setDraftWeekMonth(monthKey);
@@ -112,6 +70,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose, data 
     if (draftReportType === 'weekly') setWeekStart(activeDraftWeekStart);
     setShowSetup(false);
     setHasGenerated(true);
+    setRefreshKey((k) => k + 1);
   };
 
   const handleSaveAndRefresh = async () => {
@@ -119,6 +78,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose, data 
     setSaveError('');
     try {
       await onSave();
+      setRefreshKey((k) => k + 1);
       setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
     } catch (err) {
       setSaveError(err.message);
@@ -155,10 +115,6 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose, data 
                 {saving ? <BrandLoader size={18} /> : <MIcon name="sync" className="text-[17px]" />}
                 {saving ? 'Saving...' : 'Save & Refresh'}
               </ActionButton>
-              <ActionButton onClick={() => window.print()}>
-                <MIcon name="print" className="text-[17px]" />
-                Print
-              </ActionButton>
               <ActionButton onClick={() => { window.location.href = downloadUrl; }}>
                 <MIcon name="download" className="text-[17px]" />
                 Download PDF
@@ -176,64 +132,19 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose, data 
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto bg-surface-container p-3 md:p-5">
+      <main className="min-h-0 flex-1 overflow-hidden bg-surface-container">
         {hasGenerated ? (
-          <div className="mx-auto max-w-4xl space-y-5">
-            <RevenueShareDonut
-              data={isWeekly ? weeklyPnlData : data}
-              title="Unit-wise Revenue Share"
-              subtitle={isWeekly
-                ? `P&L revenue contribution by unit - week to date (${formatShortDate(weekStart)} - ${formatShortDate(activeWeekEnd)})`
-                : `P&L revenue contribution by unit - ${date}`
-              }
-            />
-            <FnbOutletSalesChart
-              data={data}
-              period={isWeekly ? period : null}
-              mode={isWeekly ? 'week' : 'today'}
-            />
-            {isWeekly && (cpnMix || cpNmMix) ? (
-              <div className="grid gap-5 xl:grid-cols-2">
-                {cpnMix ? (
-                  <>
-                    <MixDonutCard
-                      title="CP Nagpur: Source of Business"
-                      subtitle="Week-to-date room source mix"
-                      mix={cpnMix}
-                      kind="source"
-                    />
-                    <MixDonutCard
-                      title="CP Nagpur: Market Segment"
-                      subtitle="Week-to-date room segment mix"
-                      mix={cpnMix}
-                      kind="segment"
-                    />
-                  </>
-                ) : null}
-                {cpNmMix ? (
-                  <>
-                    <MixDonutCard
-                      title="CP NM: Source of Business"
-                      subtitle="Week-to-date room source mix"
-                      mix={cpNmMix}
-                      kind="source"
-                    />
-                    <MixDonutCard
-                      title="CP NM: Market Segment"
-                      subtitle="Week-to-date room segment mix"
-                      mix={cpNmMix}
-                      kind="segment"
-                    />
-                  </>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+          <iframe
+            key={`${previewUrl}-${refreshKey}`}
+            src={previewUrl}
+            className="h-full w-full border-none"
+            title="PDF Report Preview"
+          />
         ) : (
-          <div className="grid h-full min-h-0 place-items-center">
+          <div className="grid h-full place-items-center">
             <div className="max-w-md text-center text-on-surface-variant">
               <MIcon name="picture_as_pdf" className="text-[42px] text-primary" filled />
-              <p className="mt-2 text-sm">Choose Daily or Weekly. The preview will include charts for that view.</p>
+              <p className="mt-2 text-sm">Choose Daily or Weekly, then generate to preview the full report.</p>
             </div>
           </div>
         )}
@@ -317,7 +228,7 @@ export default function PdfPreviewPage({ date, authToken, onSave, onClose, data 
             <div className="flex items-center justify-end gap-2 border-t border-outline-variant/60 bg-surface-container-low px-5 py-3">
               <ActionButton onClick={cancelSetup}>{hasGenerated ? 'Cancel' : 'Close'}</ActionButton>
               <ActionButton onClick={generatePreview} variant="primary">
-                <MIcon name="bar_chart" className="text-[17px]" />
+                <MIcon name="picture_as_pdf" className="text-[17px]" />
                 {hasGenerated ? 'Update Preview' : 'Generate Preview'}
               </ActionButton>
             </div>

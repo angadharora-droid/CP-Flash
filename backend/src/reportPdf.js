@@ -150,7 +150,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
   const reportType = options.reportType === 'weekly' ? 'weekly' : 'daily';
   const isWeekly = reportType === 'weekly';
   const week = options.week ?? null;
-  const enabledSections = new Set(['summary', 'bank', 'pnl', 'flags', 'hotels', 'fnb', 'rabbits', 'mickys', 'purosoul', 'settlement']);
+  const enabledSections = new Set(['bank', 'pnl', 'flags', 'hotels', 'fnb', 'rabbits', 'mickys', 'purosoul', 'settlement']);
   if (isWeekly) enabledSections.delete('bank');
   if (!isWeekly) enabledSections.delete('settlement');
 
@@ -502,24 +502,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
     acc.net += row.netProfit;
     return acc;
   }, { revenue: 0, purchases: 0, gp: 0, net: 0 });
-  const flagCount = collectPdfFlags(data).filter((row) => row.flag === 'WATCH' || row.flag === 'ACTION NEEDED').length;
   const settlement = settlementTotals(data);
   const settlementDiff = groupRevenue(data) - settlement.groupTotal;
-
-  if (hasSection('summary')) {
-    const cards = [
-      { label: 'Group Revenue', value: money(pnlTotals.revenue), tone: colors.header, caption: 'Today' },
-      { label: 'Est. Net Profit', value: money(pnlTotals.net), tone: pnlTotals.net >= 0 ? colors.green : colors.red, caption: 'After fixed cost' },
-      { label: 'Bank Net Available', value: money(bankTotals.net), tone: colors.headerSoft, caption: `${bankRowsRaw.length} accounts` },
-      { label: 'Open Risks', value: String(flagCount), tone: flagCount ? colors.amber : colors.green, caption: 'Watch / action flags' }
-    ];
-    if (isWeekly) {
-      cards[0] = { ...cards[0], label: 'Weekly Revenue', caption: `${week?.dates?.length ?? 0} saved days` };
-      cards[1] = { ...cards[1], label: 'Weekly Net Profit' };
-      cards.splice(2, 1);
-    }
-    summaryCards(cards);
-  }
 
   if (hasSection('bank')) {
     const bankTableRows = [
