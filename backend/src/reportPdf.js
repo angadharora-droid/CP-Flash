@@ -429,6 +429,90 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.y = y + CARD_H + 6;
   }
 
+  function columnChart(title, subtitle, entries, chartOptions = {}) {
+    const chartRows = entries.filter((e) => numberValue(e.value) > 0).sort((a, b) => b.value - a.value);
+    if (!chartRows.length) return;
+    const total = chartRows.reduce((sum, e) => sum + numberValue(e.value), 0);
+    const maxVal = Math.max(...chartRows.map((e) => numberValue(e.value)));
+    const scaleMax = maxVal * 1.18;
+    const CARD_H = 280;
+    ensureSpace(CARD_H + 10);
+    const y = doc.y;
+    const x = 36;
+    const leftPad = 60;
+    const rightPad = 8;
+    const chartX = x + leftPad;
+    const chartY = y + 48;
+    const chartW = width - leftPad - rightPad;
+    const chartH = 168;
+    const bottomY = chartY + chartH;
+
+    doc.roundedRect(x, y, width, CARD_H, 8).fill(colors.white);
+    doc.roundedRect(x, y, width, CARD_H, 8).strokeColor(colors.line).lineWidth(0.6).stroke();
+    doc.rect(x, y, 4, 36).fill(chartOptions.accent ?? colors.accent);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(title), x + 14, y + 10, { width: width - 28, lineBreak: false });
+    if (subtitle) {
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(subtitle), x + 14, y + 24, { width: width - 28, lineBreak: false });
+    }
+
+    // Gridlines and Y-axis labels
+    const gridCount = 4;
+    for (let gi = 0; gi <= gridCount; gi++) {
+      const lineY = bottomY - (chartH / gridCount) * gi;
+      const lineVal = (scaleMax / gridCount) * gi;
+      doc.strokeColor(colors.lineSoft).lineWidth(0.4).dash(3, { space: 3 }).moveTo(chartX, lineY).lineTo(chartX + chartW, lineY).stroke().undash();
+      doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(safeText(moneyCompact(lineVal)), x + 4, lineY - 4, { width: leftPad - 8, align: 'right', lineBreak: false });
+    }
+
+    // Bars
+    const n = chartRows.length;
+    const barGroupW = chartW / n;
+    const barW = Math.min(58, barGroupW * 0.54);
+    const r = 4;
+
+    chartRows.forEach((row, i) => {
+      const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
+      const value = numberValue(row.value);
+      const barH = scaleMax > 0 ? (value / scaleMax) * chartH : 0;
+      const bx = chartX + i * barGroupW + (barGroupW - barW) / 2;
+      const bty = bottomY - barH;
+
+      if (barH > r * 2) {
+        // Rounded top, square bottom
+        doc.roundedRect(bx, bty, barW, barH, r).fill(color);
+        doc.rect(bx, bottomY - r, barW, r).fill(color);
+      } else if (barH > 0) {
+        doc.rect(bx, bty, barW, barH).fill(color);
+      }
+
+      // Value label above bar
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(7).text(
+        safeText(moneyCompact(value)), bx - 10, bty - 12, { width: barW + 20, align: 'center', lineBreak: false }
+      );
+
+      // X-axis name
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(
+        safeText(row.name), bx - 10, bottomY + 5, { width: barW + 20, align: 'center', lineBreak: false }
+      );
+    });
+
+    // Share pills
+    const pillsY = bottomY + 24;
+    const pillW = Math.floor(chartW / chartRows.length) - 6;
+    chartRows.forEach((row, i) => {
+      const color = row.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
+      const share = total ? Math.round((numberValue(row.value) / total) * 100) : 0;
+      const px = chartX + i * (pillW + 6);
+      doc.roundedRect(px, pillsY, pillW, 14, 7).fill(`${color}18`);
+      doc.roundedRect(px, pillsY, pillW, 14, 7).strokeColor(`${color}50`).lineWidth(0.4).stroke();
+      doc.fillColor(color).font('Helvetica-Bold').fontSize(6.5).text(
+        safeText(`${row.name}  ${share}%`), px + 4, pillsY + 3, { width: pillW - 8, align: 'center', lineBreak: false }
+      );
+    });
+
+    doc.y = y + CARD_H + 6;
+  }
+
   function revenueShareChart(dataRows, title, subtitle) {
     const entries = dataRows
       .map((row) => ({ name: row.unit, value: numberValue(row.revenueToday) }))
@@ -572,7 +656,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   if (hasSection('fnb')) {
     const outletRows = fnbOutletRows(data);
-    barChart('F&B Outlet Sales', isWeekly ? 'Week-to-date outlet revenue' : 'Today outlet revenue', outletRows);
+    columnChart('F&B Outlet Sales', isWeekly ? 'Week-to-date outlet revenue' : 'Today outlet revenue', outletRows);
     const fnbRevenue = pnl.filter((row) => row.unit === 'Pablo' || row.unit === 'Dali').reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
     hero('Standalone F&B', 'Pet Pooja API | Pablo & Dali', money(fnbRevenue), '');
     for (const brand of ['Pablo', 'Dali']) {
