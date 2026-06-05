@@ -860,7 +860,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
         if (orderRevenue > 0) {
           if (orderRows.length) kpiTable("Micky's - Orders & Revenue", orderRows);
         } else {
-          mailStatusCard("Micky's - Orders & Revenue", null, 0);
+          mailStatusCard("Micky's - Orders & Revenue", mickysImportedAt, 0);
         }
       }
     }
@@ -881,7 +881,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
         }
         renderSkuTable();
       } else {
-        mailStatusCard('Purosoul', null, 0);
+        mailStatusCard('Purosoul', purosoulImportedAt, 0);
       }
     }
 
