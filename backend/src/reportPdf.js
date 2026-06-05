@@ -809,10 +809,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
       table(['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'], bankTableRows, bankTableOptions);
     }
 
-    // 2. P&L table
-    if (hasSection('pnl')) renderPnlTable();
-
-    // 3. Unit-wise Revenue Share donut
+    // 2. Unit-wise Revenue Share donut
     if (hasSection('pnl')) revenueShareChart(pnl, 'Unit-wise Revenue Share', 'P&L revenue contribution by unit - today');
 
     // 4. CP Nagpur: Room Revenue & Occupancy → Forecast → Banquets → Banquet Function Lists
