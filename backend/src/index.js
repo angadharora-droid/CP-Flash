@@ -404,6 +404,8 @@ function invalidateAopTargetsCache() {
 
 const pnlPeriodCache = new Map();
 const pnlPeriodInflight = new Map();
+const pnlWeekCache = new Map();
+const pnlWeekInflight = new Map();
 const dailyDataCache = new Map();
 const listDailyDatesCache = new Map();
 let reportCacheRevision = 0;
@@ -413,6 +415,11 @@ function invalidatePnlPeriodCache(date) {
     if (!date || key === date || key.startsWith(date.slice(0, 7)) || key.startsWith(date.slice(0, 4))) {
       pnlPeriodCache.delete(key);
     }
+  }
+  if (date) {
+    pnlWeekCache.delete(date);
+  } else {
+    pnlWeekCache.clear();
   }
 }
 
@@ -965,6 +972,33 @@ async function buildWeeklyReportData(data, date, options = {}) {
   return { data: withDashboardWeekData, week: { start, end, dates: weekDates, occupancyMix: weeklyOccupancyMix } };
 }
 
+async function buildPnlWeekPayload(date) {
+  const weekRange = weekRangeForDate(date);
+  const weekDates = (await listDailyDatesInRange(weekRange.start, weekRange.end))
+    .filter((dailyDate) => dailyDate <= date);
+  const rawByDate = await readDailyDataMany(weekDates);
+
+  const [weekAgg, occupancyMix, settlement, purosoulSku] = await Promise.all([
+    aggregatePeriodForDates(weekDates, rawByDate),
+    aggregateOccupancyMixForDates(weekDates, rawByDate),
+    aggregateSettlementForDates(weekDates, rawByDate),
+    aggregatePurosoulSkuForDates(weekDates, rawByDate)
+  ]);
+
+  return {
+    date,
+    weekStart: weekRange.start,
+    weekEnd: weekRange.end,
+    weekDates,
+    week: weekAgg.pnl,
+    settlement,
+    purosoulSku,
+    occupancyMix,
+    kpis: { week: weekAgg.kpis },
+    kpiModes: { week: weekAgg.kpiModes }
+  };
+}
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.post('/api/login', loginIpRateLimit, wrap(async (req, res) => {
@@ -1134,6 +1168,28 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
   }
 
   res.json(await pnlPeriodInflight.get(date));
+}));
+
+app.get('/api/pnl-week', wrap(async (req, res) => {
+  const date = String(req.query.date || dateKey());
+
+  if (pnlWeekCache.has(date)) {
+    res.json(pnlWeekCache.get(date));
+    return;
+  }
+
+  if (!pnlWeekInflight.has(date)) {
+    pnlWeekInflight.set(date, (async () => {
+      const cacheRevisionAtStart = reportCacheRevision;
+      const payload = await buildPnlWeekPayload(date);
+      if (cacheRevisionAtStart === reportCacheRevision) pnlWeekCache.set(date, payload);
+      return payload;
+    })().finally(() => {
+      pnlWeekInflight.delete(date);
+    }));
+  }
+
+  res.json(await pnlWeekInflight.get(date));
 }));
 
 app.get('/api/email-import', (_req, res) => {
