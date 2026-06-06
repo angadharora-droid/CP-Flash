@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Sector, Tooltip } from 'recharts';
 import { moneyCompact, numberValue, pnlRows } from '../lib/calculations';
 
-const PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a', '#3f6fb5', '#b5447a'];
+const PALETTE = ['#A3006A', '#6f3d74', '#9a5a00', '#C2007F', '#ba1a1a', '#3f6fb5', '#b5447a'];
 
 function ActiveSlice(props) {
   const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent: pct } = props;
@@ -63,7 +63,7 @@ export default function RevenueShareDonut({
   return (
     <section className="overflow-hidden rounded-xl border border-outline-variant/60 bg-surface-container-lowest">
       <div className="flex items-start gap-3 border-b border-outline-variant/40 px-4 py-3.5">
-        <span className="mt-0.5 min-h-8 w-[3px] shrink-0 self-stretch rounded-full bg-[#08786c]" />
+        <span className="mt-0.5 min-h-8 w-[3px] shrink-0 self-stretch rounded-full bg-[#A3006A]" />
         <div className="min-w-0">
           <h3 className="text-[13px] font-bold text-on-surface">{title}</h3>
           <p className="mt-0.5 text-[11px] font-medium text-on-surface-variant/70">

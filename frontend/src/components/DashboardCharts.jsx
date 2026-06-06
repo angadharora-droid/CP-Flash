@@ -18,8 +18,8 @@ import { SECTION_ICONS } from './DashboardUi';
 import { money, moneyCompact, numberValue, percent, pnlRows, UNITS } from '../lib/calculations';
 
 // ─── Palette ────────────────────────────────────────────────────────────────
-const PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a', '#3f6fb5', '#b5447a'];
-const REVENUE_COLOR = '#08786c';
+const PALETTE = ['#A3006A', '#6f3d74', '#9a5a00', '#C2007F', '#ba1a1a', '#3f6fb5', '#b5447a'];
+const REVENUE_COLOR = '#A3006A';
 const NET_COLOR = '#9a5a00';
 const NEG_COLOR = '#ba1a1a';
 const axisTick = { fontSize: 11, fill: '#7a8f97', fontFamily: 'inherit' };
@@ -72,8 +72,8 @@ function BarGradients() {
   return (
     <defs>
       <linearGradient id={GRAD_REVENUE} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%"   stopColor="#0f9487" stopOpacity={1} />
-        <stop offset="100%" stopColor="#08786c" stopOpacity={0.82} />
+        <stop offset="0%"   stopColor="#C2007F" stopOpacity={1} />
+        <stop offset="100%" stopColor="#A3006A" stopOpacity={0.82} />
       </linearGradient>
       <linearGradient id={GRAD_NET} x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%"   stopColor="#c97d00" stopOpacity={1} />
@@ -238,7 +238,7 @@ export function DonutChart({ data, total }) {
 // tone → { bg, border, label, value, icon }
 const STAT_TONES = {
   neutral:  { bg: 'bg-surface-container-lowest', border: 'border-outline-variant/50', accent: '#5b6b73' },
-  positive: { bg: 'bg-[#08786c]/5',              border: 'border-[#08786c]/20',       accent: '#08786c' },
+  positive: { bg: 'bg-[#A3006A]/5',              border: 'border-[#A3006A]/20',       accent: '#A3006A' },
   negative: { bg: 'bg-error/5',                  border: 'border-error/20',            accent: '#ba1a1a' },
   highlight:{ bg: 'bg-primary/5',                border: 'border-primary/20',          accent: 'var(--color-primary)' }
 };
@@ -259,7 +259,7 @@ function StatCard({ label, value, hint, tone = 'neutral', icon, delta }) {
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-on-surface-variant/60">{label}</p>
           <p className={`num mt-1 truncate text-[18px] font-bold tabular-nums leading-none ${
-            tone === 'negative' ? 'text-error' : tone === 'positive' ? 'text-[#08786c]' : 'text-on-surface'
+            tone === 'negative' ? 'text-error' : tone === 'positive' ? 'text-[#A3006A]' : 'text-on-surface'
           }`}>
             {value}
           </p>
@@ -276,7 +276,7 @@ function StatCard({ label, value, hint, tone = 'neutral', icon, delta }) {
       </div>
 
       {delta != null && (
-        <div className={`mt-2 flex items-center gap-1 text-[11px] font-semibold ${delta >= 0 ? 'text-[#08786c]' : 'text-error'}`}>
+        <div className={`mt-2 flex items-center gap-1 text-[11px] font-semibold ${delta >= 0 ? 'text-[#A3006A]' : 'text-error'}`}>
           <span className="material-symbols-outlined text-[13px]">{delta >= 0 ? 'trending_up' : 'trending_down'}</span>
           {delta >= 0 ? '+' : ''}{delta.toFixed(1)}% vs target
         </div>

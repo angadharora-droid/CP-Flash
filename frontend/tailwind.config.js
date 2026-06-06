@@ -3,15 +3,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#08786c',
-        'primary-container': '#0f9487',
+        primary: '#A3006A',
+        'primary-container': '#C2007F',
         'on-primary': '#ffffff',
-        'on-primary-container': '#d7fff8',
-        'primary-fixed': '#cfeee8',
-        'primary-fixed-dim': '#91d8cc',
-        'on-primary-fixed': '#073b35',
-        'on-primary-fixed-variant': '#075e55',
-        'inverse-primary': '#91d8cc',
+        'on-primary-container': '#ffe4f5',
+        'primary-fixed': '#ffe4f5',
+        'primary-fixed-dim': '#f5b8de',
+        'on-primary-fixed': '#3a0020',
+        'on-primary-fixed-variant': '#7a004e',
+        'inverse-primary': '#f5b8de',
 
         secondary: '#6f3d74',
         'secondary-container': '#f0d9ec',
@@ -53,7 +53,7 @@ export default {
         'outline-variant': '#cad3da',
         'inverse-surface': '#202a31',
         'inverse-on-surface': '#eff1f3',
-        'surface-tint': '#08786c',
+        'surface-tint': '#A3006A',
 
         app: {
           bg: '#f4f6f8',
@@ -64,18 +64,18 @@ export default {
           sidebarSolid: '#ffffff',
           border: '#cad3da',
           borderSoft: '#e4eaee',
-          borderStrong: '#08786c',
+          borderStrong: '#A3006A',
           divider: '#dce3e8',
           muted: '#5a6872',
           subtle: '#7c8993',
           text: '#172026',
           body: '#46545e',
-          edit: '#edf8f6',
-          accent: '#08786c',
-          accentSoft: '#0f9487',
-          accentDark: '#075e55',
-          accentTint: 'rgba(8, 120, 108, 0.09)',
-          accentRing: 'rgba(8, 120, 108, 0.20)',
+          edit: '#fce4f3',
+          accent: '#A3006A',
+          accentSoft: '#C2007F',
+          accentDark: '#7a004e',
+          accentTint: 'rgba(163, 0, 106, 0.09)',
+          accentRing: 'rgba(163, 0, 106, 0.20)',
           navy: '#21445b',
           navyTint: '#e7f0f5',
           plum: '#6f3d74',
@@ -87,11 +87,11 @@ export default {
       },
       boxShadow: {
         card: '0 1px 2px rgba(23, 32, 38, 0.05), 0 18px 44px -34px rgba(23, 32, 38, 0.45)',
-        cardHover: '0 4px 12px rgba(23, 32, 38, 0.08), 0 24px 56px -32px rgba(8, 120, 108, 0.35)',
+        cardHover: '0 4px 12px rgba(23, 32, 38, 0.08), 0 24px 56px -32px rgba(163, 0, 106, 0.35)',
         glass: '0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 18px 44px -34px rgba(23, 32, 38, 0.45)',
-        pop: '0 16px 38px -22px rgba(8, 120, 108, 0.52)',
+        pop: '0 16px 38px -22px rgba(163, 0, 106, 0.52)',
         ring: '0 0 0 1px rgba(15, 23, 42, 0.05)',
-        primary: '0 10px 28px -12px rgba(8, 120, 108, 0.55)'
+        primary: '0 10px 28px -12px rgba(163, 0, 106, 0.55)'
       },
       borderRadius: {
         xl: '0.625rem',
@@ -100,9 +100,9 @@ export default {
       },
       backgroundImage: {
         'glass-fade': 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,249,250,0.9) 100%)',
-        aurora: 'linear-gradient(135deg, rgba(8,120,108,0.10) 0%, rgba(111,61,116,0.07) 50%, rgba(154,90,0,0.08) 100%)',
-        'accent-stripe': 'linear-gradient(90deg, #08786c 0%, #6f3d74 100%)',
-        'brand-gradient': 'linear-gradient(135deg, #08786c 0%, #21445b 100%)'
+        aurora: 'linear-gradient(135deg, rgba(163,0,106,0.10) 0%, rgba(111,61,116,0.07) 50%, rgba(154,90,0,0.08) 100%)',
+        'accent-stripe': 'linear-gradient(90deg, #A3006A 0%, #6f3d74 100%)',
+        'brand-gradient': 'linear-gradient(135deg, #A3006A 0%, #21445b 100%)'
       },
       fontFamily: {
         sans: ['"Hanken Grotesk"', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],

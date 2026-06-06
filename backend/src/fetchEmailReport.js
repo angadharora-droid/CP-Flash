@@ -538,8 +538,12 @@ async function run() {
       const lock = await client.getMailboxLock('INBOX');
 
       try {
-    // Start of yesterday in IST (midnight IST = previous day 18:30 UTC).
-    const sinceDate = forceImport ? '1970-01-01' : istIso(-1);
+    // Start of the mailbox window in IST. A forced source refresh should reprocess
+    // today's received emails only; those emails may still contain report rows for
+    // older business dates, and the importers file those rows by their content date.
+    const sinceDate = forceImport
+      ? (process.env.FULL_IMPORT_HISTORY === 'true' ? '1970-01-01' : istIso(0))
+      : istIso(-1);
     const since = new Date(`${sinceDate}T00:00:00+05:30`);
 
     const seqs = await client.search({ since });
