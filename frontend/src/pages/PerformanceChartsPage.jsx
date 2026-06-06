@@ -15,19 +15,25 @@ export default function PerformanceChartsPage({ data, date, authToken }) {
 
   const monthOptions = useMemo(() => buildMonthOptions(date, 12), [date]);
   const weekOptions = useMemo(() => buildWeekOptions(weekMonth), [weekMonth]);
-  const activeWeekStart =
-    weekOptions.find((week) => week.key === weekStart)?.key ?? weekOptions[0]?.key ?? initialWeekStart;
+  const activeWeek = weekOptions.find((week) => week.key === weekStart) ?? weekOptions[0];
+  const activeWeekStart = activeWeek?.key ?? initialWeekStart;
+  // Use the week's Sunday (end) capped at the current date so the backend
+  // aggregates the full available portion of the week, not just Monday.
+  const effectiveDate = useMemo(() => {
+    const weekEnd = activeWeek?.end ?? activeWeekStart;
+    return weekEnd <= date ? weekEnd : date;
+  }, [activeWeek, activeWeekStart, date]);
 
   useEffect(() => {
     if (!authToken) return undefined;
     let cancelled = false;
     setLoading(true);
-    getPnlPeriod(activeWeekStart, authToken)
+    getPnlPeriod(effectiveDate, authToken)
       .then((payload) => { if (!cancelled) setWeekPeriod(payload); })
       .catch(() => { if (!cancelled) setWeekPeriod(null); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [activeWeekStart, authToken]);
+  }, [effectiveDate, authToken]);
 
   const changeMonth = (monthKey) => {
     setWeekMonth(monthKey);

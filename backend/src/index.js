@@ -1273,6 +1273,22 @@ app.listen(port, () => {
   // Pre-warm the seed cache so the first real request doesn't pay the Excel parse cost.
   setImmediate(() => { try { buildSeedData(); } catch { /* non-fatal */ } });
 
+  // Pre-load all YTD daily records into memory so the first /api/pnl-period
+  // request doesn't block on a full MongoDB round-trip for every date.
+  // Runs 8s after startup to give MongoDB time to finish connecting.
+  setTimeout(async () => {
+    try {
+      const yearPrefix = dateKey().slice(0, 4);
+      const yearDates = await listDailyDates(yearPrefix);
+      if (yearDates.length) {
+        await readDailyDataMany(yearDates);
+        console.log(`[cache] Pre-warmed ${yearDates.length} daily records`);
+      }
+    } catch (err) {
+      console.error('[cache] Pre-warm failed:', err.message);
+    }
+  }, 8000);
+
   // Keep Render free tier alive — ping self every 14 minutes.
   const selfUrl = process.env.CLOUD_API_URL;
   if (selfUrl) {
