@@ -28,37 +28,24 @@ export default function BankPositionTable({ rows = [] }) {
   const { totals, net } = getBankPositionTotals(rows);
 
   return (
-    <div className="space-y-3">
-      <div className="overflow-hidden rounded-2xl border border-outline-variant/50 bg-surface-container-lowest">
-        <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <span className="material-symbols-outlined text-[22px]" aria-hidden>account_balance_wallet</span>
-            </div>
-            <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant">Group Net Balance</div>
-              <div className={`num text-[24px] font-semibold tabular-nums leading-tight ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                {money(totals.net)}
-              </div>
-            </div>
+    <div className="overflow-hidden rounded-xl border border-outline-variant/40 bg-surface-container-lowest">
+      <div className="flex items-center justify-between gap-4 border-b border-outline-variant/30 bg-surface-container-low px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <span className="material-symbols-outlined text-[16px]" aria-hidden>account_balance</span>
           </div>
-          <div className="grid grid-cols-4 gap-x-4 gap-y-0.5 text-right sm:gap-x-6">
-            {[
-              { label: 'Actual', value: totals.actual, tone: '' },
-              { label: 'FD', value: totals.fd, tone: '' },
-              { label: 'Issued', value: totals.issued, tone: 'text-error' },
-              { label: 'In Hand', value: totals.hand, tone: '' },
-            ].map(({ label, value, tone }) => (
-              <div key={label}>
-                <div className="text-[10px] font-medium text-on-surface-variant">{label}</div>
-                <div className={`num text-[12.5px] font-semibold tabular-nums ${tone || 'text-on-surface'}`}>{money(value)}</div>
-              </div>
-            ))}
-          </div>
+          <span className="text-[13px] font-semibold text-on-surface">Bank Position</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-on-surface-variant">Net Balance</span>
+          <span className={`num text-[13px] font-bold tabular-nums ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+            {money(totals.net)}
+          </span>
         </div>
       </div>
 
       <DataTable
+        className="!rounded-none !border-0"
         columns={['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Balance Available']}
         numericFrom={1}
         rows={(() => {

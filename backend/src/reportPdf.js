@@ -21,28 +21,29 @@ const UNIT_REVENUE_META = {
 const HIDDEN_PUROSOUL_REVENUE_COST_ROWS = new Set(['RM Cost Today', 'RM Cost %', 'Revenue MTD', 'Purchase MTD']);
 
 const colors = {
-  header:     '#0f172a',
-  headerSoft: '#475569',
-  accent:     '#08786c',
-  accentDark: '#075e55',
-  accentSoft: '#cfeee8',
-  accentTint: '#edf8f6',
-  page:       '#ffffff',
-  panel:      '#f7f9fa',
-  panelAlt:   '#eef2f5',
-  line:       '#cad3da',
-  lineSoft:   '#e4eaee',
-  lineDark:   '#94a3b8',
-  ink:        '#0f172a',
-  muted:      '#5a6872',
-  subtle:     '#94a3b8',
-  green:      '#0d7c4d',
-  greenSoft:  '#dcf5ea',
-  amber:      '#b45309',
-  amberSoft:  '#fef0d6',
-  red:        '#b91c1c',
-  redSoft:    '#fde2e2',
-  white:      '#ffffff'
+  primary:      '#A3006A',
+  primaryDark:  '#7a004e',
+  primaryLight: '#f5e6f0',
+  primaryMid:   '#d4006e',
+  page:         '#ffffff',
+  panel:        '#f7f9fa',
+  panelAlt:     '#eef2f5',
+  panelDeep:    '#e4eaee',
+  ink:          '#172026',
+  muted:        '#5a6872',
+  subtle:       '#94a3b8',
+  line:         '#cad3da',
+  lineSoft:     '#e4eaee',
+  lineDark:     '#7c8993',
+  green:        '#0d7c4d',
+  greenSoft:    '#dcf5ea',
+  amber:        '#b45309',
+  amberSoft:    '#fef0d6',
+  red:          '#b91c1c',
+  redSoft:      '#fde2e2',
+  navy:         '#21445b',
+  navyTint:     '#e7f0f5',
+  white:        '#ffffff'
 };
 
 function numberValue(value) {
@@ -163,8 +164,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
   if (isWeekly) enabledSections.delete('bank');
   if (!isWeekly) enabledSections.delete('settlement');
 
-  const FIRST_PAGE_TOP = 124;
-  const SUBSEQUENT_PAGE_TOP = 44;
+  const FIRST_PAGE_TOP = 128;
+  const SUBSEQUENT_PAGE_TOP = 42;
   const contentBottom = 776;
   const width = doc.page.width - 72;
 
@@ -174,39 +175,41 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(colors.page);
 
     if (pageNo === 1) {
-      // Brand header band
-      doc.rect(0, 0, doc.page.width, 102).fill(colors.accent);
-      doc.rect(0, 102, doc.page.width, 4).fill(colors.accentDark);
+      doc.rect(0, 0, doc.page.width / 2 + 40, 108).fill(colors.primary);
+      doc.rect(doc.page.width / 2 - 40, 0, doc.page.width / 2 + 40, 108).fill(colors.navy);
+      doc.rect(0, 108, doc.page.width, 4).fill(colors.primaryDark);
 
-      doc.fillColor('#ffffff').opacity(0.78).font('Helvetica-Bold').fontSize(7).text('CENTRE POINT HOSPITALITY', 36, 26, { characterSpacing: 1.2 });
+      doc.fillColor(colors.white).opacity(0.75).font('Helvetica-Bold').fontSize(6.5).text('CENTRE POINT HOSPITALITY', 36, 24, { characterSpacing: 1.4 });
       doc.opacity(1);
-      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(20).text(isWeekly ? 'Weekly Flash Report' : 'Daily Flash Report', 36, 42);
-      doc.fillColor('#ffffff').opacity(0.82).font('Helvetica').fontSize(8).text('Internal management report - Centre Point Group', 36, 72);
+      doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(22).text(isWeekly ? 'Weekly Flash Report' : 'Daily Flash Report', 36, 36);
+      doc.fillColor(colors.white).opacity(0.75).font('Helvetica').fontSize(8).text('Internal management report - Centre Point Group', 36, 66);
       doc.opacity(1);
 
-      // Date pill on the right
       const dateLabel = isWeekly && week ? `${niceDate(week.start)} - ${niceDate(week.end)}` : niceDate(date);
-      const pillWidth = Math.max(150, doc.widthOfString(dateLabel) + 28);
-      const pillX = doc.page.width - 36 - pillWidth;
-      doc.roundedRect(pillX, 36, pillWidth, 26, 13).fill('#ffffff').opacity(1);
-      doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(6.5).text(isWeekly ? 'REPORT PERIOD' : 'REPORT DATE', pillX + 14, 41, { width: pillWidth - 28, characterSpacing: 0.9 });
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9.5).text(dateLabel, pillX + 14, 51, { width: pillWidth - 28, lineBreak: false });
+      const pillWidth = Math.max(154, doc.widthOfString(dateLabel) + 30);
+      const pillX = doc.page.width - 18 - pillWidth;
+      doc.roundedRect(pillX, 32, pillWidth, 30, 14).fill(colors.white);
+      doc.fillColor(colors.primaryDark).font('Helvetica-Bold').fontSize(6).text(isWeekly ? 'REPORT PERIOD' : 'REPORT DATE', pillX + 14, 37, { width: pillWidth - 28, characterSpacing: 1.0 });
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(dateLabel, pillX + 14, 48, { width: pillWidth - 28, lineBreak: false });
 
-      doc.fillColor('#ffffff').opacity(0.7).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}`, pillX, 75, { width: pillWidth, align: 'right' });
+      doc.fillColor(colors.white).opacity(0.65).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}`, 36, 82, { width: doc.page.width - 54, align: 'right' });
       doc.opacity(1);
     } else {
-      // Slim header for subsequent pages
-      doc.rect(0, 0, doc.page.width, 32).fill(colors.accentTint);
-      doc.rect(0, 32, doc.page.width, 2).fill(colors.accent);
-      doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(8).text(`Centre Point Hospitality | ${isWeekly ? 'Weekly' : 'Daily'} Flash Report`, 36, 12);
+      doc.rect(0, 0, doc.page.width, 30).fill(colors.primaryLight);
+      doc.rect(0, 0, 4, 30).fill(colors.primary);
+      doc.strokeColor(colors.primary).lineWidth(0.5).moveTo(0, 30).lineTo(doc.page.width, 30).stroke();
+      doc.fillColor(colors.primaryDark).font('Helvetica-Bold').fontSize(8).text(`Centre Point Hospitality  |  ${isWeekly ? 'Weekly' : 'Daily'} Flash Report`, 36, 11);
       const dateLabel = isWeekly && week ? `${niceDate(week.start)} - ${niceDate(week.end)}` : niceDate(date);
-      doc.fillColor(colors.muted).font('Helvetica').fontSize(8).text(dateLabel, 36, 12, { width: width, align: 'right' });
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(8).text(dateLabel, 36, 11, { width, align: 'right' });
     }
 
-    // Footer
-    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36, 790).lineTo(559, 790).stroke();
-    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(`Centre Point Hospitality | ${isWeekly ? 'Weekly' : 'Daily'} Flash Report | Internal Use Only`, 36, 798, { lineBreak: false });
-    doc.fillColor(colors.accentDark).font('Helvetica-Bold').fontSize(6.5).text(`Page ${pageNo}`, 36, 798, { width, align: 'right', lineBreak: false });
+    doc.strokeColor(colors.lineSoft).lineWidth(0.5).moveTo(36, 790).lineTo(559, 790).stroke();
+    doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text('Centre Point Hospitality  |  Internal Use Only', 36, 798, { lineBreak: false });
+    const pageText = `Page ${pageNo}`;
+    const pageW = doc.widthOfString(pageText) + 16;
+    const pageX = 36 + width - pageW;
+    doc.roundedRect(pageX, 795, pageW, 12, 8).fill(colors.primaryLight);
+    doc.fillColor(colors.primary).font('Helvetica-Bold').fontSize(7).text(pageText, pageX, 797, { width: pageW, align: 'center', lineBreak: false });
     doc.restore();
     doc.y = pageNo === 1 ? FIRST_PAGE_TOP : SUBSEQUENT_PAGE_TOP;
   }
@@ -225,24 +228,26 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   function sectionTitle(title, followingHeight = 0) {
-    ensureSpace(26 + followingHeight);
+    ensureSpace(28 + followingHeight);
     // Strip any old leading "1. " style labels before rendering.
     const displayTitle = String(title).replace(/^\s*\d+\.\s*/, '');
 
     const y = doc.y;
-    doc.roundedRect(36, y, width, 22, 4).fill(colors.accentTint);
-    doc.rect(36, y, 4, 22).fill(colors.accent);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(displayTitle), 50, y + 7, { width: width - 28, lineBreak: false });
-    doc.y = y + 26;
+    doc.roundedRect(36, y, width, 24, 4).fill(colors.primaryLight);
+    doc.rect(36, y, 3, 24).fill(colors.primary);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(displayTitle), 48, y + 8, { width: width - 28, lineBreak: false });
+    doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36 + width - 1, y + 4).lineTo(36 + width - 1, y + 20).stroke();
+    doc.y = y + 28;
   }
 
   function sourceNotice(text) {
     if (!text) return;
     ensureSpace(18);
     const y = doc.y;
-    doc.roundedRect(36, y, width, 16, 3).fill(colors.amberSoft);
-    doc.fillColor(colors.amber).font('Helvetica-Bold').fontSize(7).text(safeText(text), 44, y + 5, { width: width - 16, lineBreak: false });
-    doc.y = y + 20;
+    doc.roundedRect(36, y, width, 18, 3).fill(colors.primaryLight);
+    doc.rect(36, y, 3, 18).fill(colors.primary);
+    doc.fillColor(colors.primaryDark).font('Helvetica-Bold').fontSize(7).text(safeText(text), 48, y + 6, { width: width - 16, lineBreak: false });
+    doc.y = y + 22;
   }
 
   function manualSalesNote(prefix) {
@@ -253,30 +258,25 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   function hero(title, source, value, change = '') {
-    ensureSpace(38);
+    ensureSpace(42);
     const y = doc.y;
-    // Dark unit title band
-    doc.roundedRect(36, y, width, 34, 5).fill(colors.header);
-    doc.rect(36, y, 4, 34).fill(colors.accent);
-    // Title
-    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(12).text(safeText(title), 48, y + 7, { width: 200, lineBreak: false });
-    // Source
-    doc.fillColor(colors.white).opacity(0.72).font('Helvetica').fontSize(7.5).text(safeText(source), 48, y + 23, { width: 280, lineBreak: false });
-    doc.opacity(1);
-    // Value (right)
-    doc.fillColor(colors.white).opacity(0.72).font('Helvetica-Bold').fontSize(6).text('REVENUE', 420, y + 6, { width: 127, align: 'right', characterSpacing: 1.2 });
-    doc.opacity(1);
-    doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(13).text(safeText(value), 420, y + 15, { width: 127, align: 'right', lineBreak: false });
+    doc.roundedRect(36, y, width, 38, 6).fill(colors.panel);
+    doc.roundedRect(36, y, width, 38, 6).strokeColor(colors.line).lineWidth(0.5).stroke();
+    doc.rect(36, y, 3, 38).fill(colors.primary);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(13).text(safeText(title), 50, y + 8, { width: 220, lineBreak: false });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5).text(safeText(source), 50, y + 24, { width: 290, lineBreak: false });
+    doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6).text('REVENUE', 420, y + 7, { width: 127, align: 'right', characterSpacing: 1.0 });
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(13).text(safeText(value), 420, y + 17, { width: 127, align: 'right', lineBreak: false });
     if (change) {
       doc.fillColor(change.startsWith('-') ? colors.red : colors.green).font('Helvetica-Bold').fontSize(7).text(safeText(change), 420, y + 30, { width: 127, align: 'right', lineBreak: false });
     }
-    doc.y = y + 38;
+    doc.y = y + 42;
   }
 
   function unitDivider() {
     ensureSpace(10);
     const y = doc.y;
-    doc.strokeColor(colors.lineSoft).lineWidth(0.5).dash(2, { space: 3 }).moveTo(36, y + 3).lineTo(559, y + 3).stroke().undash();
+    doc.strokeColor(colors.primaryLight).lineWidth(0.5).moveTo(36, y + 3).lineTo(559, y + 3).stroke();
     doc.y = y + 8;
   }
 
@@ -289,17 +289,16 @@ export function createDailyFlashPdf(data, date, options = {}) {
     items.forEach((item, index) => {
       const x = 36 + index * (cardW + gap);
       // Card body
-      doc.roundedRect(x, y, cardW, cardH, 6).fill(colors.white);
-      doc.roundedRect(x, y, cardW, cardH, 6).strokeColor(colors.line).lineWidth(0.6).stroke();
-      // Top accent stripe
-      doc.rect(x, y, cardW, 3).fill(item.tone ?? colors.accent);
+      doc.roundedRect(x, y, cardW, cardH, 6).fill(colors.panel);
+      doc.roundedRect(x, y, cardW, cardH, 6).strokeColor(colors.line).lineWidth(0.5).stroke();
+      doc.rect(x, y, 3, cardH).fill(item.tone ?? colors.primary);
       // Label
-      doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6).text(safeText(item.label).toUpperCase(), x + 12, y + 11, { width: cardW - 24, characterSpacing: 1.1, lineBreak: false });
+      doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(6).text(safeText(item.label).toUpperCase(), x + 14, y + 10, { width: cardW - 24, characterSpacing: 1.0, lineBreak: false });
       // Value
-      doc.fillColor(item.tone ?? colors.ink).font('Helvetica-Bold').fontSize(13).text(safeText(item.value), x + 12, y + 22, { width: cardW - 24, lineBreak: false });
+      doc.fillColor(item.tone ?? colors.ink).font('Helvetica-Bold').fontSize(13).text(safeText(item.value), x + 14, y + 22, { width: cardW - 24, lineBreak: false });
       // Caption
       if (item.caption) {
-        doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(safeText(item.caption), x + 12, y + 39, { width: cardW - 24, lineBreak: false });
+        doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(safeText(item.caption), x + 14, y + 38, { width: cardW - 24, lineBreak: false });
       }
     });
     doc.y = y + cardH + 12;
@@ -316,14 +315,18 @@ export function createDailyFlashPdf(data, date, options = {}) {
     ensureSpace(headerHeight + rowHeight * Math.min(rows.length, 1));
     let y = doc.y;
 
+    let tableTop = doc.y;
+
     function drawHeader() {
-      doc.rect(x, y, width, headerHeight).fill(colors.panel);
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(6.8);
+      tableTop = y;
+      doc.rect(x, y, width, headerHeight).fill(colors.navyTint);
+      doc.fillColor(colors.navy).font('Helvetica-Bold').fontSize(6.5);
       let cursor = x;
       columns.forEach((column, index) => {
-        doc.text(safeText(column), cursor + 7, y + 7, { width: colWidths[index] - 12, align: index === 0 ? 'left' : 'right' });
+        doc.text(safeText(column), cursor + 7, y + 7, { width: colWidths[index] - 12, align: index === 0 ? 'left' : 'right', characterSpacing: 0.5 });
         cursor += colWidths[index];
       });
+      doc.strokeColor(colors.line).lineWidth(1).moveTo(x, y + headerHeight).lineTo(x + width, y + headerHeight).stroke();
       y += headerHeight;
     }
 
@@ -331,6 +334,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     let firstRowOnPage = true;
     rows.forEach((row, rowIndex) => {
       if (y + rowHeight > contentBottom) {
+        doc.roundedRect(x, tableTop, width, y - tableTop, 4).strokeColor(colors.line).lineWidth(0.5).stroke();
         doc.y = y;
         doc.addPage();
         decoratePage();
@@ -339,25 +343,36 @@ export function createDailyFlashPdf(data, date, options = {}) {
         firstRowOnPage = true;
       }
 
-      doc.rect(x, y, width, rowHeight).fill(rowIndex % 2 ? colors.panel : colors.white);
+      const isFooterRow = row.some((cell) => typeof cell === 'object' && /group total|total/i.test(String(cell.text ?? '')));
+      doc.rect(x, y, width, rowHeight).fill(isFooterRow ? colors.panelDeep : (rowIndex % 2 ? colors.panel : colors.page));
+      if (isFooterRow) {
+        doc.strokeColor(colors.lineDark).lineWidth(1).moveTo(x, y).lineTo(x + width, y).stroke();
+      }
       doc.fillColor(colors.ink).font('Helvetica').fontSize(fontSize);
       let cursor = x;
       row.forEach((cell, index) => {
         const align = index === 0 || options.leftColumns?.includes(index) ? 'left' : 'right';
         const text = typeof cell === 'object' ? cell.text : cell;
-        const fill = typeof cell === 'object' && cell.color ? cell.color : colors.ink;
-        const font = typeof cell === 'object' && cell.bold ? 'Helvetica-Bold' : 'Helvetica';
+        const semanticColumn = /net profit|net available|balance/i.test(String(columns[index] ?? ''));
+        const value = numberValue(text);
+        let fill = typeof cell === 'object' && cell.color ? cell.color : colors.ink;
+        let font = typeof cell === 'object' && cell.bold ? 'Helvetica-Bold' : 'Helvetica';
+        if (semanticColumn && Number.isFinite(value) && String(text ?? '').trim() !== '') {
+          fill = value > 0 ? colors.green : value < 0 ? colors.red : colors.subtle;
+          font = value === 0 ? font : 'Helvetica-Bold';
+        }
+        if (isFooterRow) font = 'Helvetica-Bold';
         doc.fillColor(fill).font(font).text(safeText(text), cursor + 7, y + 7, { width: colWidths[index] - 12, align, lineBreak: false });
         cursor += colWidths[index];
       });
-      if (!firstRowOnPage) {
-        doc.strokeColor(colors.line).lineWidth(0.25).moveTo(x, y).lineTo(x + width, y).stroke();
+      if (!firstRowOnPage && !isFooterRow) {
+        doc.strokeColor(colors.lineSoft).lineWidth(0.25).moveTo(x, y).lineTo(x + width, y).stroke();
       }
       firstRowOnPage = false;
       y += rowHeight;
     });
 
-    doc.strokeColor(colors.line).lineWidth(0.6).rect(x, doc.y, width, y - doc.y).stroke();
+    doc.roundedRect(x, tableTop, width, y - tableTop, 4).strokeColor(colors.line).lineWidth(0.5).stroke();
     doc.y = y + 6;
   }
 
@@ -369,9 +384,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
     ensureSpace(chartHeight);
     const y = doc.y;
     const x = 36;
-    doc.roundedRect(x, y, width, chartHeight - 6, 8).fill(colors.white);
-    doc.roundedRect(x, y, width, chartHeight - 6, 8).strokeColor(colors.line).lineWidth(0.6).stroke();
-    doc.rect(x, y, 4, 34).fill(options.accent ?? colors.accent);
+    doc.roundedRect(x, y, width, chartHeight - 6, 8).fill(colors.page);
+    doc.roundedRect(x, y, width, chartHeight - 6, 8).strokeColor(colors.line).lineWidth(0.5).stroke();
+    doc.rect(x, y, 3, 34).fill(options.accent ?? colors.primary);
     doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(title), x + 14, y + 11, { width: width - 28, lineBreak: false });
     if (subtitle) doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(subtitle), x + 14, y + 24, { width: width - 28, lineBreak: false });
 
@@ -383,7 +398,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const barX = x + 18 + labelW;
       const barW = width - 36 - labelW - valueW;
       const filled = Math.max(2, (numberValue(row.value) / max) * barW);
-      const color = row.color ?? [colors.accent, '#6f3d74', '#9a5a00', '#0f9487', colors.red, '#3f6fb5'][index % 6];
+      const color = row.color ?? CHART_PALETTE[index % CHART_PALETTE.length];
       doc.fillColor(colors.muted).font('Helvetica-Bold').fontSize(7).text(safeText(row.name), x + 18, cy + 3, { width: labelW - 8, lineBreak: false });
       doc.roundedRect(barX, cy + 3, barW, 8, 4).fill(colors.panelAlt);
       doc.roundedRect(barX, cy + 3, filled, 8, 4).fill(color);
@@ -393,7 +408,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.y = y + chartHeight;
   }
 
-  const CHART_PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a', '#3f6fb5', '#b5447a'];
+  const CHART_PALETTE = [colors.primary, '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a', '#3f6fb5', '#b5447a'];
 
   function normalizedDonutRows(entries) {
     return entries.filter((e) => numberValue(e.value) > 0).sort((a, b) => b.value - a.value);
@@ -413,9 +428,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const cx = x + 130;
     const cy = y + 52 + outerR;
 
-    doc.roundedRect(x, y, width, CARD_H, 8).fill(colors.white);
-    doc.roundedRect(x, y, width, CARD_H, 8).strokeColor(colors.line).lineWidth(0.6).stroke();
-    doc.rect(x, y, 4, 36).fill(chartOptions.accent ?? colors.accent);
+    doc.roundedRect(x, y, width, CARD_H, 8).fill(colors.page);
+    doc.roundedRect(x, y, width, CARD_H, 8).strokeColor(colors.line).lineWidth(0.5).stroke();
+    doc.rect(x, y, 3, 36).fill(chartOptions.accent ?? colors.primary);
     doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(title), x + 14, y + 10, { width: width - 28, lineBreak: false });
     if (subtitle) {
       doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(subtitle), x + 14, y + 24, { width: width - 28, lineBreak: false });
@@ -467,7 +482,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
       // Strip runs from legend start to card right — same boundary as text
       if (i % 2 === 0) {
-        doc.roundedRect(legendX - 6, ly - 3, cardRight - (legendX - 6) + 6, ROW_H - 2, 3).fill(colors.accentTint);
+        doc.save().opacity(0.5).roundedRect(legendX - 6, ly - 3, cardRight - (legendX - 6) + 6, ROW_H - 2, 3).fill(colors.primaryLight).restore();
       }
 
       // Color square — 9×9
@@ -500,9 +515,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const cx = x + 66;
     const cy = y + 50 + outerR;
 
-    doc.roundedRect(x, y, cardW, cardH, 7).fill(colors.white);
-    doc.roundedRect(x, y, cardW, cardH, 7).strokeColor(colors.line).lineWidth(0.6).stroke();
-    doc.rect(x, y, 4, 32).fill(chartOptions.accent ?? colors.accent);
+    doc.roundedRect(x, y, cardW, cardH, 7).fill(colors.page);
+    doc.roundedRect(x, y, cardW, cardH, 7).strokeColor(colors.line).lineWidth(0.5).stroke();
+    doc.rect(x, y, 3, 32).fill(chartOptions.accent ?? colors.primary);
     doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(8.5).text(safeText(title), x + 12, y + 10, { width: cardW - 24, lineBreak: false });
     if (subtitle) {
       doc.fillColor(colors.muted).font('Helvetica').fontSize(5.8).text(safeText(subtitle), x + 12, y + 23, { width: cardW - 24, lineBreak: false });
@@ -542,7 +557,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const share = total ? Math.round((numberValue(row.value) / total) * 100) : 0;
       const ly = y + 48 + i * 19;
       if (i % 2 === 0) {
-        doc.roundedRect(legendX - 3, ly - 1, legendW + 5, 17, 2.5).fill(colors.accentTint);
+        doc.save().opacity(0.5).roundedRect(legendX - 3, ly - 1, legendW + 5, 17, 2.5).fill(colors.primaryLight).restore();
       }
       doc.roundedRect(legendX + 1, ly + 4, 6, 6, 1.2).fill(color);
       doc.fillColor(colors.ink).font('Helvetica').fontSize(5.9).text(safeText(row.name), legendX + 10, ly + 5, { width: legendW - 52, lineBreak: false });
@@ -592,9 +607,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const chartH = 182;
     const bottomY = chartY + chartH;
 
-    doc.roundedRect(x, y, width, CARD_H, 8).fill(colors.white);
-    doc.roundedRect(x, y, width, CARD_H, 8).strokeColor(colors.line).lineWidth(0.6).stroke();
-    doc.rect(x, y, 4, 36).fill(chartOptions.accent ?? colors.accent);
+    doc.roundedRect(x, y, width, CARD_H, 8).fill(colors.page);
+    doc.roundedRect(x, y, width, CARD_H, 8).strokeColor(colors.line).lineWidth(0.5).stroke();
+    doc.rect(x, y, 3, 36).fill(chartOptions.accent ?? colors.primary);
     doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(title), x + 14, y + 10, { width: width - 28, lineBreak: false });
     if (subtitle) {
       doc.fillColor(colors.muted).font('Helvetica').fontSize(7).text(safeText(subtitle), x + 14, y + 24, { width: width - 28, lineBreak: false });
@@ -608,7 +623,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     for (let gi = 0; gi <= gridCount; gi++) {
       const lineY = bottomY - (chartH / gridCount) * gi;
       const lineVal = (scaleMax / gridCount) * gi;
-      doc.strokeColor(colors.lineSoft).lineWidth(0.5).dash(4, { space: 4 }).moveTo(chartX, lineY).lineTo(chartX + chartW, lineY).stroke().undash();
+      doc.strokeColor(colors.lineSoft).lineWidth(0.5).dash(3, { space: 3 }).moveTo(chartX, lineY).lineTo(chartX + chartW, lineY).stroke().undash();
       doc.fillColor(colors.subtle).font('Helvetica').fontSize(6.5).text(safeText(moneyCompact(lineVal)), x + 4, lineY - 4, { width: leftPad - 10, align: 'right', lineBreak: false });
     }
 
@@ -637,8 +652,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
       const labelW = barW + 16;
       const labelX = bx - 8;
       const labelY = bty - 18;
-      doc.roundedRect(labelX, labelY, labelW, 13, 6).fill(colors.panelAlt);
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(7.5).text(
+      doc.roundedRect(labelX, labelY, labelW, 13, 6).fill(colors.primaryLight);
+      doc.fillColor(colors.primaryDark).font('Helvetica-Bold').fontSize(7.5).text(
         labelText, labelX, labelY + 2.5, { width: labelW, align: 'center', lineBreak: false }
       );
 
@@ -671,12 +686,12 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const entries = dataRows
       .map((row) => ({ name: row.unit, value: numberValue(row.revenueToday) }))
       .filter((e) => e.value > 0);
-    donutChart(title, subtitle, entries, { accent: colors.accent });
+    donutChart(title, subtitle, entries, { accent: colors.primary });
   }
 
   function flagCell(label) {
     const normalized = String(label).includes('ACTION') ? 'ACTION' : String(label);
-    const color = normalized === 'ACTION' ? colors.red : colors.headerSoft;
+    const color = normalized === 'ACTION' ? colors.red : colors.green;
     return { text: normalized, color, bold: true };
   }
 
@@ -687,7 +702,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     sectionTitle(title, (options.note ? 20 : 0) + tablePreviewHeight(visibleRows, tableOptions));
     sourceNotice(options.note);
     table(
-      ['KPI', 'AOP Target', actualColumn, 'MTD', 'Flag'],
+      ['KPI', 'Target', actualColumn, 'MTD', 'Status'],
       visibleRows.map((row) => {
         const target = aopTargetValue(row);
         const flag = calcFlag(row.actual, target, row.direction).label;
@@ -710,19 +725,25 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const noSales = !noMail && numberValue(revenue) === 0;
     // mail received AND has sales → no card needed, show tables normally
     if (!noMail && !noSales) return false;
-    ensureSpace(62);
+    ensureSpace(66);
     const y = doc.y;
     const x = 36;
-    const H = 56;
+    const H = 60;
     const accentColor = noMail ? colors.red : colors.amber;
     const message = noMail
       ? 'Report not uploaded — daily sales email not received'
       : 'Mail received — no sales recorded for this date';
-    doc.roundedRect(x, y, width, H, 6).fill(noMail ? colors.redSoft : colors.amberSoft);
+    const status = noMail ? 'NO MAIL' : 'NO SALES';
+    doc.roundedRect(x, y, width, H, 6).fill(colors.page);
     doc.roundedRect(x, y, width, H, 6).strokeColor(accentColor).lineWidth(0.5).stroke();
-    doc.rect(x, y, 4, H).fill(accentColor);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(safeText(title), x + 14, y + 10, { width: width - 28, lineBreak: false });
-    doc.fillColor(accentColor).font('Helvetica-Bold').fontSize(8).text(safeText(message), x + 14, y + 28, { width: width - 28, lineBreak: false });
+    doc.rect(x, y, 3, H).fill(accentColor);
+    doc.roundedRect(x + 12, y + 14, 28, 28, 5).fill(noMail ? colors.redSoft : colors.amberSoft);
+    doc.strokeColor(accentColor).lineWidth(1).moveTo(x + 16, y + 20).lineTo(x + 26, y + 30).lineTo(x + 36, y + 20).stroke();
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(9).text(safeText(title), x + 50, y + 12, { width: width - 60, lineBreak: false });
+    const badgeW = doc.widthOfString(status) + 16;
+    doc.roundedRect(x + 50, y + 26, badgeW, 12, 6).fill(noMail ? colors.redSoft : colors.amberSoft);
+    doc.fillColor(accentColor).font('Helvetica-Bold').fontSize(7).text(status, x + 58, y + 29, { width: badgeW - 16, lineBreak: false });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(7.5).text(safeText(message), x + 50, y + 42, { width: width - 60, lineBreak: false });
     doc.y = y + H + 6;
     return true;
   }
@@ -763,11 +784,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
   // ── Helper: render P&L table ─────────────────────────────────────────────────
   function renderPnlTable() {
     const pnlTableRows = [
-      ...pnl.map((row) => [row.unit, money(row.revenueToday), money(row.purchasesToday), money(row.grossProfit), percent(row.gpPercent), { text: money(row.netProfit), color: row.netProfit >= 0 ? colors.green : colors.red, bold: true }]),
+      ...pnl.map((row) => [row.unit, money(row.revenueToday), money(row.purchasesToday), money(row.grossProfit), { text: percent(row.gpPercent), color: row.gpPercent >= 0 ? colors.green : colors.red, bold: true }, { text: money(row.netProfit), color: row.netProfit >= 0 ? colors.green : colors.red, bold: true }]),
       [{ text: 'GROUP TOTAL', bold: true }, { text: money(pnlTotals.revenue), bold: true }, { text: money(pnlTotals.purchases), bold: true }, { text: money(pnlTotals.gp), bold: true }, '', { text: money(pnlTotals.net), bold: true, color: pnlTotals.net >= 0 ? colors.green : colors.red }]
     ];
     const pnlTableOptions = { widths: [112, 88, 88, 88, 62, 85] };
-    sectionTitle('Unit-wise Estimated P&L', tablePreviewHeight(pnlTableRows, pnlTableOptions));
+    sectionTitle('Estimated P&L Summary', tablePreviewHeight(pnlTableRows, pnlTableOptions));
     table(['Unit', isWeekly ? 'Revenue WTD' : 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'], pnlTableRows, pnlTableOptions);
   }
 
@@ -784,7 +805,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (!flagTableRows.length) return;
     const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
     sectionTitle('Action Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
-    table(['Unit', 'KPI', 'AOP Target', isWeekly ? 'Week' : 'Today', 'Flag', 'Action Required'], flagTableRows, flagTableOptions);
+    table(['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Status', 'Action Required'], flagTableRows, flagTableOptions);
   }
 
   // ── Helper: render hotel section for a unit ──────────────────────────────────
@@ -824,9 +845,9 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const settlementOptions = { widths: [95, 50, 50, 50, 50, 50, 50, 50, 78], fontSize: 6.3, leftColumns: [0] };
     sectionTitle('Settlement Summary', tablePreviewHeight(settlementRows, settlementOptions));
     table(['Mode', ...UNITS, 'Group Total'], settlementRows, settlementOptions);
-    sectionTitle('Reconciliation', 54);
+    sectionTitle('Settlement Reconciliation', 54);
     summaryCards([
-      { label: 'Total Revenue', value: money(groupRevenue(data)), tone: colors.header },
+      { label: 'Total Revenue', value: money(groupRevenue(data)), tone: colors.navy },
       { label: 'Total Settled', value: money(settlement.groupTotal), tone: colors.green },
       { label: 'Difference', value: money(settlementDiff), tone: settlementDiff === 0 ? colors.green : colors.red },
       { label: 'Status', value: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', tone: settlementDiff === 0 ? colors.green : colors.red }
@@ -845,16 +866,16 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 1. Bank Position
     if (hasSection('bank')) {
       const bankTableRows = [
-        ...bankRows.map((row) => [row.unit, money(row.actual), money(row.fd), money(row.issued), money(row.hand), { text: money(row.net), color: colors.green, bold: true }]),
+        ...bankRows.map((row) => [row.unit, money(row.actual), money(row.fd), money(row.issued), money(row.hand), { text: money(row.net), color: row.net > 0 ? colors.green : row.net < 0 ? colors.red : colors.subtle, bold: row.net !== 0 }]),
         [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true }, { text: money(bankTotals.fd), bold: true }, { text: money(bankTotals.issued), bold: true }, { text: money(bankTotals.hand), bold: true }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
       ];
       const bankTableOptions = { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 };
-      sectionTitle('Bank Position - Daily Cash Summary', tablePreviewHeight(bankTableRows, bankTableOptions));
+      sectionTitle('Bank Position', tablePreviewHeight(bankTableRows, bankTableOptions));
       table(['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'], bankTableRows, bankTableOptions);
     }
 
     // 2. Unit-wise Revenue Share donut
-    if (hasSection('pnl')) revenueShareChart(pnl, 'Unit-wise Revenue Share', 'P&L revenue contribution by unit - today');
+    if (hasSection('pnl')) revenueShareChart(pnl, 'Unit-wise Revenue Share', 'Revenue contribution by unit - today');
 
     // 4. CP Nagpur: Room Revenue & Occupancy → Forecast → Banquets → Banquet Function Lists
     if (hasSection('hotels')) {
@@ -941,7 +962,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (hasSection('flags')) renderFlags();
 
     // 3. Unit-wise Revenue Share donut
-    if (hasSection('pnl')) revenueShareChart(pnl, 'Unit-wise Revenue Share', 'P&L revenue contribution by unit - week to date');
+    if (hasSection('pnl')) revenueShareChart(pnl, 'Unit-wise Revenue Share', 'Revenue contribution by unit - week to date');
 
     // 4. CP Nagpur: Room Revenue & Occupancy → F&B Outlets → Banquets → SOB → MS
     if (hasSection('hotels')) {
@@ -1040,7 +1061,7 @@ function revenueFor(rows) {
 
 function fnbOutletRows(data) {
   const configs = [
-    { name: 'High Steaks', rows: data.hotels ?? [], kpi: 'High Steaks Revenue', color: colors.accent },
+    { name: 'High Steaks', rows: data.hotels ?? [], kpi: 'High Steaks Revenue', color: colors.primary },
     { name: 'Meeting Point', rows: data.hotels ?? [], kpi: 'Meeting Point Revenue', color: '#6f3d74' },
     { name: 'Dali', rows: data.fnb?.Dali ?? [], kpi: 'Gross Sales', color: '#9a5a00' },
     { name: 'Pablo', rows: data.fnb?.Pablo ?? [], kpi: 'Gross Sales', color: '#0f9487' },
