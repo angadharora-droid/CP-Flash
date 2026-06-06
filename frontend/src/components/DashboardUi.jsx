@@ -168,18 +168,23 @@ export function PageTitle({ title, subtitle, badge, actions }) {
 
 export function KpiTable({ rows }) {
   const visibleRows = (rows ?? []).filter((row) => !/\bytd\b|year\s*to\s*date/i.test(row?.name ?? ''));
-  if (!visibleRows.length) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <span className="material-symbols-outlined mb-3 text-[40px] text-on-surface-variant/30" aria-hidden>monitoring</span>
-        <div className="text-[14px] font-semibold text-on-surface-variant">No KPI data available</div>
-        <div className="mt-1 max-w-[240px] text-[12px] text-on-surface-variant/70">Data will appear once the report is imported.</div>
-      </div>
-    );
-  }
+  const headers = ['KPI Name', 'AOP Target', 'Today Actual', 'MTD', 'Status'];
   return (
-    <div className="overflow-hidden rounded-xl border border-outline-variant/40">
-      {visibleRows.map((kpi) => <KpiRow key={kpi.id} kpi={kpi} />)}
+    <div className="scroll-touch glass-card max-w-full overflow-auto">
+      <table className="min-w-[640px] text-[16px] md:min-w-full">
+        <thead>
+          <tr className="bg-surface-container text-left">
+            {headers.map((h, i) => (
+              <th key={h} className={`whitespace-nowrap border-b border-outline-variant/70 px-2.5 py-2.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-surface-variant sm:px-4 sm:py-3.5 ${i === 0 ? 'sticky left-0 z-[2] bg-surface-container' : ''} ${i === 2 ? 'bg-primary/10 text-primary' : ''}`}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {visibleRows.map((kpi) => <KpiRow key={kpi.id} kpi={kpi} />)}
+        </tbody>
+      </table>
     </div>
   );
 }
