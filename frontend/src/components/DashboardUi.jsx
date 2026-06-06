@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { money, formatIndianNumber } from '../lib/calculations';
 import KpiRow from './KpiRow';
 import cpLogo from '../cp-logo.png';
