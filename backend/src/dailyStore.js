@@ -96,6 +96,17 @@ export async function writeDaily(date, payload) {
   return record;
 }
 
+// Per-date mutex — prevents concurrent sheet importers from racing on read-modify-write
+// of the same date file. Each call chains onto the previous promise for that date so
+// concurrent callers are serialized, while different dates run freely in parallel.
+const _dateLocks = new Map();
+export function withDateLock(date, fn) {
+  const prev = _dateLocks.get(date) ?? Promise.resolve();
+  const current = prev.then(() => fn());
+  _dateLocks.set(date, current.then(() => {}, () => {}));
+  return current;
+}
+
 export async function readGenericJson(filePath, fallback = null) {
   try {
     const raw = await fs.readFile(filePath, 'utf8');

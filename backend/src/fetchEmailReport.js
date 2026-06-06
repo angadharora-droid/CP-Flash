@@ -582,76 +582,79 @@ async function run() {
     await clearManualSalesSourcesNotImported(date, existingData);
   }
 
-  // Fetch bank positions from Google Sheets (independent of email)
-  if (!shouldRefreshSheetSource(existingData?.importSource, 'bankPositionImportedAt')) {
-    logSheetSkip('Bank positions', existingData.importSource.bankPositionImportedAt);
-  } else {
-    log('Fetching bank positions from Google Sheets…');
-    try {
-      const bankResult = await importBankPosition(date);
-      log(`Bank positions imported: ${bankResult.mapped.map((row) => `${row.unit}/${row.account}: ${Math.round(Number(row.netBalance) || 0)}`).join(', ')}`);
-    } catch (err) {
-      log(`Bank position ERROR: ${err.message}`);
-    }
-  }
+  // All Google Sheet imports are independent — run them in parallel.
+  // Each importer uses withDateLock internally so concurrent writes to the same date are serialized.
+  await Promise.all([
+    (async () => {
+      if (!shouldRefreshSheetSource(existingData?.importSource, 'bankPositionImportedAt')) {
+        logSheetSkip('Bank positions', existingData.importSource.bankPositionImportedAt);
+        return;
+      }
+      log('Fetching bank positions from Google Sheets…');
+      try {
+        const bankResult = await importBankPosition(date);
+        log(`Bank positions imported: ${bankResult.mapped.map((row) => `${row.unit}/${row.account}: ${Math.round(Number(row.netBalance) || 0)}`).join(', ')}`);
+      } catch (err) {
+        log(`Bank position ERROR: ${err.message}`);
+      }
+    })(),
+    (async () => {
+      if (!shouldRefreshSheetSource(existingData?.importSource, 'daliCostImportedAt')) {
+        logSheetSkip('Dali cost', existingData.importSource.daliCostImportedAt);
+        return;
+      }
+      log('Fetching Dali cost sheet from Google Sheets…');
+      try {
+        const daliResult = await importDaliCostHistory();
+        log(`Dali cost imported: ${daliResult.rowCount} rows → ${daliResult.written.join(', ')}`);
+      } catch (err) {
+        log(`Dali cost ERROR: ${err.message}`);
+      }
+    })(),
+    (async () => {
+      if (!shouldRefreshSheetSource(existingData?.importSource, 'pabloCostImportedAt')) {
+        logSheetSkip('Pablo cost', existingData.importSource.pabloCostImportedAt);
+        return;
+      }
+      log('Fetching Pablo cost sheet from Google Sheets…');
+      try {
+        const pabloResult = await importPabloCostHistory();
+        log(`Pablo cost imported: ${pabloResult.rowCount} rows → ${pabloResult.written.join(', ')}`);
+      } catch (err) {
+        log(`Pablo cost ERROR: ${err.message}`);
+      }
+    })(),
+    (async () => {
+      if (!shouldRefreshSheetSource(existingData?.importSource, 'mickysLeadsImportedAt')) {
+        logSheetSkip("Micky's leads", existingData.importSource.mickysLeadsImportedAt);
+        return;
+      }
+      log("Fetching Micky's leads pipeline from Google Sheets…");
+      try {
+        const leadsResult = await importMickysLeads(date);
+        log(`Micky's leads imported: ${leadsResult.total} total, ${leadsResult.active} active, ${leadsResult.converted} converted`);
+      } catch (err) {
+        log(`Micky's leads ERROR: ${err.message}`);
+      }
+    })(),
+    (async () => {
+      if (!shouldRefreshSheetSource(existingData?.importSource, 'purosoulFlashImportedAt')) {
+        logSheetSkip('Purosoul SKU flash report', existingData.importSource.purosoulFlashImportedAt);
+        return;
+      }
+      log('Fetching Purosoul SKU flash report from Google Sheets…');
+      try {
+        const purosoulSkuResult = await importPurosoulFlashReport();
+        log(`Purosoul SKU imported: ${purosoulSkuResult.rowCount} rows → ${purosoulSkuResult.written.join(', ')}`);
+      } catch (err) {
+        log(`Purosoul SKU ERROR: ${err.message}`);
+      }
+    })()
+  ]);
 
-  // Fetch Dali food + liquor cost from Google Sheet
-  if (!shouldRefreshSheetSource(existingData?.importSource, 'daliCostImportedAt')) {
-    logSheetSkip('Dali cost', existingData.importSource.daliCostImportedAt);
-  } else {
-    log('Fetching Dali cost sheet from Google Sheets…');
-    try {
-      const daliResult = await importDaliCostHistory();
-      log(`Dali cost imported: ${daliResult.rowCount} rows → ${daliResult.written.join(', ')}`);
-    } catch (err) {
-      log(`Dali cost ERROR: ${err.message}`);
-    }
-  }
-
-  // Fetch Pablo food + liquor cost from Google Sheet
-  if (!shouldRefreshSheetSource(existingData?.importSource, 'pabloCostImportedAt')) {
-    logSheetSkip('Pablo cost', existingData.importSource.pabloCostImportedAt);
-  } else {
-    log('Fetching Pablo cost sheet from Google Sheets…');
-    try {
-      const pabloResult = await importPabloCostHistory();
-      log(`Pablo cost imported: ${pabloResult.rowCount} rows → ${pabloResult.written.join(', ')}`);
-    } catch (err) {
-      log(`Pablo cost ERROR: ${err.message}`);
-    }
-  }
-
-  // Fetch Micky's leads pipeline from Google Sheet
-  if (!shouldRefreshSheetSource(existingData?.importSource, 'mickysLeadsImportedAt')) {
-    logSheetSkip("Micky's leads", existingData.importSource.mickysLeadsImportedAt);
-  } else {
-    log("Fetching Micky's leads pipeline from Google Sheets…");
-    try {
-      const leadsResult = await importMickysLeads(date);
-      log(`Micky's leads imported: ${leadsResult.total} total, ${leadsResult.active} active, ${leadsResult.converted} converted`);
-    } catch (err) {
-      log(`Micky's leads ERROR: ${err.message}`);
-    }
-  }
-
-  // Fetch Purosoul SKU production & dispatch from Google Sheet
-  if (!shouldRefreshSheetSource(existingData?.importSource, 'purosoulFlashImportedAt')) {
-    logSheetSkip('Purosoul SKU flash report', existingData.importSource.purosoulFlashImportedAt);
-  } else {
-    log('Fetching Purosoul SKU flash report from Google Sheets…');
-    try {
-      const purosoulSkuResult = await importPurosoulFlashReport();
-      log(`Purosoul SKU imported: ${purosoulSkuResult.rowCount} rows → ${purosoulSkuResult.written.join(', ')}`);
-    } catch (err) {
-      log(`Purosoul SKU ERROR: ${err.message}`);
-    }
-  }
-
-  // Push processed data to cloud backend — one sync per date any handler wrote to
-  // (forward-looking reports may land on a different day than the run date).
-  for (const d of [...touchedDates].sort()) {
-    await syncToCloud(d);
-  }
+  // Push processed data to cloud backend — one sync per date any handler wrote to.
+  // (forward-looking reports may land on a different day than the run date.)
+  await Promise.all([...touchedDates].sort().map((d) => syncToCloud(d)));
 }
 
 async function clearManualSalesSourcesNotImported(date, runData) {

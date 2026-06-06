@@ -1293,8 +1293,8 @@ app.listen(port, () => {
       importRunning = true;
       console.log(`[${new Date().toISOString()}] Running scheduled import…`);
       const child = spawn(process.execPath, [importScript], {
-        // FORCE_IMPORT so each 30-min run re-fetches every source (matching the
-        // manual "Refresh Sources" button) instead of skipping ones already imported.
+        // FORCE_IMPORT reprocesses today's received emails and refreshes sheet-backed
+        // sources on every 30-min run, matching the manual "Refresh Sources" button.
         env: { ...process.env, FORCE_IMPORT: 'true' },
         cwd: backendDir,
         stdio: 'inherit'

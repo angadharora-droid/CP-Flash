@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDaily, writeDaily } from './dailyStore.js';
+import { readDaily, writeDaily, withDateLock } from './dailyStore.js';
 
 const SHEET_ID = '1jvnmwP4AaNQW54E3QVlzR9ZMj589HXZugJfhBOye_gs';
 const GID = 871818724;
@@ -82,27 +82,7 @@ export async function importMickysLeads(targetDate) {
   const nonLost  = dataRows.filter((r) => getStage(r) !== 'lost' && getStage(r) !== '');
   const convRate = nonLost.length > 0 ? Math.round((converted.length / nonLost.length) * 100) : 0;
 
-  const data = await readData(targetDate);
-
-  setMtd(data.mickys, 'New Leads Today',   newThisMonth);
-  setMtd(data.mickys, 'Leads Contacted',   contacted.length);
-  setMtd(data.mickys, 'Leads Converted',   converted.length);
-  setMtd(data.mickys, 'Conversion Rate %', convRate);
-  setMtd(data.mickys, 'Pipeline Value',    Math.round(pipelineValue));
-  setMtd(data.mickys, 'Nagpur Leads',      nagpurCount);
-  setMtd(data.mickys, 'Pune Leads',        puneCount);
-  setMtd(data.mickys, 'Mumbai Leads',      mumbaiCount);
-  setMtd(data.mickys, 'Delhi Leads',       delhiCount);
-
-  data.importSource = {
-    ...(data.importSource ?? {}),
-    mickysLeadsFile: `Micky's Leads Sheet (gid=${GID})`,
-    mickysLeadsImportedAt: new Date().toISOString(),
-  };
-
-  await writeDaily(targetDate, data);
-
-  return {
+  const stats = {
     ok: true, targetDate,
     total: dataRows.length,
     active: active.length,
@@ -111,6 +91,27 @@ export async function importMickysLeads(targetDate) {
     newThisMonth,
     pipelineValue: Math.round(pipelineValue),
   };
+
+  await withDateLock(targetDate, async () => {
+    const data = await readData(targetDate);
+    setMtd(data.mickys, 'New Leads Today',   newThisMonth);
+    setMtd(data.mickys, 'Leads Contacted',   contacted.length);
+    setMtd(data.mickys, 'Leads Converted',   converted.length);
+    setMtd(data.mickys, 'Conversion Rate %', convRate);
+    setMtd(data.mickys, 'Pipeline Value',    Math.round(pipelineValue));
+    setMtd(data.mickys, 'Nagpur Leads',      nagpurCount);
+    setMtd(data.mickys, 'Pune Leads',        puneCount);
+    setMtd(data.mickys, 'Mumbai Leads',      mumbaiCount);
+    setMtd(data.mickys, 'Delhi Leads',       delhiCount);
+    data.importSource = {
+      ...(data.importSource ?? {}),
+      mickysLeadsFile: `Micky's Leads Sheet (gid=${GID})`,
+      mickysLeadsImportedAt: new Date().toISOString(),
+    };
+    await writeDaily(targetDate, data);
+  });
+
+  return stats;
 }
 
 // CLI: node importMickysLeads.js [YYYY-MM-DD]

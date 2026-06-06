@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDaily, writeDaily } from './dailyStore.js';
+import { readDaily, writeDaily, withDateLock } from './dailyStore.js';
 
 const SHEET_ID = '1SliCSYQIhRekgYy-6YN0nn5nFtlZQooH';
 
@@ -117,28 +117,28 @@ export async function importPabloCostHistory() {
     const cumTotalSales = cumFS + cumLS;
     const cumTotalPurchase = cumFP + cumLP;
 
-    const data = await readData(row.date);
-
-    setKpi(data, 'Gross Sales',           round(totalSales),              round(cumTotalSales), { preserveActual: true });
-    setKpi(data, 'Food Cost %',           costPct(row.foodPurchase, row.foodSales), costPct(cumFP, cumFS));
-    setKpi(data, 'Liquor Cost %',         costPct(row.liquorPurchase, row.liquorSales), costPct(cumLP, cumLS));
-    setKpi(data, 'Food Purchase Today',   round(row.foodPurchase),        round(cumFP));
-    setKpi(data, 'Liquor Purchase Today', round(row.liquorPurchase),      round(cumLP));
-    setKpi(data, 'Total Purchase',        round(totalPurchase),           round(cumTotalPurchase));
-
-    data.pnl = (data.pnl ?? []).map((r) =>
-      r.unit === 'Pablo'
-        ? { ...r, revenueToday: String(r.revenueToday ?? '').trim() ? r.revenueToday : round(totalSales), purchasesToday: round(totalPurchase) }
-        : r
-    );
-    data.importSource = {
-      ...(data.importSource ?? {}),
-      pabloCostFile: `Pablo Cost Sheet (all tabs)`,
-      pabloCostImportedAt: new Date().toISOString(),
-      pabloCostNotes: `Fetched from Google Sheet. MTD cumulative through ${row.date}.`,
-    };
-
-    await writeDaily(row.date, data);
+    const snapshot = { totalSales, totalPurchase, cumTotalSales, cumTotalPurchase, row };
+    await withDateLock(row.date, async () => {
+      const data = await readData(row.date);
+      setKpi(data, 'Gross Sales',           round(snapshot.totalSales),              round(snapshot.cumTotalSales), { preserveActual: true });
+      setKpi(data, 'Food Cost %',           costPct(snapshot.row.foodPurchase, snapshot.row.foodSales), costPct(cumFP, cumFS));
+      setKpi(data, 'Liquor Cost %',         costPct(snapshot.row.liquorPurchase, snapshot.row.liquorSales), costPct(cumLP, cumLS));
+      setKpi(data, 'Food Purchase Today',   round(snapshot.row.foodPurchase),        round(cumFP));
+      setKpi(data, 'Liquor Purchase Today', round(snapshot.row.liquorPurchase),      round(cumLP));
+      setKpi(data, 'Total Purchase',        round(snapshot.totalPurchase),           round(snapshot.cumTotalPurchase));
+      data.pnl = (data.pnl ?? []).map((r) =>
+        r.unit === 'Pablo'
+          ? { ...r, revenueToday: String(r.revenueToday ?? '').trim() ? r.revenueToday : round(snapshot.totalSales), purchasesToday: round(snapshot.totalPurchase) }
+          : r
+      );
+      data.importSource = {
+        ...(data.importSource ?? {}),
+        pabloCostFile: `Pablo Cost Sheet (all tabs)`,
+        pabloCostImportedAt: new Date().toISOString(),
+        pabloCostNotes: `Fetched from Google Sheet. MTD cumulative through ${snapshot.row.date}.`,
+      };
+      await writeDaily(row.date, data);
+    });
     written.push(row.date);
   }
 
