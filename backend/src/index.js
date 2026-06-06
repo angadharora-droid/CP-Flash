@@ -403,9 +403,12 @@ function invalidateAopTargetsCache() {
 }
 
 const pnlPeriodCache = new Map();
+const pnlPeriodInflight = new Map();
 const dailyDataCache = new Map();
 const listDailyDatesCache = new Map();
+let reportCacheRevision = 0;
 function invalidatePnlPeriodCache(date) {
+  reportCacheRevision += 1;
   for (const key of pnlPeriodCache.keys()) {
     if (!date || key === date || key.startsWith(date.slice(0, 7)) || key.startsWith(date.slice(0, 4))) {
       pnlPeriodCache.delete(key);
@@ -567,7 +570,13 @@ function getKpiAggregationMode(name) {
   return 'sum';
 }
 
-async function aggregatePeriodForDates(dates) {
+async function getRawByDate(dates, rawByDate = null) {
+  if (!rawByDate) return readDailyDataMany(dates);
+  const rawMap = rawByDate instanceof Map ? rawByDate : new Map(rawByDate);
+  return [...new Set(dates)].sort().map((date) => [date, rawMap.get(date) ?? null]);
+}
+
+async function aggregatePeriodForDates(dates, rawByDate = null) {
   const seedTemplate = buildSeedData();
   const fixedCostByUnit = Object.fromEntries(
     (seedTemplate.pnl ?? []).map((row) => [row.unit, numberValue(row.fixedCost)])
@@ -586,8 +595,8 @@ async function aggregatePeriodForDates(dates) {
   const kpiModes = Object.create(null);
 
   const sortedDates = [...dates].sort();
-  const rawByDate = await readDailyDataMany(sortedDates);
-  for (const [date, raw] of rawByDate) {
+  const periodRawByDate = await getRawByDate(sortedDates, rawByDate);
+  for (const [date, raw] of periodRawByDate) {
     if (!raw) continue;
     const merged = mergeDailyData(seedTemplate, raw);
 
@@ -640,14 +649,14 @@ async function aggregatePeriodForDates(dates) {
   return { pnl: pnlByUnit, kpis: kpiSums, kpiModes };
 }
 
-async function aggregateYtdFromMonthlyMtd(dates) {
+async function aggregateYtdFromMonthlyMtd(dates, rawByDate = null) {
   const datesByMonth = new Map();
   for (const date of dates) {
     const month = date.slice(0, 7);
     datesByMonth.set(month, [...(datesByMonth.get(month) ?? []), date]);
   }
   const monthlyAggregates = await Promise.all(
-    Array.from(datesByMonth.values(), (monthDates) => aggregatePeriodForDates(monthDates))
+    Array.from(datesByMonth.values(), (monthDates) => aggregatePeriodForDates(monthDates, rawByDate))
   );
 
   const seedTemplate = buildSeedData();
@@ -697,8 +706,8 @@ async function aggregateYtdFromMonthlyMtd(dates) {
   return { pnl: pnlByUnit, kpis };
 }
 
-async function aggregateOccupancyMixForDates(dates) {
-  const rawByDate = await readDailyDataMany(dates);
+async function aggregateOccupancyMixForDates(dates, rawByDate = null) {
+  const periodRawByDate = await getRawByDate(dates, rawByDate);
   const byUnit = {};
 
   function mixEntryFromNotes(raw) {
@@ -770,7 +779,7 @@ async function aggregateOccupancyMixForDates(dates) {
     }
   }
 
-  for (const [, raw] of rawByDate) {
+  for (const [, raw] of periodRawByDate) {
     if (!raw) continue;
     for (const mix of Object.values(raw.occupancyMixByUnit ?? {})) {
       addMix(mix);
@@ -791,12 +800,12 @@ async function aggregateOccupancyMixForDates(dates) {
   ]));
 }
 
-async function aggregateSettlementForDates(dates) {
+async function aggregateSettlementForDates(dates, rawByDate = null) {
   const seedTemplate = buildSeedData();
-  const rawByDate = await readDailyDataMany(dates);
+  const periodRawByDate = await getRawByDate(dates, rawByDate);
   const matrix = Object.fromEntries(settlementModes.map((mode) => [mode, {}]));
 
-  for (const [, raw] of rawByDate) {
+  for (const [, raw] of periodRawByDate) {
     if (!raw) continue;
     const merged = mergeDailyData(seedTemplate, raw);
     for (const mode of settlementModes) {
@@ -814,11 +823,11 @@ async function aggregateSettlementForDates(dates) {
   return matrix;
 }
 
-async function aggregatePurosoulSkuForDates(dates) {
-  const rawByDate = await readDailyDataMany(dates);
+async function aggregatePurosoulSkuForDates(dates, rawByDate = null) {
+  const periodRawByDate = await getRawByDate(dates, rawByDate);
   const bySku = new Map();
 
-  for (const [date, raw] of rawByDate) {
+  for (const [date, raw] of periodRawByDate) {
     if (!raw) continue;
     for (const row of raw.purosoulSku ?? []) {
       const sku = String(row.sku ?? '').trim();
@@ -932,11 +941,12 @@ async function buildWeeklyReportData(data, date, options = {}) {
     : weekRangeForDate(date);
   const { start, end } = range;
   const weekDates = await listDailyDatesInRange(start, end);
+  const weekRawByDate = await readDailyDataMany(weekDates);
   const [weeklyAggregate, weeklySettlement, weeklyPurosoulSku, weeklyOccupancyMix] = await Promise.all([
-    aggregatePeriodForDates(weekDates),
-    aggregateSettlementForDates(weekDates),
-    aggregatePurosoulSkuForDates(weekDates),
-    aggregateOccupancyMixForDates(weekDates)
+    aggregatePeriodForDates(weekDates, weekRawByDate),
+    aggregateSettlementForDates(weekDates, weekRawByDate),
+    aggregatePurosoulSkuForDates(weekDates, weekRawByDate),
+    aggregateOccupancyMixForDates(weekDates, weekRawByDate)
   ]);
   const overrides = await getAopTargets();
   const withoutForecast = {
@@ -1071,48 +1081,59 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     return;
   }
 
-  const monthPrefix = date.slice(0, 7);
-  const yearPrefix = date.slice(0, 4);
-  const weekRange = weekRangeForDate(date);
+  if (!pnlPeriodInflight.has(date)) {
+    pnlPeriodInflight.set(date, (async () => {
+      const cacheRevisionAtStart = reportCacheRevision;
+      const monthPrefix = date.slice(0, 7);
+      const yearPrefix = date.slice(0, 4);
+      const weekRange = weekRangeForDate(date);
 
-  const [monthDates, yearDates] = await Promise.all([
-    listDailyDates(monthPrefix),
-    listDailyDates(yearPrefix)
-  ]);
-  const weekDates = (await listDailyDatesInRange(weekRange.start, weekRange.end))
-    .filter((dailyDate) => dailyDate <= date);
-  const mtdDates = monthDates.filter((dailyDate) => dailyDate <= date);
-  const ytdDates = yearDates.filter((dailyDate) => dailyDate <= date);
+      const [monthDates, yearDates] = await Promise.all([
+        listDailyDates(monthPrefix),
+        listDailyDates(yearPrefix)
+      ]);
+      const weekDates = (await listDailyDatesInRange(weekRange.start, weekRange.end))
+        .filter((dailyDate) => dailyDate <= date);
+      const mtdDates = monthDates.filter((dailyDate) => dailyDate <= date);
+      const ytdDates = yearDates.filter((dailyDate) => dailyDate <= date);
+      const allDates = [...new Set([...weekDates, ...mtdDates, ...ytdDates])].sort();
+      const rawByDate = await readDailyDataMany(allDates);
 
-  const [weekAgg, mtdAgg, ytdAgg, occupancyMix, settlement, purosoulSku] = await Promise.all([
-    aggregatePeriodForDates(weekDates),
-    aggregatePeriodForDates(mtdDates),
-    aggregateYtdFromMonthlyMtd(ytdDates),
-    aggregateOccupancyMixForDates(weekDates),
-    aggregateSettlementForDates(weekDates),
-    aggregatePurosoulSkuForDates(weekDates)
-  ]);
+      const [weekAgg, mtdAgg, ytdAgg, occupancyMix, settlement, purosoulSku] = await Promise.all([
+        aggregatePeriodForDates(weekDates, rawByDate),
+        aggregatePeriodForDates(mtdDates, rawByDate),
+        aggregateYtdFromMonthlyMtd(ytdDates, rawByDate),
+        aggregateOccupancyMixForDates(weekDates, rawByDate),
+        aggregateSettlementForDates(weekDates, rawByDate),
+        aggregatePurosoulSkuForDates(weekDates, rawByDate)
+      ]);
 
-  const payload = {
-    date,
-    monthPrefix,
-    yearPrefix,
-    weekStart: weekRange.start,
-    weekEnd: weekRange.end,
-    weekDates,
-    mtdDates,
-    ytdDates,
-    week: weekAgg.pnl,
-    settlement,
-    purosoulSku,
-    occupancyMix,
-    mtd: mtdAgg.pnl,
-    ytd: ytdAgg.pnl,
-    kpis: { week: weekAgg.kpis, mtd: mtdAgg.kpis, ytd: ytdAgg.kpis },
-    kpiModes: { week: weekAgg.kpiModes, mtd: mtdAgg.kpiModes, ytd: ytdAgg.kpiModes }
-  };
-  pnlPeriodCache.set(date, payload);
-  res.json(payload);
+      const payload = {
+        date,
+        monthPrefix,
+        yearPrefix,
+        weekStart: weekRange.start,
+        weekEnd: weekRange.end,
+        weekDates,
+        mtdDates,
+        ytdDates,
+        week: weekAgg.pnl,
+        settlement,
+        purosoulSku,
+        occupancyMix,
+        mtd: mtdAgg.pnl,
+        ytd: ytdAgg.pnl,
+        kpis: { week: weekAgg.kpis, mtd: mtdAgg.kpis, ytd: ytdAgg.kpis },
+        kpiModes: { week: weekAgg.kpiModes, mtd: mtdAgg.kpiModes, ytd: ytdAgg.kpiModes }
+      };
+      if (cacheRevisionAtStart === reportCacheRevision) pnlPeriodCache.set(date, payload);
+      return payload;
+    })().finally(() => {
+      pnlPeriodInflight.delete(date);
+    }));
+  }
+
+  res.json(await pnlPeriodInflight.get(date));
 }));
 
 app.get('/api/email-import', (_req, res) => {
