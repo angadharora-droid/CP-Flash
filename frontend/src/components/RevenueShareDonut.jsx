@@ -71,9 +71,10 @@ export default function RevenueShareDonut({
       </div>
 
       {revenueShare.length ? (
-        <div className="p-5">
-          <div className="relative mx-auto max-w-[280px]">
-            <ResponsiveContainer width="100%" height={260}>
+        <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.6fr)] sm:items-center md:p-5">
+          {/* Donut */}
+          <div className="relative min-h-[260px]">
+            <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
                   data={revenueShare}
@@ -81,8 +82,8 @@ export default function RevenueShareDonut({
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={110}
-                  innerRadius={70}
+                  outerRadius={118}
+                  innerRadius={76}
                   paddingAngle={2.5}
                   cornerRadius={5}
                   stroke="none"
@@ -109,29 +110,36 @@ export default function RevenueShareDonut({
               className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
               style={{ opacity: active === -1 ? 1 : 0, transition: 'opacity 160ms ease' }}
             >
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/55">Total</span>
-              <span className="num mt-1 text-[20px] font-semibold tabular-nums text-on-surface">{moneyCompact(total)}</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/50">Total</span>
+              <span className="num mt-1 text-[22px] font-bold tabular-nums text-on-surface">{moneyCompact(total)}</span>
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
+          {/* Legend */}
+          <ul className="space-y-1.5">
             {revenueShare.map((entry, i) => {
               const share = total ? (entry.value / total) * 100 : 0;
               const color = PALETTE[i % PALETTE.length];
               return (
-                <div
+                <li
                   key={entry.name}
                   onMouseEnter={() => setActive(i)}
                   onMouseLeave={() => setActive(-1)}
-                  className="flex cursor-default items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-container/70"
+                  className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-surface-container/60"
                 >
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
-                  <span className="min-w-0 flex-1 truncate text-[11.5px] font-medium text-on-surface-variant">{entry.name}</span>
-                  <span className="text-[11px] font-bold tabular-nums" style={{ color }}>{share.toFixed(0)}%</span>
-                </div>
+                  <span className="size-2.5 shrink-0 rounded-full" style={{ background: color }} />
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-on-surface-variant">{entry.name}</span>
+                  <span className="num text-[12.5px] font-semibold tabular-nums text-on-surface">{moneyCompact(entry.value)}</span>
+                  <span
+                    className="w-10 rounded-full px-1.5 py-0.5 text-center text-[10.5px] font-bold tabular-nums"
+                    style={{ background: `${color}18`, color }}
+                  >
+                    {share.toFixed(0)}%
+                  </span>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-12 text-center">
