@@ -175,24 +175,37 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(colors.page);
 
     if (pageNo === 1) {
-      doc.rect(0, 0, doc.page.width / 2 + 40, 108).fill(colors.primary);
-      doc.rect(doc.page.width / 2 - 40, 0, doc.page.width / 2 + 40, 108).fill(colors.navy);
-      doc.rect(0, 108, doc.page.width, 4).fill(colors.primaryDark);
+      // Clean single-color brand header
+      doc.rect(0, 0, doc.page.width, 104).fill(colors.primary);
+      doc.rect(0, 104, doc.page.width, 3).fill(colors.primaryDark);
 
-      doc.fillColor(colors.white).opacity(0.75).font('Helvetica-Bold').fontSize(6.5).text('CENTRE POINT HOSPITALITY', 36, 24, { characterSpacing: 1.4 });
+      // Eyebrow
+      doc.fillColor(colors.white).opacity(0.60).font('Helvetica-Bold').fontSize(6.5)
+        .text('CENTRE POINT HOSPITALITY', 36, 26, { characterSpacing: 1.6 });
       doc.opacity(1);
-      doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(22).text(isWeekly ? 'Weekly Flash Report' : 'Daily Flash Report', 36, 36);
-      doc.fillColor(colors.white).opacity(0.75).font('Helvetica').fontSize(8).text('Internal management report - Centre Point Group', 36, 66);
+
+      // Title
+      doc.fillColor(colors.white).font('Helvetica-Bold').fontSize(24)
+        .text(isWeekly ? 'Weekly Flash Report' : 'Daily Flash Report', 36, 40);
+
+      // Subtitle
+      doc.fillColor(colors.white).opacity(0.65).font('Helvetica').fontSize(7.5)
+        .text('Internal management report · Centre Point Group', 36, 70);
       doc.opacity(1);
 
-      const dateLabel = isWeekly && week ? `${niceDate(week.start)} - ${niceDate(week.end)}` : niceDate(date);
-      const pillWidth = Math.max(154, doc.widthOfString(dateLabel) + 30);
-      const pillX = doc.page.width - 18 - pillWidth;
-      doc.roundedRect(pillX, 32, pillWidth, 30, 14).fill(colors.white);
-      doc.fillColor(colors.primaryDark).font('Helvetica-Bold').fontSize(6).text(isWeekly ? 'REPORT PERIOD' : 'REPORT DATE', pillX + 14, 37, { width: pillWidth - 28, characterSpacing: 1.0 });
-      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(dateLabel, pillX + 14, 48, { width: pillWidth - 28, lineBreak: false });
+      // Date pill — right aligned, white card
+      const dateLabel = isWeekly && week ? `${niceDate(week.start)} – ${niceDate(week.end)}` : niceDate(date);
+      const pillWidth = Math.max(148, doc.widthOfString(dateLabel, { fontSize: 11 }) + 36);
+      const pillX = doc.page.width - 36 - pillWidth;
+      doc.roundedRect(pillX, 30, pillWidth, 34, 6).fill(colors.white);
+      doc.fillColor(colors.primaryDark).font('Helvetica-Bold').fontSize(6)
+        .text(isWeekly ? 'REPORT PERIOD' : 'REPORT DATE', pillX + 14, 36, { characterSpacing: 1.1, lineBreak: false });
+      doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(11)
+        .text(dateLabel, pillX + 14, 47, { width: pillWidth - 28, lineBreak: false });
 
-      doc.fillColor(colors.white).opacity(0.65).font('Helvetica').fontSize(6.5).text(`Generated ${new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}`, 36, 82, { width: doc.page.width - 54, align: 'right' });
+      // Generated timestamp (subtle, bottom-right)
+      doc.fillColor(colors.white).opacity(0.50).font('Helvetica').fontSize(6.5)
+        .text(`Generated ${new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}`, 36, 84, { width: doc.page.width - 72, align: 'right' });
       doc.opacity(1);
     } else {
       doc.rect(0, 0, doc.page.width, 30).fill(colors.primaryLight);
