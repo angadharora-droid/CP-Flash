@@ -71,31 +71,55 @@ const HIDDEN_PUROSOUL_REVENUE_COST_ROWS = new Set(['RM Cost Today', 'RM Cost %',
 function UnitRevenueHeader({ unit, rows, scope = 'today' }) {
   const row = rows.find((item) => item.unit === unit);
   const meta = UNIT_REVENUE_META[unit] ?? { title: unit, source: unit };
+  const rev = numberValue(row?.revenueToday);
+  const target = row?.aopTarget ? numberValue(row.aopTarget) : null;
+  const trendPct = target ? Math.round(((rev - target) / target) * 100) : null;
   return (
-    <div className="relative mb-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-[#0d1724] to-[#101827] px-4 py-3.5 text-white shadow-card">
-      <div className="absolute inset-y-0 left-0 w-1.5 rounded-r-full bg-primary" />
-      <div className="absolute right-0 top-0 h-full w-36 bg-gradient-to-l from-primary/10 to-transparent" />
-      <div className="relative flex items-center justify-between gap-4 pl-2.5">
+    <div className="relative mb-2.5 overflow-hidden rounded-2xl border border-outline-variant/60 bg-surface-container-lowest px-4 py-3.5 shadow-card">
+      <div className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-primary" />
+      <div className="relative flex items-center justify-between gap-4 pl-3.5">
         <div className="min-w-0">
-          <div className="truncate text-[18px] font-extrabold leading-tight">{meta.title}</div>
-          <div className="mt-1 truncate text-[11.5px] font-medium text-white/55">{meta.source}</div>
+          <div className="truncate text-[15px] font-medium leading-tight text-on-surface">{meta.title}</div>
+          <div className="mt-1 flex items-center gap-1">
+            <span className="material-symbols-outlined text-[12px] text-on-surface-variant" aria-hidden>database</span>
+            <span className="truncate text-[11px] text-on-surface-variant">{meta.source}</span>
+          </div>
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-[9px] font-extrabold uppercase tracking-[0.28em] text-white/50">Revenue</div>
-          <div className="num mt-1 text-[20px] font-extrabold leading-none">{money(numberValue(row?.revenueToday))}</div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white/35">{scope}</div>
+          <div className="text-[10px] font-medium uppercase tracking-[0.06em] text-on-surface-variant">Revenue</div>
+          <div className="num mt-1 text-[22px] font-medium leading-none text-on-surface">{money(rev)}</div>
+          <div className="mt-1 flex items-center justify-end gap-1.5">
+            <span className="text-[10px] text-on-surface-variant/60">{scope}</span>
+            {trendPct !== null && (
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${trendPct >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                <span className="material-symbols-outlined text-[11px]" aria-hidden>{trendPct >= 0 ? 'trending_up' : 'trending_down'}</span>
+                {trendPct >= 0 ? '+' : ''}{trendPct}%
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+const GROUP_ICONS = {
+  Hotels: 'hotel',
+  'CP Navi Mumbai': 'hotel',
+  'Cloud Kitchen & Specialty': 'restaurant',
+  Manufacturing: 'factory'
+};
+
 function GroupDivider({ label }) {
+  const icon = GROUP_ICONS[label] ?? 'label';
   return (
-    <div className="flex items-center gap-3 py-1" role="separator" aria-hidden>
-      <div className="h-px flex-1 bg-outline-variant/35" />
-      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/40">{label}</span>
-      <div className="h-px flex-1 bg-outline-variant/35" />
+    <div className="flex items-center gap-3 py-2" role="separator" aria-hidden>
+      <div className="h-px flex-1 bg-outline-variant/30" />
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-container px-3 py-1">
+        <span className="material-symbols-outlined text-[13px] text-primary" aria-hidden>{icon}</span>
+        <span className="text-[11px] font-medium tracking-[0.04em] text-on-surface">{label}</span>
+      </div>
+      <div className="h-px flex-1 bg-outline-variant/30" />
     </div>
   );
 }
@@ -109,19 +133,29 @@ function MailStatusCard({ title, icon, importedAt, rows }) {
   const isNotUploaded = status === 'not-uploaded';
   return (
     <SectionCard title={title} subtitle={isNotUploaded ? 'Report not uploaded' : 'No sales recorded'} icon={icon} tone={isNotUploaded ? 'rose' : 'amber'} defaultOpen>
-      <div className={`flex items-start gap-3 rounded-xl border px-4 py-4 ${isNotUploaded ? 'border-rose-200 bg-rose-50/60' : 'border-amber-200 bg-amber-50/60'}`}>
-        <span className={`material-symbols-outlined shrink-0 text-[22px] ${isNotUploaded ? 'text-rose-500' : 'text-amber-500'}`}>
-          {isNotUploaded ? 'mail_off' : 'mark_email_read'}
-        </span>
-        <div>
-          <p className={`text-sm font-bold ${isNotUploaded ? 'text-rose-700' : 'text-amber-700'}`}>
-            {isNotUploaded ? 'Report not uploaded' : 'Mail received — no sales recorded'}
-          </p>
-          <p className="mt-0.5 text-xs text-on-surface-variant">
-            {isNotUploaded
-              ? 'Daily sales email not received. Data will appear once the report is sent.'
-              : 'The daily sales email was received but no sales were recorded for this date.'}
-          </p>
+      <div className={`overflow-hidden rounded-2xl border bg-surface-container-lowest ${isNotUploaded ? 'border-rose-200' : 'border-amber-200'}`}>
+        <div className={`flex items-center gap-3 border-b px-4 py-3 ${isNotUploaded ? 'border-rose-100 bg-rose-50/40' : 'border-amber-100 bg-amber-50/40'}`}>
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${isNotUploaded ? 'bg-rose-100' : 'bg-amber-100'}`}>
+            <span className={`material-symbols-outlined text-[16px] ${isNotUploaded ? 'text-rose-600' : 'text-amber-600'}`} aria-hidden>
+              {isNotUploaded ? 'mail_off' : 'mark_email_read'}
+            </span>
+          </div>
+          <div>
+            <p className="text-[13px] font-medium text-on-surface">
+              {isNotUploaded ? 'Report not uploaded' : 'Mail received — no sales recorded'}
+            </p>
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <span className={`h-1.5 w-1.5 rounded-full ${isNotUploaded ? 'bg-rose-500' : 'bg-amber-500'}`} aria-hidden />
+              <span className={`text-[11px] font-medium ${isNotUploaded ? 'text-rose-600' : 'text-amber-600'}`}>
+                {isNotUploaded ? 'No report received' : 'No sales data'}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="px-4 py-3 text-[12px] text-on-surface-variant">
+          {isNotUploaded
+            ? 'Daily sales email not received. Data will appear once the report is sent.'
+            : 'The daily sales email was received but no sales were recorded for this date.'}
         </div>
       </div>
     </SectionCard>
@@ -431,44 +465,52 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
 
   return (
     <div className="space-y-5">
-      <div className="sticky top-0 z-20 -mx-2 flex flex-wrap items-center justify-end gap-2 border-b border-outline-variant/60 bg-surface/95 px-2 py-2 backdrop-blur md:static md:mx-0 md:border-b-0 md:bg-transparent md:p-0 md:backdrop-blur-0">
+      <div className="sticky top-0 z-20 -mx-2 flex items-center justify-between gap-2 border-b border-outline-variant/60 bg-surface/95 px-3 py-2 backdrop-blur md:static md:mx-0 md:border-b-0 md:bg-transparent md:p-0 md:backdrop-blur-0">
+        <div className="hidden items-center gap-1.5 md:flex">
+          <span className="material-symbols-outlined text-[15px] text-primary" aria-hidden>calendar_today</span>
+          <span className="text-[12px] font-medium text-on-surface-variant">{fmtDate(date)}</span>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
           {sourceRefreshError ? (
-            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-error/20 bg-error/10 px-3 py-2 text-xs font-bold text-error">
-              <span className="material-symbols-outlined text-[16px]" aria-hidden>error</span>
-              <span className="max-w-[260px] truncate">{sourceRefreshError}</span>
+            <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-error/20 bg-error/10 px-3 py-1.5 text-[11px] font-bold text-error">
+              <span className="material-symbols-outlined text-[14px]" aria-hidden>error</span>
+              <span className="max-w-[200px] truncate">{sourceRefreshError}</span>
             </div>
           ) : null}
           <button
             type="button"
             onClick={onRefreshSources}
             disabled={!onRefreshSources || sourceRefreshRunning}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-4 text-[12px] font-bold uppercase tracking-[0.05em] text-on-surface-variant shadow-sm transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-outline-variant/70 bg-surface-container px-3 text-[11.5px] font-medium text-on-surface-variant transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
           >
-            <span className={`material-symbols-outlined text-[18px] ${sourceRefreshRunning ? 'animate-spin text-primary' : ''}`} aria-hidden>
+            <span className={`material-symbols-outlined text-[15px] text-primary ${sourceRefreshRunning ? 'animate-spin' : ''}`} aria-hidden>
               sync
             </span>
-            {sourceRefreshRunning ? 'Refreshing...' : 'Refresh Sources'}
+            {sourceRefreshRunning ? 'Refreshing...' : 'Refresh'}
           </button>
           <div className="inline-flex gap-0.5 rounded-xl border border-outline-variant/60 bg-surface-container p-1">
             {options.map((option) => {
               const isActive = viewMode === option.key;
+              const optIcon = option.key === 'day' ? 'today' : 'date_range';
               return (
                 <button
                   key={option.key}
                   type="button"
                   onClick={() => setViewMode(option.key)}
                   aria-pressed={isActive}
-                  className={`rounded-lg px-4 py-2 text-xs font-bold transition-all duration-200 ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-medium transition-all duration-200 ${
                     isActive
-                      ? 'bg-primary text-on-primary shadow-sm'
+                      ? 'bg-surface-container-lowest text-on-surface shadow-sm'
                       : 'text-on-surface-variant hover:bg-surface-container-high'
                   }`}
                 >
+                  <span className={`material-symbols-outlined text-[14px] ${isActive ? 'text-primary' : ''}`} aria-hidden>{optIcon}</span>
                   {option.label}
                 </button>
               );
             })}
           </div>
+        </div>
       </div>
 
       {viewMode === 'day' ? (
@@ -753,7 +795,15 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
                   <span className="num">{row.weekActual}</span>,
                   <span className={`num font-semibold ${row.percentVsTarget >= 90 ? 'text-emerald-700' : 'text-rose-700'}`}>{row.percentVsTarget}%</span>,
                   <FlagBadge label={row.flag} />,
-                  <span className="block h-10 min-w-[220px] rounded-md border border-dashed border-outline-variant/80 bg-surface-container-lowest" aria-label="Blank action required field" />
+                  <button
+                    type="button"
+                    onClick={() => {}}
+                    aria-label={`Investigate ${row.kpiName} for ${row.unit}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-outline-variant/70 bg-surface-container-lowest px-3 py-2 text-[11.5px] font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:bg-surface-container hover:text-primary"
+                  >
+                    <span className="material-symbols-outlined text-[13px]" aria-hidden>edit_note</span>
+                    Add note
+                  </button>
                 ]
               }))}
             />
