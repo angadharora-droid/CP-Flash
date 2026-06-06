@@ -1140,7 +1140,11 @@ app.post('/api/email-import', (req, res) => {
     cwd: backendDir,
     env: {
       ...process.env,
-      ...(force ? { FORCE_IMPORT: 'true' } : {})
+      ...(force ? { FORCE_IMPORT: 'true' } : {}),
+      // Strip MONGODB_URI so importers write to fast local JSON files instead of doing
+      // high-latency remote MongoDB round-trips per handler (~25s each). syncToCloud at
+      // the end merges cloud data with local and pushes via the REST API.
+      MONGODB_URI: ''
     },
     windowsHide: true
   });
