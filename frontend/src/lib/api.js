@@ -25,7 +25,7 @@ async function readJson(res) {
   }
 }
 
-async function apiFetch(path, options = {}, fallbackMessage = 'Request failed') {
+async function apiFetch(path, options = {}, fallbackMessage = 'Request failed', timeoutMs = REQUEST_TIMEOUT_MS) {
   const url = new URL(path, API_BASE);
   url.searchParams.set('_ts', Date.now().toString());
   const { signal: externalSignal, ...fetchOptions } = options;
@@ -41,7 +41,7 @@ async function apiFetch(path, options = {}, fallbackMessage = 'Request failed') 
     try {
       if (externalSignal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
       externalSignal?.addEventListener('abort', abort, { once: true });
-      timer = setTimeout(abort, REQUEST_TIMEOUT_MS);
+      timer = setTimeout(abort, timeoutMs);
       const res = await fetch(url.toString(), {
         ...fetchOptions,
         signal: controller.signal,
@@ -117,7 +117,7 @@ export async function getPnlPeriod(date, token, options = {}) {
   return apiFetch(`/api/pnl-period?date=${encodeURIComponent(date)}`, {
     ...options,
     headers: { ...authHeaders(token), ...(options.headers ?? {}) }
-  }, 'Unable to load MTD/YTD totals');
+  }, 'Unable to load MTD/YTD totals', 90000);
 }
 
 export async function getEmailImportStatus(token) {
