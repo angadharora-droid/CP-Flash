@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Too
 import { fnbOutletSales, fnbOutletSalesWeekly } from './DashboardCharts';
 import { moneyCompact } from '../lib/calculations';
 
-const PALETTE = ['#08786c', '#6f3d74', '#9a5a00', '#0f9487', '#ba1a1a'];
+const PALETTE = ['#A3006A', '#6f3d74', '#9a5a00', '#C2007F', '#ba1a1a'];
 const axisTick = { fontSize: 11, fill: '#7a8f97', fontFamily: 'inherit' };
 const gridStroke = '#e8edf0';
 
@@ -36,7 +36,7 @@ export default function FnbOutletSalesChart({ data, period = null, mode = 'today
   return (
     <section className="overflow-hidden rounded-xl border border-outline-variant/60 bg-surface-container-lowest">
       <div className="flex items-start gap-3 border-b border-outline-variant/40 px-4 py-3.5">
-        <span className="mt-0.5 min-h-8 w-[3px] shrink-0 self-stretch rounded-full bg-[#08786c]" />
+        <span className="mt-0.5 min-h-8 w-[3px] shrink-0 self-stretch rounded-full bg-[#A3006A]" />
         <div className="min-w-0">
           <h3 className="text-[13px] font-bold text-on-surface">F&B Outlet Sales</h3>
           <p className="mt-0.5 text-[11px] font-medium text-on-surface-variant/70">

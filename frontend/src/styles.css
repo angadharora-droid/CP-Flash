@@ -60,8 +60,8 @@ body {
 }
 
 ::selection {
-  background: #cfeee8;
-  color: #073b35;
+  background: #ffe4f5;
+  color: #3a0020;
 }
 
 input,
@@ -87,7 +87,7 @@ button,
 input,
 textarea,
 select {
-  outline-color: #08786c;
+  outline-color: #A3006A;
   outline-offset: 2px;
 }
 
@@ -112,7 +112,7 @@ button:disabled {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(8, 120, 108, 0.36);
+  background: rgba(163, 0, 106, 0.36);
   background-clip: padding-box;
 }
 
@@ -154,7 +154,7 @@ input[type='date'] {
     transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   }
   .glass-card:hover {
-    border-color: rgba(8, 120, 108, 0.34);
+    border-color: rgba(163, 0, 106, 0.34);
   }
   .glass-card-solid {
     background: #ffffff;
@@ -168,13 +168,13 @@ input[type='date'] {
      animate — so the swap is still instantaneous on slower machines. */
   .sidebar-item-active {
     position: relative;
-    background-image: linear-gradient(135deg, rgba(207, 238, 232, 0.55) 0%, rgba(255, 255, 255, 0.98) 65%);
+    background-image: linear-gradient(135deg, rgba(255, 228, 245, 0.55) 0%, rgba(255, 255, 255, 0.98) 65%);
     background-color: #ffffff;
-    color: #075e55 !important;
+    color: #7a004e !important;
     box-shadow:
       0 1px 2px rgba(23, 32, 38, 0.06),
-      0 10px 24px -20px rgba(8, 120, 108, 0.6),
-      inset 0 0 0 1px rgba(8, 120, 108, 0.12);
+      0 10px 24px -20px rgba(163, 0, 106, 0.6),
+      inset 0 0 0 1px rgba(163, 0, 106, 0.12);
   }
   .sidebar-item-active::before {
     content: '';
@@ -183,10 +183,10 @@ input[type='date'] {
     top: 22%;
     height: 56%;
     width: 3px;
-    background-image: linear-gradient(180deg, #08786c, #0a8a7b);
-    background-color: #08786c;
+    background-image: linear-gradient(180deg, #A3006A, #C2007F);
+    background-color: #A3006A;
     border-radius: 999px;
-    box-shadow: 0 0 8px rgba(8, 120, 108, 0.45);
+    box-shadow: 0 0 8px rgba(163, 0, 106, 0.45);
   }
 
   .num {

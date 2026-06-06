@@ -589,7 +589,7 @@ export default function App() {
         <div className="space-y-1.5 border-t border-outline-variant/55 bg-white/70 p-3">
           <div className="flex items-center justify-between px-2.5 pb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant/55">
             <span className="flex items-center gap-1.5">
-              <span className={`size-1.5 rounded-full ${refreshing ? 'bg-primary animate-pulse' : 'bg-emerald-500'}`} aria-hidden />
+              <span className={`size-1.5 rounded-full ${refreshing ? 'bg-primary animate-pulse' : 'bg-primary'}`} aria-hidden />
               {refreshing ? 'Syncing' : 'Live'}
             </span>
             <span>v1.0</span>
@@ -693,7 +693,7 @@ export default function App() {
           <div className="border-t border-outline-variant/55 bg-white/70 p-3">
             <div className="flex items-center justify-between px-2.5 pb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant/55">
               <span className="flex items-center gap-1.5">
-                <span className={`size-1.5 rounded-full ${refreshing ? 'bg-primary animate-pulse' : 'bg-emerald-500'}`} aria-hidden />
+                <span className={`size-1.5 rounded-full ${refreshing ? 'bg-primary animate-pulse' : 'bg-primary'}`} aria-hidden />
                 {refreshing ? 'Syncing' : 'Live'}
               </span>
               <span>v1.0</span>
