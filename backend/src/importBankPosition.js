@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDaily, writeDaily } from './dailyStore.js';
+import { readDaily, writeDaily, withDateLock } from './dailyStore.js';
 
 const SHEET_ID = '1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf';
 
@@ -64,12 +64,11 @@ function extractAccount(rows, acct) {
 }
 
 export async function importBankPosition(outDate) {
-  const accountRows = [];
-
-  for (const acct of OUTLET_ACCOUNTS) {
+  // Fetch all 11 bank account tabs in parallel — each is an independent HTTP request.
+  const accountRows = await Promise.all(OUTLET_ACCOUNTS.map(async (acct) => {
     const rows = await fetchSheetRows(acct.gid);
     const vals = extractAccount(rows, acct);
-    accountRows.push({
+    return {
       unit: acct.unit,
       account: acct.account,
       actualBalance: fmt(vals.actualBalance),
@@ -78,20 +77,19 @@ export async function importBankPosition(outDate) {
       chequeTotalAmount: fmt(vals.chequeTotalAmount),
       chequesInHand: fmt(vals.chequesInHand),
       netBalance: fmt(vals.netBalance),
-    });
-  }
+    };
+  }));
 
-  const data = (await readDaily(outDate)) ?? buildSeedData();
-
-  data.bankPosition = accountRows;
-  data.importSource = {
-    ...(data.importSource ?? {}),
-    bankPositionImportedAt: new Date().toISOString(),
-  };
-
-  await writeDaily(outDate, data);
-
-  return { ok: true, date: outDate, mapped: accountRows };
+  return withDateLock(outDate, async () => {
+    const data = (await readDaily(outDate)) ?? buildSeedData();
+    data.bankPosition = accountRows;
+    data.importSource = {
+      ...(data.importSource ?? {}),
+      bankPositionImportedAt: new Date().toISOString(),
+    };
+    await writeDaily(outDate, data);
+    return { ok: true, date: outDate, mapped: accountRows };
+  });
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);

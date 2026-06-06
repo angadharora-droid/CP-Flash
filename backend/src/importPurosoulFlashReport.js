@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { readDaily, writeDaily } from './dailyStore.js';
+import { readDaily, writeDaily, withDateLock } from './dailyStore.js';
 
 const SHEET_ID = '1NeheL3S8opBiwpQLLR_0CHjFxbZONk_uxLGKkPPip90';
 
@@ -99,32 +99,34 @@ export async function importPurosoulFlashReport() {
       skuData[block.sku] = { production, dispatched, clStock, mtd: mtd[block.sku], ytd: ytd[block.sku] };
     }
 
-    const data = await readData(date);
     const EXPECTED_SKUS = ['250ml', '500ml', '1L'];
-    const existingBySku = {};
-    (data.purosoulSku ?? []).forEach((r) => { existingBySku[r.sku] = r; });
+    await withDateLock(date, async () => {
+      const data = await readData(date);
+      const existingBySku = {};
+      (data.purosoulSku ?? []).forEach((r) => { existingBySku[r.sku] = r; });
 
-    data.purosoulSku = EXPECTED_SKUS.map((sku) => {
-      const base = existingBySku[sku] ?? { sku, produced: '', dispatched: '', clStock: '', mtd: '', ytd: '' };
-      const d = skuData[sku];
-      if (!d) return base;
-      return {
-        ...base,
-        produced: String(d.production),
-        dispatched: String(d.dispatched),
-        clStock: String(d.clStock),
-        mtd: String(d.mtd),
-        ytd: String(d.ytd),
+      data.purosoulSku = EXPECTED_SKUS.map((sku) => {
+        const base = existingBySku[sku] ?? { sku, produced: '', dispatched: '', clStock: '', mtd: '', ytd: '' };
+        const d = skuData[sku];
+        if (!d) return base;
+        return {
+          ...base,
+          produced: String(d.production),
+          dispatched: String(d.dispatched),
+          clStock: String(d.clStock),
+          mtd: String(d.mtd),
+          ytd: String(d.ytd),
+        };
+      });
+
+      data.importSource = {
+        ...(data.importSource ?? {}),
+        purosoulFlashFile: 'Purosoul Flash Report (all tabs)',
+        purosoulFlashImportedAt: new Date().toISOString(),
       };
+
+      await writeDaily(date, data);
     });
-
-    data.importSource = {
-      ...(data.importSource ?? {}),
-      purosoulFlashFile: 'Purosoul Flash Report (all tabs)',
-      purosoulFlashImportedAt: new Date().toISOString(),
-    };
-
-    await writeDaily(date, data);
     written.push(date);
   }
 
