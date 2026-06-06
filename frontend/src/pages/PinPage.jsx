@@ -33,9 +33,6 @@ function PinGateCard({
 }) {
   return (
     <main className="relative grid h-dvh max-h-dvh place-items-center overflow-hidden bg-[#f6f8fb] px-4 py-4 text-on-surface sm:px-5">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(163,0,106,0.10),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(238,242,246,0.84))]" />
-      <div className="pointer-events-none absolute -bottom-24 left-1/2 h-72 w-[120vw] -translate-x-1/2 rounded-[50%] border-t border-primary/10 bg-[repeating-linear-gradient(100deg,rgba(163,0,106,0.055)_0px,rgba(163,0,106,0.055)_1px,transparent_1px,transparent_9px)] opacity-70" />
-      <div className="pointer-events-none absolute -top-28 right-[-10%] h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
 
       <form
         onSubmit={submit}
@@ -108,7 +105,7 @@ function PinGateCard({
         <button
           type="submit"
           disabled={loading || isLocked || pin.length < 4}
-          className="mt-5 flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-[#111827] to-primary px-4 text-[15px] font-extrabold text-white shadow-[0_18px_36px_rgba(163,0,106,0.20)] transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-surface-container-high disabled:text-on-surface-variant disabled:shadow-none sm:h-14 sm:text-[16px]"
+          className="mt-5 flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-primary px-4 text-[15px] font-extrabold text-white shadow-[0_14px_28px_rgba(163,0,106,0.18)] transition-all hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-surface-container-high disabled:text-on-surface-variant disabled:shadow-none sm:h-14 sm:text-[16px]"
         >
           <MIcon name="lock_open" filled className="text-[20px]" />
           {loading ? 'Verifying...' : isLocked ? `Blocked ${lockoutRemaining || ''}` : 'Unlock Dashboard'}
