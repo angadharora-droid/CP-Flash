@@ -28,10 +28,40 @@ export default function BankPositionTable({ rows = [] }) {
   const { totals, net } = getBankPositionTotals(rows);
 
   return (
-    <DataTable
-      columns={['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Balance Available']}
-      numericFrom={1}
-      rows={(() => {
+    <div className="space-y-3">
+      <div className="overflow-hidden rounded-2xl border border-outline-variant/50 bg-surface-container-lowest">
+        <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <span className="material-symbols-outlined text-[22px]" aria-hidden>account_balance_wallet</span>
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant">Group Net Balance</div>
+              <div className={`num text-[24px] font-semibold tabular-nums leading-tight ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                {money(totals.net)}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-x-4 gap-y-0.5 text-right sm:gap-x-6">
+            {[
+              { label: 'Actual', value: totals.actual, tone: '' },
+              { label: 'FD', value: totals.fd, tone: '' },
+              { label: 'Issued', value: totals.issued, tone: 'text-error' },
+              { label: 'In Hand', value: totals.hand, tone: '' },
+            ].map(({ label, value, tone }) => (
+              <div key={label}>
+                <div className="text-[10px] font-medium text-on-surface-variant">{label}</div>
+                <div className={`num text-[12.5px] font-semibold tabular-nums ${tone || 'text-on-surface'}`}>{money(value)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <DataTable
+        columns={['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Balance Available']}
+        numericFrom={1}
+        rows={(() => {
         const built = [];
         units.forEach((unit) => {
           const unitRows = rows.filter((r) => r.unit === unit);
@@ -115,7 +145,7 @@ export default function BankPositionTable({ rows = [] }) {
       })()}
       footer={
         <tr>
-          <td className="px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-app-subtle">Group Total</td>
+          <td className="px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-on-surface-variant">Group Total</td>
           <td className="num px-4 py-3.5 text-right text-[16px] tabular-nums">{money(totals.actual)}</td>
           <td className="num px-4 py-3.5 text-right text-[16px] tabular-nums">{money(totals.fd)}</td>
           <td className="num px-4 py-3.5 text-right text-[16px] tabular-nums">{money(totals.issued)}</td>
@@ -124,5 +154,6 @@ export default function BankPositionTable({ rows = [] }) {
         </tr>
       }
     />
+    </div>
   );
 }

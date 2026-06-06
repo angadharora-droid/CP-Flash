@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fnbOutletSales, fnbOutletSalesWeekly } from './DashboardCharts';
 import { moneyCompact } from '../lib/calculations';
@@ -26,33 +26,64 @@ function OutletTooltip({ active, payload, total }) {
 }
 
 export default function FnbOutletSalesChart({ data, period = null, mode = 'today' }) {
+  const [activeChip, setActiveChip] = useState(null);
   const isWeek = mode === 'week';
-  const rows = (isWeek ? fnbOutletSalesWeekly(data ?? {}, period) : fnbOutletSales(data ?? {}))
+  const allRows = (isWeek ? fnbOutletSalesWeekly(data ?? {}, period) : fnbOutletSales(data ?? {}))
     .filter((entry) => entry.value > 0)
     .sort((a, b) => b.value - a.value)
     .map((entry, index) => ({ ...entry, fill: PALETTE[index % PALETTE.length] }));
-  const total = rows.reduce((sum, entry) => sum + entry.value, 0);
+  const rows = activeChip ? allRows.filter((r) => r.name === activeChip) : allRows;
+  const total = allRows.reduce((sum, entry) => sum + entry.value, 0);
+  const displayTotal = rows.reduce((sum, entry) => sum + entry.value, 0);
 
   return (
-    <section className="overflow-hidden rounded-xl border border-outline-variant/60 bg-surface-container-lowest">
+    <section className="overflow-hidden rounded-2xl border border-outline-variant/50 bg-surface-container-lowest">
       <div className="flex items-start gap-3 border-b border-outline-variant/40 px-4 py-3.5">
-        <span className="mt-0.5 min-h-8 w-[3px] shrink-0 self-stretch rounded-full bg-[#A3006A]" />
+        <span className="mt-0.5 min-h-8 w-[3px] shrink-0 self-stretch rounded-full bg-primary" />
         <div className="min-w-0">
-          <h3 className="text-[13px] font-bold text-on-surface">F&B Outlet Sales</h3>
+          <h3 className="text-[13px] font-semibold text-on-surface">F&amp;B Outlet Sales</h3>
           <p className="mt-0.5 text-[11px] font-medium text-on-surface-variant/70">
-            Freakk - Pablo - Dali - Meeting Point - High Steaks - {isWeek ? 'week to date' : 'today'}
+            Freakk · Pablo · Dali · Meeting Point · High Steaks · {isWeek ? 'week to date' : 'today'}
           </p>
         </div>
       </div>
 
-      {rows.length ? (
+      {allRows.length ? (
         <div className="p-4 md:p-6">
-          <ResponsiveContainer width="100%" height={320}>
+          <div className="mb-4 flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveChip(null)}
+              className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-all active:scale-95 ${
+                activeChip === null
+                  ? 'border-primary/50 bg-primary/8 text-primary'
+                  : 'border-outline-variant/50 bg-surface-container text-on-surface-variant hover:border-outline-variant hover:text-on-surface'
+              }`}
+            >
+              All
+            </button>
+            {allRows.map((entry) => (
+              <button
+                key={entry.name}
+                type="button"
+                onClick={() => setActiveChip(activeChip === entry.name ? null : entry.name)}
+                className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-all active:scale-95 ${
+                  activeChip === entry.name
+                    ? 'border-primary/50 bg-primary/8 text-primary'
+                    : 'border-outline-variant/50 bg-surface-container text-on-surface-variant hover:border-outline-variant hover:text-on-surface'
+                }`}
+              >
+                {entry.name}
+              </button>
+            ))}
+          </div>
+
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={rows} margin={{ top: 28, right: 8, left: 4, bottom: 8 }} barCategoryGap="14%">
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
               <XAxis dataKey="name" tick={axisTick} interval={0} tickLine={false} axisLine={{ stroke: gridStroke }} />
               <YAxis tick={axisTick} tickFormatter={moneyCompact} width={62} tickLine={false} axisLine={false} />
-              <Tooltip content={<OutletTooltip total={total} />} cursor={{ fill: 'rgba(8,120,108,0.05)', rx: 4 }} />
+              <Tooltip content={<OutletTooltip total={displayTotal} />} cursor={{ fill: 'rgba(163,0,106,0.05)', rx: 4 }} />
               <Bar dataKey="value" name="Sales" radius={[6, 6, 0, 0]} maxBarSize={180}>
                 {rows.map((entry) => (
                   <Cell key={entry.name} fill={entry.fill} />
@@ -66,33 +97,12 @@ export default function FnbOutletSalesChart({ data, period = null, mode = 'today
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-            {rows.map((entry) => {
-              const share = total ? ((entry.value / total) * 100).toFixed(0) : 0;
-              return (
-                <span
-                  key={entry.name}
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold"
-                  style={{
-                    background: `${entry.fill}18`,
-                    color: entry.fill,
-                    border: `1px solid ${entry.fill}30`
-                  }}
-                >
-                  {entry.name}
-                  <span className="opacity-70">{share}%</span>
-                </span>
-              );
-            })}
-          </div>
         </div>
       ) : (
-        <div className="grid min-h-[260px] place-items-center p-6 text-center">
-          <div>
-            <div className="text-sm font-semibold text-on-surface">No outlet sales yet</div>
-            <div className="mt-1 text-xs text-on-surface-variant">Outlet sales will appear once imported.</div>
-          </div>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <span className="material-symbols-outlined mb-3 text-[40px] text-on-surface-variant/30" aria-hidden>bar_chart</span>
+          <div className="text-[14px] font-semibold text-on-surface-variant">No outlet sales yet</div>
+          <div className="mt-1 max-w-[240px] text-[12px] text-on-surface-variant/70">Outlet sales will appear once the report is imported.</div>
         </div>
       )}
     </section>

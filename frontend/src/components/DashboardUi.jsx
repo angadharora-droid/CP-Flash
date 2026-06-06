@@ -168,23 +168,18 @@ export function PageTitle({ title, subtitle, badge, actions }) {
 
 export function KpiTable({ rows }) {
   const visibleRows = (rows ?? []).filter((row) => !/\bytd\b|year\s*to\s*date/i.test(row?.name ?? ''));
-  const headers = ['KPI Name', 'AOP Target', 'Today Actual', 'MTD', 'Status'];
+  if (!visibleRows.length) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <span className="material-symbols-outlined mb-3 text-[40px] text-on-surface-variant/30" aria-hidden>monitoring</span>
+        <div className="text-[14px] font-semibold text-on-surface-variant">No KPI data available</div>
+        <div className="mt-1 max-w-[240px] text-[12px] text-on-surface-variant/70">Data will appear once the report is imported.</div>
+      </div>
+    );
+  }
   return (
-    <div className="scroll-touch glass-card max-w-full overflow-auto">
-      <table className="min-w-[640px] text-[16px] md:min-w-full">
-        <thead>
-          <tr className="bg-surface-container text-left">
-            {headers.map((h, i) => (
-              <th key={h} className={`whitespace-nowrap border-b border-outline-variant/70 px-2.5 py-2.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-surface-variant sm:px-4 sm:py-3.5 ${i === 0 ? 'sticky left-0 z-[2] bg-surface-container' : ''} ${i === 2 ? 'bg-primary/10 text-primary' : ''}`}>
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {visibleRows.map((kpi) => <KpiRow key={kpi.id} kpi={kpi} />)}
-        </tbody>
-      </table>
+    <div className="overflow-hidden rounded-xl border border-outline-variant/40">
+      {visibleRows.map((kpi) => <KpiRow key={kpi.id} kpi={kpi} />)}
     </div>
   );
 }
@@ -400,112 +395,109 @@ export function PinGate({ onUnlock }) {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-surface px-4 py-6 sm:px-6 lg:grid lg:place-items-center">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#ffffff_0%,#f4f6f8_42%,#eef2f5_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-accent-stripe" />
+    <main className="flex min-h-screen">
+      {/* Brand panel — hidden on mobile */}
+      <div className="hidden w-1/2 flex-col items-center justify-center gap-8 bg-brand-gradient px-10 lg:flex">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
+          style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}
+        />
+        <div className="relative flex flex-col items-center text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/20 bg-white/10 p-3 shadow-pop backdrop-blur">
+            <img src={cpLogo} alt="Centre Point logo" className="h-full w-full object-contain" />
+          </div>
+          <h1 className="mt-6 text-[32px] font-bold leading-tight tracking-tight text-white">DailyFlash</h1>
+          <p className="mt-2 text-[15px] font-medium text-white/70">Centre Point Hospitality Group</p>
+          <div className="mt-6 flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60" aria-hidden />
+            <span className="text-[12px] font-medium text-white/80">Live operations dashboard</span>
+          </div>
+        </div>
+      </div>
 
-      <form
-        onSubmit={submit}
-        className="relative z-10 mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-[28rem] animate-fade-in-up items-center sm:min-h-0 lg:min-h-0"
-      >
-        <section className="w-full overflow-hidden rounded-2xl border border-outline-variant/70 bg-surface-container-lowest shadow-cardHover">
-          <div className="border-b border-outline-variant/60 bg-surface-container-lowest px-5 py-6 text-center sm:px-8">
-            <div
-              className="mx-auto flex items-center justify-center rounded-2xl border border-outline-variant/70 bg-white p-2.5"
-              style={{ width: '5rem', height: '5rem', boxShadow: '0 24px 60px -32px rgba(8, 120, 108, 0.52)' }}
-            >
-              <img src={cpLogo} alt="Centre Point logo" className="h-full w-full object-contain" />
+      {/* Form panel */}
+      <div className="flex w-full flex-col items-center justify-center bg-surface px-6 py-10 lg:w-1/2">
+        {/* Mobile logo */}
+        <div className="mb-8 flex flex-col items-center lg:hidden">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-outline-variant/70 bg-white p-2 shadow-card">
+            <img src={cpLogo} alt="Centre Point logo" className="h-full w-full object-contain" />
+          </div>
+          <div className="mt-3 text-[10px] font-bold uppercase tracking-[0.24em] text-primary">DailyFlash</div>
+        </div>
+
+        <form onSubmit={submit} className="w-full max-w-sm animate-fade-in-up">
+          <div className="mb-7 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Secure Access</p>
+              <h2 className="mt-1.5 text-[22px] font-bold tracking-tight text-on-surface">Enter PIN</h2>
             </div>
-            <div className="mt-5 text-[10px] font-bold uppercase tracking-[0.28em] text-primary">DailyFlash</div>
-            <h1 className="mt-2 text-display-mobile font-bold tracking-tight text-on-surface">CP Flash Report</h1>
-            <p className="mt-1.5 text-sm font-medium text-on-surface-variant">Centre Point Hospitality Group</p>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+              <MIcon name="lock" filled className="text-[22px]" />
+            </div>
           </div>
 
-          <div className="px-5 py-7 sm:px-8">
-            <div className="w-full">
-            <div className="mb-7 flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Secure Access</p>
-                <h2 className="mt-2 text-headline-md font-bold tracking-tight text-on-surface">Enter PIN</h2>
-              </div>
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-                <MIcon name="lock" filled className="text-[22px]" />
-              </div>
-            </div>
-
-            <label className={`relative flex w-full cursor-text items-center justify-center gap-2.5 rounded-xl border bg-surface-container-low px-3 py-3.5 transition-all duration-200 sm:gap-3 sm:px-4 sm:py-4 ${
-              shake
-                ? 'border-error/60 shadow-[0_0_0_5px_rgba(186,26,26,0.16)] animate-shake'
-                : focused
-                  ? 'border-primary/70 shadow-[0_0_0_5px_rgba(8,120,108,0.14)]'
-                  : 'border-outline-variant/70'
-            }`}>
-              {Array.from({ length: 6 }, (_, i) => {
-                const filled = i < pin.length;
-                const current = i === pin.length && focused;
-                const slotBase = shake
-                  ? 'border-error/45 bg-error/10'
-                  : current
-                    ? 'border-primary/60 bg-primary/10'
-                    : filled
-                      ? 'border-primary/30 bg-primary/10'
-                      : 'border-outline-variant/70 bg-surface-container-lowest';
-                const dotBase = shake
-                  ? 'bg-error'
+          <label className={`relative flex w-full cursor-text items-center justify-center gap-2.5 rounded-xl border bg-surface-container-low px-3 py-3.5 transition-all duration-200 sm:gap-3 sm:px-4 sm:py-4 ${
+            shake
+              ? 'border-error/60 shadow-[0_0_0_4px_rgba(186,26,26,0.16)] animate-shake'
+              : focused
+                ? 'border-primary/70 shadow-[0_0_0_4px_rgba(163,0,106,0.14)]'
+                : 'border-outline-variant/60'
+          }`}>
+            {Array.from({ length: 6 }, (_, i) => {
+              const filled = i < pin.length;
+              const current = i === pin.length && focused;
+              const slotBase = shake
+                ? 'border-error/45 bg-error/10'
+                : current
+                  ? 'border-primary/60 bg-primary/10'
                   : filled
-                    ? 'bg-primary'
-                    : current
-                      ? 'bg-primary/40'
-                      : 'bg-transparent';
-                return (
-                  <span key={i} className={`relative flex h-12 flex-1 items-center justify-center rounded-lg border transition-all duration-200 ${slotBase}`}>
-                    <span className={`size-2.5 rounded-full transition-all duration-200 ${dotBase}`} />
-                    {current && !shake ? <span className="absolute inset-x-3 bottom-2 h-0.5 rounded-full bg-primary" /> : null}
-                  </span>
-                );
-              })}
-              <input
-                autoFocus
-                inputMode="numeric"
-                type="password"
-                autoComplete="new-password"
-                value={pin}
-                onChange={(event) => {
-                  if (!isLocked) setPin(event.target.value.replace(/\D/g, '').slice(0, 8));
-                }}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                aria-label="PIN"
-                disabled={isLocked}
-                className="absolute inset-0 w-full cursor-text bg-transparent text-center text-transparent caret-transparent outline-none"
-              />
-            </label>
+                    ? 'border-primary/30 bg-primary/10'
+                    : 'border-outline-variant/70 bg-surface-container-lowest';
+              const dotBase = shake ? 'bg-error' : filled ? 'bg-primary' : current ? 'bg-primary/40' : 'bg-transparent';
+              return (
+                <span key={i} className={`relative flex h-11 flex-1 items-center justify-center rounded-xl border transition-all duration-200 ${slotBase}`}>
+                  <span className={`size-2.5 rounded-full transition-all duration-200 ${dotBase}`} />
+                  {current && !shake ? <span className="absolute inset-x-3 bottom-1.5 h-0.5 rounded-full bg-primary" /> : null}
+                </span>
+              );
+            })}
+            <input
+              autoFocus
+              inputMode="numeric"
+              type="password"
+              autoComplete="new-password"
+              value={pin}
+              onChange={(event) => {
+                if (!isLocked) setPin(event.target.value.replace(/\D/g, '').slice(0, 8));
+              }}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              aria-label="PIN"
+              disabled={isLocked}
+              className="absolute inset-0 w-full cursor-text bg-transparent text-center text-transparent caret-transparent outline-none"
+            />
+          </label>
 
-            {status ? (
-              <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-error/25 bg-error/10 px-3.5 py-3 text-sm font-semibold text-error">
-                <MIcon name="error" className="mt-0.5 shrink-0" />
-                <span>{status}{isLocked && lockoutRemaining ? ` Try again in ${lockoutRemaining}.` : ''}</span>
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={loading || isLocked || pin.length < 4}
-              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold uppercase tracking-[0.05em] text-on-primary shadow-primary transition-all duration-200 hover:bg-primary-container hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-surface-container-high disabled:text-on-surface-variant disabled:shadow-none"
-            >
-              {loading ? (
-                'Verifying...'
-              ) : isLocked ? `Blocked ${lockoutRemaining || ''}` : 'Unlock Dashboard'}
-            </button>
-
-            <div className="mt-5 flex items-center justify-center gap-2 text-xs font-semibold text-on-surface-variant">
-              <MIcon name="shield_lock" filled className="text-[16px] text-primary" />
-              Authorized access only
+          {status ? (
+            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-error/30 bg-error-container/30 px-4 py-3 text-[12.5px] font-semibold text-error">
+              <MIcon name="error_outline" className="mt-0.5 shrink-0 text-[18px]" />
+              <span>{status}{isLocked && lockoutRemaining ? ` Try again in ${lockoutRemaining}.` : ''}</span>
             </div>
-            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={loading || isLocked || pin.length < 4}
+            className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[14px] font-semibold text-on-primary shadow-primary transition-all active:scale-95 hover:bg-primary-container disabled:cursor-not-allowed disabled:bg-surface-container-high disabled:text-on-surface-variant disabled:shadow-none"
+          >
+            {loading ? 'Verifying...' : isLocked ? `Blocked ${lockoutRemaining || ''}` : 'Unlock Dashboard'}
+          </button>
+
+          <div className="mt-5 flex items-center justify-center gap-2 text-[12px] font-medium text-on-surface-variant">
+            <MIcon name="shield_lock" filled className="text-[15px] text-primary" />
+            Authorized access only
           </div>
-        </section>
-      </form>
+        </form>
+      </div>
     </main>
   );
 }
