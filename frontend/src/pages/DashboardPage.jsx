@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import BankPositionTable from '../components/BankPositionTable';
 import DataTable from '../components/DataTable';
 import FnbOutletSalesChart from '../components/FnbOutletSalesChart';
@@ -8,7 +8,6 @@ import RevenueShareDonut from '../components/RevenueShareDonut';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
 import { KpiTable, ReportValue, SECTION_ICONS } from '../components/DashboardUi';
-import { getPnlPeriod } from '../lib/api';
 import {
   calcFlag,
   aopTargetValue,
@@ -309,9 +308,6 @@ function collectWeeklyFlagKpis(data) {
 
 export default function DashboardPage({ data, date, authToken, period, onRefreshSources, sourceRefreshRunning = false, sourceRefreshError = '' }) {
   const [viewMode, setViewMode] = useState('day');
-  const [weekPeriod, setWeekPeriod] = useState(null);
-  const [weekLoading, setWeekLoading] = useState(false);
-  const [weekError, setWeekError] = useState('');
   const roomRevenueRows = (data?.hotels ?? []).filter(
     (row) => row.unit === 'CP Nagpur' && row.section === 'Room Revenue & Occupancy'
   );
@@ -350,30 +346,8 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
     { key: 'week', label: 'Weekly' }
   ];
 
-  useEffect(() => {
-    if (!authToken || viewMode !== 'week') return undefined;
-    let cancelled = false;
-    setWeekLoading(true);
-    setWeekError('');
-    Promise.allSettled([
-      getPnlPeriod(date, authToken)
-    ])
-      .then(([periodResult]) => {
-        if (cancelled) return;
-        if (periodResult.status === 'fulfilled') {
-          setWeekPeriod(periodResult.value);
-        } else {
-          setWeekPeriod(null);
-          setWeekError(periodResult.reason?.message ?? 'Unable to load week-to-date data');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setWeekLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [authToken, date, viewMode]);
-
-  const activeWeekPeriod = weekPeriod ?? period;
+  const activeWeekPeriod = period;
+  const weekLoading = viewMode === 'week' && authToken && !activeWeekPeriod;
 
   const buildWeeklyRows = useMemo(() => {
     const weeklyValues = activeWeekPeriod?.kpis?.week ?? {};
@@ -685,11 +659,6 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
         </section>
       ) : (
         <section className="space-y-5">
-          {weekError ? (
-            <div className="glass-card border border-error/20 bg-error/10 px-5 py-4 text-sm font-semibold text-error">
-              {weekError}
-            </div>
-          ) : null}
           {weekLoading && !activeWeekPeriod ? (
             <div className="glass-card flex items-center gap-3 px-5 py-4 text-sm font-semibold text-on-surface-variant">
               <span className="material-symbols-outlined animate-spin text-[20px] text-primary" aria-hidden>progress_activity</span>

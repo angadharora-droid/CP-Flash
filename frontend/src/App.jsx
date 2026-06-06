@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getEmailImportStatus, getPnlPeriod, getSeed, getSourceReportPreview, runEmailImport, saveData } from './lib/api';
+import { getEmailImportStatus, getPnlPeriod, getPnlWeek, getSeed, getSourceReportPreview, runEmailImport, saveData } from './lib/api';
 import { numberValue, withFlags } from './lib/calculations';
 import AppHeader from './components/AppHeader';
 import { BrandLoader, googleSheetPreviewUrl } from './components/DashboardUi';
@@ -274,6 +274,7 @@ export default function App() {
   const [sourceRefreshRunning, setSourceRefreshRunning] = useState(false);
   const [sourceRefreshError, setSourceRefreshError] = useState('');
   const [period, setPeriod] = useState(null);
+  const [periodRefreshKey, setPeriodRefreshKey] = useState(0);
   const [sourceReportPreview, setSourceReportPreview] = useState(null);
   const [sourceReportPreviewLoading, setSourceReportPreviewLoading] = useState(false);
   const [sourceReportPreviewError, setSourceReportPreviewError] = useState('');
@@ -350,14 +351,25 @@ export default function App() {
 
   useEffect(() => {
     if (!authToken || !date) return undefined;
+    const activeKey = canonicalPageKey(renderedActive);
+    if (activeKey !== 'dashboard' && activeKey !== 'pnl') {
+      setPeriod(null);
+      return undefined;
+    }
     const controller = new AbortController();
     let cancelled = false;
-    setPeriod(null);
-    getPnlPeriod(date, authToken, { signal: controller.signal })
+    setPeriod((current) => {
+      if (current?.date !== date) return null;
+      if (activeKey === 'pnl' && !current?.mtdDates) return null;
+      if (activeKey === 'dashboard' && !current?.weekDates) return null;
+      return current;
+    });
+    const loader = activeKey === 'pnl' ? getPnlPeriod : getPnlWeek;
+    loader(date, authToken, { signal: controller.signal })
       .then((payload) => { if (!cancelled) setPeriod(payload); })
       .catch(() => { if (!cancelled) setPeriod(null); });
     return () => { cancelled = true; controller.abort(); };
-  }, [date, authToken]);
+  }, [date, authToken, renderedActive, periodRefreshKey]);
 
   useEffect(() => {
     const onVisible = () => {
@@ -405,8 +417,12 @@ export default function App() {
     }
   }, [date, authToken]);
 
-  const handleRefresh = React.useCallback(() => {
-    if (authToken) return loadData(date, authToken, true);
+  const handleRefresh = React.useCallback(async () => {
+    if (authToken) {
+      await loadData(date, authToken, true);
+      setPeriodRefreshKey((key) => key + 1);
+      return;
+    }
     return Promise.resolve();
   }, [authToken, date, loadData]);
 

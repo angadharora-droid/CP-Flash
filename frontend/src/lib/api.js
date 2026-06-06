@@ -120,6 +120,13 @@ export async function getPnlPeriod(date, token, options = {}) {
   }, 'Unable to load MTD/YTD totals', 90000);
 }
 
+export async function getPnlWeek(date, token, options = {}) {
+  return apiFetch(`/api/pnl-week?date=${encodeURIComponent(date)}`, {
+    ...options,
+    headers: { ...authHeaders(token), ...(options.headers ?? {}) }
+  }, 'Unable to load week-to-date totals', 30000);
+}
+
 export async function getEmailImportStatus(token) {
   return apiFetch('/api/email-import', {
     headers: authHeaders(token)
