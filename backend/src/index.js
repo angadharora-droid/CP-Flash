@@ -61,6 +61,7 @@ let emailImportJob = {
 let _mongoDb = null;
 let _mongoFailed = false;
 let _mongoConnecting = null;
+let _mongoIndexesReady = null;
 async function getDb() {
   if (!process.env.MONGODB_URI) return null;
   if (_mongoDb) return _mongoDb;
@@ -71,6 +72,9 @@ async function getDb() {
       const client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
       await client.connect();
       _mongoDb = client.db('dailyflash');
+      _mongoIndexesReady ??= _mongoDb.collection('reports')
+        .createIndex({ date: 1 }, { background: true })
+        .catch((err) => console.error('[mongo] Unable to ensure reports.date index:', err.message));
       return _mongoDb;
     } catch (err) {
       console.error('MongoDB connection failed, falling back to JSON files:', err.message);
@@ -284,6 +288,17 @@ function weekRangeFromStart(weekStart) {
   const start = parseIsoDate(weekStart);
   const end = addDays(start, 6);
   return { start: isoDate(start), end: isoDate(end) };
+}
+
+function calendarDatesInRange(startDate, endDate) {
+  const dates = [];
+  let cursor = parseIsoDate(startDate);
+  const end = parseIsoDate(endDate);
+  while (cursor <= end) {
+    dates.push(isoDate(cursor));
+    cursor = addDays(cursor, 1);
+  }
+  return dates;
 }
 
 const CUMULATIVE_KPI_PATTERN = /\b(mtd|ytd|month to date|year to date)\b/i;
@@ -947,8 +962,11 @@ async function buildWeeklyReportData(data, date, options = {}) {
     ? weekRangeFromStart(options.weekStart)
     : weekRangeForDate(date);
   const { start, end } = range;
-  const weekDates = await listDailyDatesInRange(start, end);
-  const weekRawByDate = await readDailyDataMany(weekDates);
+  const calendarWeekDates = calendarDatesInRange(start, end);
+  const weekRawByDate = await readDailyDataMany(calendarWeekDates);
+  const weekDates = weekRawByDate
+    .filter(([, raw]) => raw)
+    .map(([dailyDate]) => dailyDate);
   const [weeklyAggregate, weeklySettlement, weeklyPurosoulSku, weeklyOccupancyMix] = await Promise.all([
     aggregatePeriodForDates(weekDates, weekRawByDate),
     aggregateSettlementForDates(weekDates, weekRawByDate),
@@ -974,9 +992,12 @@ async function buildWeeklyReportData(data, date, options = {}) {
 
 async function buildPnlWeekPayload(date) {
   const weekRange = weekRangeForDate(date);
-  const weekDates = (await listDailyDatesInRange(weekRange.start, weekRange.end))
+  const calendarWeekDates = calendarDatesInRange(weekRange.start, weekRange.end)
     .filter((dailyDate) => dailyDate <= date);
-  const rawByDate = await readDailyDataMany(weekDates);
+  const rawByDate = await readDailyDataMany(calendarWeekDates);
+  const weekDates = rawByDate
+    .filter(([, raw]) => raw)
+    .map(([dailyDate]) => dailyDate);
 
   const [weekAgg, occupancyMix, settlement, purosoulSku] = await Promise.all([
     aggregatePeriodForDates(weekDates, rawByDate),
