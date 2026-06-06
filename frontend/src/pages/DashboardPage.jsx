@@ -516,15 +516,6 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
       {viewMode === 'day' ? (
         <section className="space-y-5">
           <div id="daily-bank" className="scroll-mt-24">
-            <div className="mb-3 flex items-center gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-on-secondary shadow-sm">
-              <span className="material-symbols-outlined text-[22px]" aria-hidden>account_balance_wallet</span>
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-[16px] font-bold text-on-surface md:text-lg">Bank Position</h2>
-              <p className="text-[11.5px] font-medium text-on-surface-variant">Daily balance position by unit</p>
-            </div>
-            </div>
             <BankPositionTable rows={data?.bankPosition ?? []} />
           </div>
           <div id="daily-revenue" className="scroll-mt-24">

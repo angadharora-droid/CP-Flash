@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { getEmailImportStatus, getPnlPeriod, getSeed, getSourceReportPreview, runEmailImport, saveData } from './lib/api';
 import { numberValue, withFlags } from './lib/calculations';
 import AppHeader from './components/AppHeader';
-import { BrandLoader, googleSheetPreviewUrl, PinGate } from './components/DashboardUi';
+import { BrandLoader, googleSheetPreviewUrl } from './components/DashboardUi';
 import { BOTTOM_TABS, NAV_GROUPS, NAV_ITEM_BY_KEY, pages } from './lib/navigation';
 import DashboardPage from './pages/DashboardPage';
 import PerformanceChartsPage from './pages/PerformanceChartsPage';
@@ -20,6 +20,7 @@ import SettlementPage from './pages/SettlementPage';
 import AiPage from './pages/AiPage';
 import PdfPreviewPage from './pages/PdfPreviewPage';
 import AopTargetsPage from './pages/AopTargetsPage';
+import PinPage from './pages/PinPage';
 import cpLogo from './cp-logo.png';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
@@ -495,7 +496,7 @@ export default function App() {
   const activePage = pages.find(([key]) => key === canonicalPageKey(active)) ?? pages[0];
   const activeNavItem = NAV_ITEM_BY_KEY[canonicalPageKey(active)];
 
-  if (!authToken) return <PinGate onUnlock={setAuthToken} />;
+  if (!authToken) return <PinPage onUnlock={setAuthToken} />;
 
   if (sourceReportPreview || sourceReportPreviewLoading || sourceReportPreviewError) {
     return (
