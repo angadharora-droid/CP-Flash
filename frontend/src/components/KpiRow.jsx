@@ -2,36 +2,32 @@ import React from 'react';
 import { aopTargetValue, calcFlag, formatIndianNumber, numberValue } from '../lib/calculations';
 import FlagBadge from './FlagBadge';
 
+function Cell({ value, highlight, forceNumber = false }) {
+  const empty = value === '' || value == null;
+  const display = empty ? '-' : formatIndianNumber(forceNumber ? numberValue(value) : value);
+  const tone = empty
+    ? 'text-on-surface-variant/35'
+    : highlight ? 'text-primary font-semibold' : 'text-on-surface';
+  return (
+    <span className={`num block min-w-16 px-2 py-1.5 text-[16px] sm:min-w-20 sm:px-2.5 md:min-w-24 ${tone}`}>
+      {display}
+    </span>
+  );
+}
+
 export default function KpiRow({ kpi }) {
   const target = aopTargetValue(kpi);
   const flag = calcFlag(kpi.actual, target, kpi.direction);
   const forceNumber = /arrivals?|departures?/i.test(kpi.name ?? '');
-  const actual = numberValue(kpi.actual);
-  const ratio = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
-
-  const progressColor =
-    flag.label === 'ON TRACK' ? 'bg-emerald-500' :
-    flag.label === 'ACTION'   ? 'bg-rose-500'    : 'bg-amber-500';
-
-  const fmt = (v) => {
-    const empty = v === '' || v == null;
-    return empty ? '-' : formatIndianNumber(forceNumber ? numberValue(v) : v);
-  };
-
   return (
-    <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 border-b border-outline-variant/20 px-4 py-2.5 last:border-0 transition-colors hover:bg-surface-container-low/50">
-      <div className="min-w-0">
-        <span className="text-[12.5px] font-medium text-on-surface">{kpi.name}</span>
-        <div className="mt-1 h-1 w-full rounded-full bg-outline-variant/30">
-          <div
-            className={`h-1 rounded-full ${progressColor} transition-all duration-500`}
-            style={{ width: `${ratio}%` }}
-          />
-        </div>
-      </div>
-      <span className="num text-[12px] text-on-surface-variant">{fmt(target)}</span>
-      <span className="num text-[13px] font-semibold text-on-surface">{fmt(kpi.actual)}</span>
-      <FlagBadge label={flag.label} />
-    </div>
+    <tr className="group border-b border-outline-variant/50 last:border-0 transition-colors duration-100 odd:bg-surface-container-lowest even:bg-surface-container-low/45 hover:bg-primary/5">
+      <td className="sticky left-0 z-[1] min-w-36 bg-inherit px-2.5 py-2.5 text-[16px] font-semibold text-on-surface shadow-[1px_0_0_0_rgba(202,211,218,0.9)] sm:min-w-48 sm:px-4 md:min-w-56">
+        {kpi.name}
+      </td>
+      <td className="px-1.5 py-2.5 sm:px-2 md:px-3"><Cell value={target} forceNumber={forceNumber} /></td>
+      <td className="bg-primary/5 px-1.5 py-2.5 sm:px-2 md:px-3"><Cell value={kpi.actual} highlight forceNumber={forceNumber} /></td>
+      <td className="px-1.5 py-2.5 sm:px-2 md:px-3"><Cell value={kpi.mtd} forceNumber={forceNumber} /></td>
+      <td className="px-1.5 py-2.5 sm:px-2 md:px-3"><FlagBadge label={flag.label} /></td>
+    </tr>
   );
 }
