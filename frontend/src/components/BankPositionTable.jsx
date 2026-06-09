@@ -32,7 +32,7 @@ export default function BankPositionTable({ rows = [] }) {
       <div className="flex items-center justify-between gap-4 border-b border-outline-variant/30 bg-surface-container-low px-4 py-3">
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <span className="material-symbols-outlined text-[16px]" aria-hidden>account_balance</span>
+            <span className="material-symbols-outlined text-[12px] sm:text-[14px]" aria-hidden>account_balance</span>
           </div>
           <span className="text-[13px] font-semibold text-on-surface">Bank Position</span>
         </div>
@@ -94,11 +94,11 @@ export default function BankPositionTable({ rows = [] }) {
                   <span className="font-semibold text-app-text">{unit}</span>
                 </div>
               ),
-              <span className="num text-[16px] font-semibold tabular-nums">{money(unitTotals.actual)}</span>,
-              <span className="num text-[16px] font-semibold tabular-nums">{money(unitTotals.fd)}</span>,
-              <span className="num text-[16px] font-semibold tabular-nums">{money(unitTotals.issued)}</span>,
-              <span className="num text-[16px] font-semibold tabular-nums">{money(unitTotals.hand)}</span>,
-              <span className={`num text-[16px] font-bold tabular-nums ${unitTotals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(unitTotals.net)}</span>
+              <span className="num text-[12px] sm:text-[14px] font-semibold tabular-nums">{money(unitTotals.actual)}</span>,
+              <span className="num text-[12px] sm:text-[14px] font-semibold tabular-nums">{money(unitTotals.fd)}</span>,
+              <span className="num text-[12px] sm:text-[14px] font-semibold tabular-nums">{money(unitTotals.issued)}</span>,
+              <span className="num text-[12px] sm:text-[14px] font-semibold tabular-nums">{money(unitTotals.hand)}</span>,
+              <span className={`num text-[12px] sm:text-[14px] font-bold tabular-nums ${unitTotals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(unitTotals.net)}</span>
             ]
           });
           if (hasMulti && expanded) {
@@ -107,16 +107,16 @@ export default function BankPositionTable({ rows = [] }) {
               built.push({
                 key: `unit-${unit}-row-${idx}`,
                 cells: [
-                  <div className="relative flex items-center gap-2 pl-5 text-[13px]">
+                  <div className="relative flex items-center gap-2 pl-5 text-[11.5px] sm:text-[13px]">
                     <span className={`absolute left-2 top-0 w-px bg-app-border ${isLast ? 'h-1/2' : 'h-full'}`} aria-hidden />
                     <span className="absolute left-2 top-1/2 h-px w-2.5 bg-app-border" aria-hidden />
                     <span className="text-app-muted">{row.account || unit}</span>
                   </div>,
-                  <span className="num text-[16px] text-app-muted tabular-nums"><ReportValue value={row.actualBalance} numeric /></span>,
-                  <span className="num text-[16px] text-app-muted tabular-nums"><ReportValue value={row.fdTotal ?? ''} numeric /></span>,
-                  <span className="num text-[16px] text-app-muted tabular-nums"><ReportValue value={row.chequesIssued} numeric /></span>,
-                  <span className="num text-[16px] text-app-muted tabular-nums"><ReportValue value={row.chequesInHand} numeric /></span>,
-                  <span className={`num text-[16px] font-semibold tabular-nums ${net(row) >= 0 ? 'text-emerald-700/90' : 'text-rose-700/90'}`}>{money(net(row))}</span>
+                  <span className="num text-[12px] sm:text-[14px] text-app-muted tabular-nums"><ReportValue value={row.actualBalance} numeric /></span>,
+                  <span className="num text-[12px] sm:text-[14px] text-app-muted tabular-nums"><ReportValue value={row.fdTotal ?? ''} numeric /></span>,
+                  <span className="num text-[12px] sm:text-[14px] text-app-muted tabular-nums"><ReportValue value={row.chequesIssued} numeric /></span>,
+                  <span className="num text-[12px] sm:text-[14px] text-app-muted tabular-nums"><ReportValue value={row.chequesInHand} numeric /></span>,
+                  <span className={`num text-[12px] sm:text-[14px] font-semibold tabular-nums ${net(row) >= 0 ? 'text-emerald-700/90' : 'text-rose-700/90'}`}>{money(net(row))}</span>
                 ]
               });
             });
@@ -126,12 +126,12 @@ export default function BankPositionTable({ rows = [] }) {
       })()}
       footer={
         <tr>
-          <td className="px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-on-surface-variant">Group Total</td>
-          <td className="num px-4 py-3.5 text-right text-[16px] tabular-nums">{money(totals.actual)}</td>
-          <td className="num px-4 py-3.5 text-right text-[16px] tabular-nums">{money(totals.fd)}</td>
-          <td className="num px-4 py-3.5 text-right text-[16px] tabular-nums">{money(totals.issued)}</td>
-          <td className="num px-4 py-3.5 text-right text-[16px] tabular-nums">{money(totals.hand)}</td>
-          <td className={`num px-4 py-3.5 text-right text-[16px] font-extrabold tabular-nums ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(totals.net)}</td>
+          <td className="px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-on-surface-variant sm:px-4 sm:py-3.5 sm:text-[11px]">Group Total</td>
+          <td className="num px-3 py-2.5 text-right text-[12px] tabular-nums sm:px-4 sm:py-3.5 sm:text-[14px]">{money(totals.actual)}</td>
+          <td className="num px-3 py-2.5 text-right text-[12px] tabular-nums sm:px-4 sm:py-3.5 sm:text-[14px]">{money(totals.fd)}</td>
+          <td className="num px-3 py-2.5 text-right text-[12px] tabular-nums sm:px-4 sm:py-3.5 sm:text-[14px]">{money(totals.issued)}</td>
+          <td className="num px-3 py-2.5 text-right text-[12px] tabular-nums sm:px-4 sm:py-3.5 sm:text-[14px]">{money(totals.hand)}</td>
+          <td className={`num px-3 py-2.5 text-right text-[12px] font-extrabold tabular-nums sm:px-4 sm:py-3.5 sm:text-[14px] ${totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(totals.net)}</td>
         </tr>
       }
     />
