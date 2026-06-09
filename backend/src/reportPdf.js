@@ -854,7 +854,12 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   // ── Helper: render settlement ────────────────────────────────────────────────
   function renderSettlement() {
-    const settlementRows = settlementModes.map((mode) => [mode, ...UNITS.map((unit) => money(data.settlement?.[mode]?.[unit])), { text: money(settlement.rowTotals[mode]), bold: true }]);
+    const unitRevenue = Object.fromEntries(pnl.map((r) => [r.unit, numberValue(r.revenueToday)]));
+    const settlementRows = [
+      ...settlementModes.map((mode) => [mode, ...UNITS.map((unit) => money(data.settlement?.[mode]?.[unit])), { text: money(settlement.rowTotals[mode]), bold: true }]),
+      [{ text: 'Unit Total', bold: true }, ...UNITS.map((unit) => ({ text: money(settlement.unitTotals[unit]), bold: true })), { text: money(settlement.groupTotal), bold: true }],
+      [{ text: 'Revenue Actual', color: colors.muted }, ...UNITS.map((unit) => ({ text: money(unitRevenue[unit] ?? 0), color: colors.muted })), { text: money(groupRevenue(data)), color: colors.muted }],
+    ];
     const settlementOptions = { widths: [95, 50, 50, 50, 50, 50, 50, 50, 78], fontSize: 6.3, leftColumns: [0] };
     sectionTitle('Settlement Summary', tablePreviewHeight(settlementRows, settlementOptions));
     table(['Mode', ...UNITS, 'Group Total'], settlementRows, settlementOptions);
@@ -865,10 +870,6 @@ export function createDailyFlashPdf(data, date, options = {}) {
       { label: 'Difference', value: money(settlementDiff), tone: settlementDiff === 0 ? colors.green : colors.red },
       { label: 'Status', value: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', tone: settlementDiff === 0 ? colors.green : colors.red }
     ]);
-    const recRows = [[money(groupRevenue(data)), money(settlement.groupTotal), { text: money(settlementDiff), color: settlementDiff === 0 ? colors.green : colors.red, bold: true }, { text: settlementDiff === 0 ? 'MATCHED' : 'MISMATCH', color: settlementDiff === 0 ? colors.green : colors.red, bold: true }]];
-    const recOpts = { widths: [132, 132, 132, 127] };
-    ensureSpace(tablePreviewHeight(recRows, recOpts));
-    table(['Total Revenue', 'Total Settled', 'Difference', 'Status'], recRows, recOpts);
   }
 
   if (!isWeekly) {
