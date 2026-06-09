@@ -46,7 +46,7 @@ export default function BankPositionTable({ rows = [] }) {
 
       <DataTable
         className="!rounded-none !border-0"
-        columns={['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Balance Available']}
+        columns={['Unit', 'Actual Balance', 'FD / OD Limit', 'Cheques Issued', 'Cheques in Hand', 'Net Balance Available']}
         numericFrom={1}
         rows={(() => {
         const built = [];

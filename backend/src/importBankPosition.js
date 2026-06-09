@@ -12,11 +12,11 @@ const OUTLET_ACCOUNTS = [
   { unit: 'CP Nagpur', account: 'IDBI BANK C AC 742', gid: 1919634794, cells: { actualBalance: 'F5', chequesIssued: 'G20', chequeTotalAmount: 'E20', netBalance: 'G22' } },
   { unit: 'CP Nagpur', account: 'HAPL YES BANK', gid: 1771716053, cells: { actualBalance: 'F5', chequesIssued: 'G17', chequeTotalAmount: 'E17', netBalance: 'G26' } },
   { unit: 'CP NM', account: 'VIJAN MOTORS SERVICE PVT. LTD.', gid: 1599252269, cells: { actualBalance: 'C4', chequesIssued: 'D9', chequeTotalAmount: 'C9', netBalance: 'D17' } },
-  { unit: 'Pablo', account: 'UFO HDFC', gid: 543029293, cells: { actualBalance: 'C5', chequesIssued: 'D20', chequeTotalAmount: 'C20', netBalance: 'D27' } },
+  { unit: 'Pablo', account: 'UFO HDFC', gid: 543029293, cells: { actualBalance: 'C5', fdTotal: 'C24', chequesIssued: 'D20', chequeTotalAmount: 'C20', netBalance: 'D27' } },
   { unit: 'Dali', account: 'DALI SCB', gid: 366389011, cells: { actualBalance: 'C5', chequesIssued: 'D22', chequeTotalAmount: 'C22', netBalance: 'D30' } },
   { unit: "Micky's", account: 'C P FOODS HDFC BANK 980197', gid: 2045197235, cells: { actualBalance: 'C5', chequesIssued: 'D13', chequeTotalAmount: 'C13', netBalance: 'D19' } },
   { unit: "Micky's", account: 'C P FOODS 36961', gid: 1945926804, cells: { actualBalance: 'C5', chequesIssued: 'D13', chequeTotalAmount: 'C13', netBalance: 'D17' } },
-  { unit: 'Purosoul', account: 'AFVPL YES Bank', gid: 146782452, cells: { actualBalance: 'C5', chequesIssued: 'D11', chequeTotalAmount: 'C11', netBalance: 'D19' } },
+  { unit: 'Purosoul', account: 'AFVPL YES Bank', gid: 146782452, cells: { actualBalance: 'C5', fdTotal: 'C18', chequesIssued: 'D11', chequeTotalAmount: 'C11', netBalance: 'D19' } },
   { unit: 'Purosoul', account: 'AFVPL IDBI', gid: 1150494269, cells: { actualBalance: 'C5', chequesIssued: 'D13', chequeTotalAmount: 'C13', netBalance: 'D25' } },
 ];
 
