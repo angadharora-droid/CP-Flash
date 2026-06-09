@@ -138,6 +138,7 @@ function ActiveSlice(props) {
 export function DonutChart({ data, total }) {
   const [active, setActive] = useState(-1);
   const toggle = (i) => setActive((cur) => (cur === i ? -1 : i));
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches;
   const activeEntry = active >= 0 ? data[active] : null;
   const activeShare = activeEntry && total ? Math.round((activeEntry.value / total) * 100) : 0;
 
@@ -175,7 +176,7 @@ export function DonutChart({ data, total }) {
                 />
               ))}
             </Pie>
-            <Tooltip content={<ChartTooltip total={total} />} />
+            {!isMobile && <Tooltip content={<ChartTooltip total={total} />} />}
           </PieChart>
         </ResponsiveContainer>
 
