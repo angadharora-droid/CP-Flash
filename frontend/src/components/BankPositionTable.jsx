@@ -78,12 +78,6 @@ export default function BankPositionTable({ rows = [] }) {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold text-app-text">{unit}</span>
-                    <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-app-panel px-2 py-0.5 text-[10.5px] font-medium text-app-muted ring-1 ring-app-border/60">
-                      <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" />
-                      </svg>
-                      {unitRows.length} accounts
-                    </span>
                   </span>
                   <svg
                     className={`size-4 shrink-0 text-app-subtle transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}

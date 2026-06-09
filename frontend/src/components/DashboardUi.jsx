@@ -178,22 +178,22 @@ export function KpiTable({ rows }) {
   }
   return (
     <div className="scroll-touch w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="w-full min-w-[640px] border-separate border-spacing-0 md:min-w-full">
+      <table className="w-full min-w-[480px] border-separate border-spacing-0 md:min-w-full">
         <thead>
           <tr className="bg-slate-50">
-            <th className="sticky left-0 z-[2] border-b border-slate-200 bg-slate-50 px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+            <th className="sticky left-0 z-[2] border-b border-slate-200 bg-slate-50 px-3 py-2 text-left text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500 sm:px-4 sm:py-3 sm:text-[10.5px]">
               KPI
             </th>
-            <th className="border-b border-slate-200 px-4 py-3 text-right text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+            <th className="border-b border-slate-200 px-3 py-2 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500 sm:px-4 sm:py-3 sm:text-[10.5px]">
               AOP Target
             </th>
-            <th className="border-b border-slate-200 px-4 py-3 text-right text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-primary">
+            <th className="border-b border-slate-200 px-3 py-2 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-primary sm:px-4 sm:py-3 sm:text-[10.5px]">
               Today
             </th>
-            <th className="border-b border-slate-200 px-4 py-3 text-right text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+            <th className="border-b border-slate-200 px-3 py-2 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500 sm:px-4 sm:py-3 sm:text-[10.5px]">
               MTD
             </th>
-            <th className="border-b border-slate-200 px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+            <th className="border-b border-slate-200 px-3 py-2 text-left text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500 sm:px-4 sm:py-3 sm:text-[10.5px]">
               Status
             </th>
           </tr>
