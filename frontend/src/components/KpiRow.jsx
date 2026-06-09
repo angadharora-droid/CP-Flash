@@ -35,11 +35,11 @@ export default function KpiRow({ kpi }) {
       </td>
 
       <td className="px-3 py-2 text-right align-middle sm:px-4 sm:py-3">
-        <NumCell value={target} forceNumber={forceNumber} className="text-[11.5px] font-semibold text-slate-400 sm:text-[13.5px]" />
+        <NumCell value={kpi.actual} forceNumber={forceNumber} className={`text-[11.5px] font-extrabold sm:text-[13.5px] ${style.actual}`} />
       </td>
 
       <td className="px-3 py-2 text-right align-middle sm:px-4 sm:py-3">
-        <NumCell value={kpi.actual} forceNumber={forceNumber} className={`text-[11.5px] font-extrabold sm:text-[13.5px] ${style.actual}`} />
+        <NumCell value={target} forceNumber={forceNumber} className="text-[11.5px] font-semibold text-slate-400 sm:text-[13.5px]" />
       </td>
 
       <td className="px-3 py-2 text-right align-middle sm:px-4 sm:py-3">

@@ -184,11 +184,11 @@ export function KpiTable({ rows }) {
             <th className="sticky left-0 z-[2] border-b border-slate-200 bg-slate-50 px-3 py-2 text-left text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500 sm:px-4 sm:py-3 sm:text-[10.5px]">
               KPI
             </th>
-            <th className="border-b border-slate-200 px-3 py-2 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500 sm:px-4 sm:py-3 sm:text-[10.5px]">
-              AOP Target
-            </th>
             <th className="border-b border-slate-200 px-3 py-2 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-primary sm:px-4 sm:py-3 sm:text-[10.5px]">
               Actual
+            </th>
+            <th className="border-b border-slate-200 px-3 py-2 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500 sm:px-4 sm:py-3 sm:text-[10.5px]">
+              AOP Target
             </th>
             <th className="border-b border-slate-200 px-3 py-2 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500 sm:px-4 sm:py-3 sm:text-[10.5px]">
               MTD

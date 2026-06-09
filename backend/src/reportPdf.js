@@ -711,15 +711,15 @@ export function createDailyFlashPdf(data, date, options = {}) {
   function kpiTable(title, rows, options = {}) {
     const actualColumn = isWeekly ? 'Week' : 'Actual';
     const visibleRows = rows.filter((row) => !/\bytd\b|year\s*to\s*date/i.test(row?.name ?? ''));
-    const tableOptions = { widths: [145, 90, 86, 90, 112] };
+    const tableOptions = { widths: [145, 86, 90, 90, 112] };
     sectionTitle(title, (options.note ? 20 : 0) + tablePreviewHeight(visibleRows, tableOptions));
     sourceNotice(options.note);
     table(
-      ['KPI', 'Target', actualColumn, 'MTD', 'Status'],
+      ['KPI', actualColumn, 'Target', 'MTD', 'Status'],
       visibleRows.map((row) => {
         const target = aopTargetValue(row);
         const flag = calcFlag(row.actual, target, row.direction).label;
-        return [row.name, formatValue(target, row.name), formatValue(row.actual, row.name), formatValue(row.mtd, row.name), flagCell(flag)];
+        return [row.name, formatValue(row.actual, row.name), formatValue(target, row.name), formatValue(row.mtd, row.name), flagCell(flag)];
       }),
       tableOptions
     );
