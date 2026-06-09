@@ -6,29 +6,128 @@ import { readDaily, writeDaily, withDateLock } from './dailyStore.js';
 
 const SHEET_ID = '1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf';
 
+// Each field spec: { match: RegExp, col: 'F' } — finds the first row whose
+// cols A/B/C contain the label text, then reads value from `col`.
+// For rows with no label text (rare), use { row: N, col: 'F' } as a fixed fallback.
 const OUTLET_ACCOUNTS = [
-  { unit: 'CP Nagpur', account: 'HDFC Wardha', gid: 1969859912, cells: { actualBalance: 'F5', fdTotal: 'J22', chequesIssued: 'G21', chequeTotalAmount: 'E21', netBalance: 'G30' } },
-  { unit: 'CP Nagpur', account: 'HDFC Dhantoli', gid: 556642800, cells: { actualBalance: 'E5', fdTotal: 'J16', chequesIssued: 'F16', chequeTotalAmount: 'E16', netBalance: 'F24' } },
-  { unit: 'CP Nagpur', account: 'IDBI BANK C AC 742', gid: 1919634794, cells: { actualBalance: 'F5', chequesIssued: 'G20', chequeTotalAmount: 'E20', netBalance: 'G22' } },
-  { unit: 'CP Nagpur', account: 'HAPL YES BANK', gid: 1771716053, cells: { actualBalance: 'F5', chequesIssued: 'G17', chequeTotalAmount: 'E17', netBalance: 'G26' } },
-  { unit: 'CP NM', account: 'VIJAN MOTORS SERVICE PVT. LTD.', gid: 1599252269, cells: { actualBalance: 'C4', chequesIssued: 'D9', chequeTotalAmount: 'C9', netBalance: 'D17' } },
-  { unit: 'Pablo', account: 'UFO HDFC', gid: 543029293, cells: { actualBalance: 'C5', fdTotal: 'C24', chequesIssued: 'D20', chequeTotalAmount: 'C20', netBalance: 'D27' } },
-  { unit: 'Dali', account: 'DALI SCB', gid: 366389011, cells: { actualBalance: 'C5', chequesIssued: 'D22', chequeTotalAmount: 'C22', netBalance: 'D30' } },
-  { unit: "Micky's", account: 'C P FOODS HDFC BANK 980197', gid: 2045197235, cells: { actualBalance: 'C5', chequesIssued: 'D13', chequeTotalAmount: 'C13', netBalance: 'D19' } },
-  { unit: "Micky's", account: 'C P FOODS 36961', gid: 1945926804, cells: { actualBalance: 'C5', chequesIssued: 'D13', chequeTotalAmount: 'C13', netBalance: 'D17' } },
-  { unit: 'Purosoul', account: 'AFVPL YES Bank', gid: 146782452, cells: { actualBalance: 'C5', fdTotal: 'C18', chequesIssued: 'D11', chequeTotalAmount: 'C11', netBalance: 'D19' } },
-  { unit: 'Purosoul', account: 'AFVPL IDBI', gid: 1150494269, cells: { actualBalance: 'C5', chequesIssued: 'D13', chequeTotalAmount: 'C13', netBalance: 'D25' } },
+  {
+    unit: 'CP Nagpur', account: 'HDFC Wardha', gid: 1969859912,
+    labels: {
+      actualBalance:     { match: /balance available as per bank/i, col: 'F' },
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'E' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'G' },
+      fdTotal:           { match: /cheques in hand/i,               col: 'J' },
+      netBalance:        { match: /effective available balance/i,   col: 'G' },
+    },
+  },
+  {
+    unit: 'CP Nagpur', account: 'HDFC Dhantoli', gid: 556642800,
+    labels: {
+      actualBalance:     { match: /available as per bank/i,         col: 'E' },
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'E' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'F' },
+      fdTotal:           { match: /cheques issued/i,                col: 'J' },
+      netBalance:        { match: /effective available balance/i,   col: 'F' },
+    },
+  },
+  {
+    unit: 'CP Nagpur', account: 'IDBI BANK C AC 742', gid: 1919634794,
+    labels: {
+      actualBalance:     { row: 5, col: 'F' }, // this row has no label text
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'E' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'G' },
+      netBalance:        { match: /balance available.*books/i,      col: 'G' },
+    },
+  },
+  {
+    unit: 'CP Nagpur', account: 'HAPL YES BANK', gid: 1771716053,
+    labels: {
+      actualBalance:     { match: /balance available as per bank/i, col: 'F' },
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'E' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'G' },
+      netBalance:        { match: /effective available balance/i,   col: 'G' },
+    },
+  },
+  {
+    unit: 'CP NM', account: 'VIJAN MOTORS SERVICE PVT. LTD.', gid: 1599252269,
+    labels: {
+      actualBalance:     { match: /balance as per bank/i,           col: 'C' },
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'C' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'D' },
+      netBalance:        { match: /effective balance/i,             col: 'D' },
+    },
+  },
+  {
+    unit: 'Pablo', account: 'UFO HDFC', gid: 543029293,
+    labels: {
+      actualBalance:     { match: /balance as per bank/i,           col: 'C' },
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'C' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'D' },
+      fdTotal:           { match: /od limit/i,                      col: 'C' },
+      netBalance:        { match: /effective balance/i,             col: 'D' },
+    },
+  },
+  {
+    unit: 'Dali', account: 'DALI SCB', gid: 366389011,
+    labels: {
+      actualBalance:     { match: /balance as per bank/i,           col: 'C' },
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'C' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'D' },
+      netBalance:        { match: /effective balance/i,             col: 'D' },
+    },
+  },
+  {
+    unit: "Micky's", account: 'C P FOODS HDFC BANK 980197', gid: 2045197235,
+    labels: {
+      actualBalance:     { match: /balance as per bank/i,           col: 'C' },
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'C' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'D' },
+      netBalance:        { match: /effective balance/i,             col: 'D' },
+    },
+  },
+  {
+    unit: "Micky's", account: 'C P FOODS 36961', gid: 1945926804,
+    labels: {
+      actualBalance:     { match: /balance as per bank/i,           col: 'C' },
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'C' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'D' },
+      netBalance:        { match: /effective balance/i,             col: 'D' },
+    },
+  },
+  {
+    unit: 'Purosoul', account: 'AFVPL YES Bank', gid: 146782452,
+    labels: {
+      actualBalance:     { match: /balance as per bank/i,           col: 'C' },
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'C' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'D' },
+      fdTotal:           { match: /od limit/i,                      col: 'C' },
+      netBalance:        { match: /effective balance/i,             col: 'D' },
+    },
+  },
+  {
+    unit: 'Purosoul', account: 'AFVPL IDBI', gid: 1150494269,
+    labels: {
+      actualBalance:     { row: 5, col: 'C' }, // this row has no label text
+      chequeTotalAmount: { match: /cheques issued/i,                col: 'C' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'D' },
+      netBalance:        { match: /effective balance/i,             col: 'D' },
+    },
+  },
 ];
 
 function num(value) {
   if (value == null) return null;
-  const normalized = String(value).replace(/[, \s]/g, '');
+  const normalized = String(value).replace(/[,\s]/g, '');
   const parsed = parseFloat(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function fmt(value) {
   return value == null ? '' : String(Math.round(value * 100) / 100);
+}
+
+function colToIndex(col) {
+  return [...col.toUpperCase()].reduce((sum, ch) => sum * 26 + ch.charCodeAt(0) - 64, 0) - 1;
 }
 
 async function fetchSheetRows(gid) {
@@ -40,43 +139,50 @@ async function fetchSheetRows(gid) {
   return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', blankrows: true });
 }
 
-function cellRefToIndexes(ref) {
-  const match = /^([A-Z]+)(\d+)$/i.exec(ref);
-  if (!match) throw new Error(`Invalid cell reference ${ref}`);
-  const col = [...match[1].toUpperCase()].reduce((sum, char) => sum * 26 + char.charCodeAt(0) - 64, 0) - 1;
-  return { row: Number(match[2]) - 1, col };
+// Scan cols A, B, C of each row for the label; return the row index or -1.
+function findRowByLabel(rows, labelMatch) {
+  for (let i = 0; i < rows.length; i++) {
+    const text = [0, 1, 2].map((c) => String(rows[i][c] ?? '').trim()).join('\n');
+    if (labelMatch instanceof RegExp ? labelMatch.test(text) : text.toLowerCase().includes(labelMatch.toLowerCase())) {
+      return i;
+    }
+  }
+  return -1;
 }
 
-function cell(rows, ref) {
-  const { row, col } = cellRefToIndexes(ref);
-  return num(rows[row]?.[col]) ?? 0;
+function fieldValue(rows, spec) {
+  const colIdx = colToIndex(spec.col);
+  if (spec.row != null) {
+    return num(rows[spec.row - 1]?.[colIdx]) ?? 0;
+  }
+  const rowIdx = findRowByLabel(rows, spec.match);
+  return rowIdx === -1 ? 0 : (num(rows[rowIdx][colIdx]) ?? 0);
 }
 
 function extractAccount(rows, acct) {
-  const actualBalance = cell(rows, acct.cells.actualBalance);
-  const fdTotal = acct.cells.fdTotal ? cell(rows, acct.cells.fdTotal) : 0;
-  const chequesIssued = cell(rows, acct.cells.chequesIssued);
-  const chequeTotalAmount = cell(rows, acct.cells.chequeTotalAmount);
-  const chequesInHand = chequeTotalAmount - chequesIssued;
-  const netBalance = cell(rows, acct.cells.netBalance);
-
+  const L = acct.labels;
+  const actualBalance     = fieldValue(rows, L.actualBalance);
+  const fdTotal           = L.fdTotal ? fieldValue(rows, L.fdTotal) : 0;
+  const chequeTotalAmount = fieldValue(rows, L.chequeTotalAmount);
+  const chequesIssued     = fieldValue(rows, L.chequesIssued);
+  const chequesInHand     = chequeTotalAmount - chequesIssued;
+  const netBalance        = fieldValue(rows, L.netBalance);
   return { actualBalance, fdTotal, chequesIssued, chequeTotalAmount, chequesInHand, netBalance };
 }
 
 export async function importBankPosition(outDate) {
-  // Fetch all 11 bank account tabs in parallel — each is an independent HTTP request.
   const accountRows = await Promise.all(OUTLET_ACCOUNTS.map(async (acct) => {
     const rows = await fetchSheetRows(acct.gid);
     const vals = extractAccount(rows, acct);
     return {
       unit: acct.unit,
       account: acct.account,
-      actualBalance: fmt(vals.actualBalance),
-      fdTotal: fmt(vals.fdTotal),
-      chequesIssued: fmt(vals.chequesIssued),
+      actualBalance:     fmt(vals.actualBalance),
+      fdTotal:           fmt(vals.fdTotal),
+      chequesIssued:     fmt(vals.chequesIssued),
       chequeTotalAmount: fmt(vals.chequeTotalAmount),
-      chequesInHand: fmt(vals.chequesInHand),
-      netBalance: fmt(vals.netBalance),
+      chequesInHand:     fmt(vals.chequesInHand),
+      netBalance:        fmt(vals.netBalance),
     };
   }));
 
