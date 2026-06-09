@@ -863,7 +863,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     const settlementOptions = { widths: [95, 50, 50, 50, 50, 50, 50, 50, 78], fontSize: 6.3, leftColumns: [0] };
     sectionTitle('Settlement Summary', tablePreviewHeight(settlementRows, settlementOptions));
     table(['Mode', ...UNITS, 'Group Total'], settlementRows, settlementOptions);
-    sectionTitle('Settlement Reconciliation', 44);
+    ensureSpace(62);
     summaryCards([
       { label: 'Total Revenue', value: money(groupRevenue(data)), tone: colors.navy },
       { label: 'Total Settled', value: money(settlement.groupTotal), tone: colors.green },
