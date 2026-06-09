@@ -123,19 +123,13 @@ export function ChartTooltip({ active, payload, label, total }) {
 
 // ─── Active donut slice ───────────────────────────────────────────────────────
 function ActiveSlice(props) {
-  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent: pct } = props;
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
   return (
     <g>
       <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius + 7}
         startAngle={startAngle} endAngle={endAngle} fill={fill} cornerRadius={4} />
       <Sector cx={cx} cy={cy} innerRadius={outerRadius + 10} outerRadius={outerRadius + 12}
         startAngle={startAngle} endAngle={endAngle} fill={fill} opacity={0.35} />
-      <text x={cx} y={cy - 9} textAnchor="middle" style={{ fontSize: 13, fontWeight: 700, fill: 'var(--color-on-surface)' }}>
-        {payload.name}
-      </text>
-      <text x={cx} y={cy + 11} textAnchor="middle" style={{ fontSize: 12, fontWeight: 600, fill: 'var(--color-on-surface-variant)' }}>
-        {moneyCompact(payload.value)} · {Math.round((pct ?? 0) * 100)}%
-      </text>
     </g>
   );
 }
@@ -143,6 +137,9 @@ function ActiveSlice(props) {
 // ─── Donut ────────────────────────────────────────────────────────────────────
 export function DonutChart({ data, total }) {
   const [active, setActive] = useState(-1);
+  const toggle = (i) => setActive((cur) => (cur === i ? -1 : i));
+  const activeEntry = active >= 0 ? data[active] : null;
+  const activeShare = activeEntry && total ? Math.round((activeEntry.value / total) * 100) : 0;
 
   return (
     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -162,8 +159,8 @@ export function DonutChart({ data, total }) {
               stroke="none"
               activeIndex={active >= 0 ? active : undefined}
               activeShape={ActiveSlice}
-              onMouseEnter={(_, i) => setActive(i)}
-              onMouseLeave={() => setActive(-1)}
+              onClick={(_, i) => toggle(i)}
+              style={{ cursor: 'pointer' }}
               animationBegin={80}
               animationDuration={1200}
               animationEasing="ease-out"
@@ -182,13 +179,20 @@ export function DonutChart({ data, total }) {
           </PieChart>
         </ResponsiveContainer>
 
-        {/* Centre total — hidden while a slice is active */}
-        <div
-          className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
-          style={{ opacity: active === -1 ? 1 : 0, transition: 'opacity 160ms ease' }}
-        >
-          <span className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/55">Total</span>
-          <span className="num mt-0.5 text-[18px] font-bold tabular-nums text-on-surface">{moneyCompact(total)}</span>
+        {/* Centre label — switches between total and active-slice info */}
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-200">
+          {activeEntry ? (
+            <>
+              <span className="max-w-[96px] text-[11px] font-bold leading-tight text-on-surface">{activeEntry.name}</span>
+              <span className="num mt-1 text-[17px] font-bold tabular-nums text-on-surface">{moneyCompact(activeEntry.value)}</span>
+              <span className="mt-0.5 text-[10px] font-semibold text-on-surface-variant/60">{activeShare}% share</span>
+            </>
+          ) : (
+            <>
+              <span className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/55">Total</span>
+              <span className="num mt-0.5 text-[18px] font-bold tabular-nums text-on-surface">{moneyCompact(total)}</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -199,9 +203,8 @@ export function DonutChart({ data, total }) {
           return (
             <li
               key={entry.name}
-              onMouseEnter={() => setActive(i)}
-              onMouseLeave={() => setActive(-1)}
-              className={`group flex cursor-default items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] transition-all duration-150 ${
+              onClick={() => toggle(i)}
+              className={`group flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] transition-all duration-150 ${
                 active === i
                   ? 'bg-surface-container-high shadow-sm'
                   : 'hover:bg-surface-container/60'
@@ -214,9 +217,8 @@ export function DonutChart({ data, total }) {
                   transform: active === i ? 'scale(1.25)' : 'scale(1)'
                 }}
               />
-              <span className="min-w-0 flex-1 truncate font-medium text-on-surface-variant">{entry.name}</span>
+              <span className={`min-w-0 flex-1 truncate font-medium transition-colors ${active === i ? 'text-on-surface' : 'text-on-surface-variant'}`}>{entry.name}</span>
               <span className="num font-bold tabular-nums text-on-surface">{moneyCompact(entry.value)}</span>
-              {/* Inline share pill */}
               <span
                 className="rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums"
                 style={{
