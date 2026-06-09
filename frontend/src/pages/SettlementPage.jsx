@@ -2,12 +2,13 @@ import React from 'react';
 import DataTable from '../components/DataTable';
 import StatStrip from '../components/StatStrip';
 import { ReportValue } from '../components/DashboardUi';
-import { groupRevenue, money, moneyCompact, settlementModes, settlementTotals, UNITS } from '../lib/calculations';
+import { groupRevenue, money, moneyCompact, numberValue, pnlRows, settlementModes, settlementTotals, UNITS } from '../lib/calculations';
 
 export default function SettlementPage({ data, date }) {
   const totals = settlementTotals(data);
   const revenue = groupRevenue(data);
   const diff = revenue - totals.groupTotal;
+  const unitRevenue = Object.fromEntries(pnlRows(data).map((r) => [r.unit, numberValue(r.revenueToday)]));
   return (
     <>
       <div className={`relative mb-5 overflow-hidden rounded-2xl border ${diff === 0 ? 'border-emerald-200 bg-emerald-50/70' : 'border-rose-200 bg-rose-50/70'} px-4 py-3.5 shadow-card backdrop-blur-xl sm:px-5 sm:py-4`}>
@@ -71,11 +72,24 @@ export default function SettlementPage({ data, date }) {
           ]
         }))}
         footer={
-          <tr>
-            <td className="px-4 py-3">UNIT TOTAL</td>
-            {UNITS.map((unit) => <td key={unit} className="num px-4 py-3 text-right">{money(totals.unitTotals[unit])}</td>)}
-            <td className="num px-4 py-3 text-right">{money(totals.groupTotal)}</td>
-          </tr>
+          <>
+            <tr>
+              <td className="sticky left-0 z-[1] bg-surface-container px-3 py-2.5 sm:px-4 sm:py-3">Unit Total</td>
+              {UNITS.map((unit) => (
+                <td key={unit} className="num px-3 py-2.5 text-right sm:px-4 sm:py-3">{money(totals.unitTotals[unit])}</td>
+              ))}
+              <td className="num px-3 py-2.5 text-right sm:px-4 sm:py-3">{money(totals.groupTotal)}</td>
+            </tr>
+            <tr className="border-t border-outline-variant/30">
+              <td className="sticky left-0 z-[1] bg-surface-container px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-on-surface-variant/60 sm:px-4">Revenue</td>
+              {UNITS.map((unit) => (
+                <td key={unit} className="num px-3 py-2 text-right text-[11.5px] text-on-surface-variant/80 sm:px-4">
+                  {money(unitRevenue[unit] ?? 0)}
+                </td>
+              ))}
+              <td className="num px-3 py-2 text-right text-[11.5px] text-on-surface-variant/80 sm:px-4">{money(revenue)}</td>
+            </tr>
+          </>
         }
       />
     </>
