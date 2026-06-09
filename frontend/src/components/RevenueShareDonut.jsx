@@ -5,7 +5,7 @@ import { moneyCompact, numberValue, pnlRows } from '../lib/calculations';
 const PALETTE = ['#A3006A', '#6f3d74', '#9a5a00', '#C2007F', '#ba1a1a', '#3f6fb5', '#b5447a'];
 
 function ActiveSlice(props) {
-  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent: pct } = props;
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
   return (
     <g>
       <Sector
@@ -18,12 +18,6 @@ function ActiveSlice(props) {
         fill={fill}
         cornerRadius={5}
       />
-      <text x={cx} y={cy - 9} textAnchor="middle" className="fill-on-surface text-[13px] font-bold">
-        {payload.name}
-      </text>
-      <text x={cx} y={cy + 12} textAnchor="middle" className="fill-on-surface-variant text-[12px] font-semibold">
-        {moneyCompact(payload.value)} - {Math.round((pct ?? 0) * 100)}%
-      </text>
     </g>
   );
 }
@@ -59,6 +53,9 @@ export default function RevenueShareDonut({
     .filter((entry) => entry.value > 0)
     .sort((a, b) => b.value - a.value);
   const total = revenueShare.reduce((sum, entry) => sum + entry.value, 0);
+  const toggle = (i) => setActive((cur) => (cur === i ? -1 : i));
+  const activeEntry = active >= 0 ? revenueShare[active] : null;
+  const activeShare = activeEntry && total ? Math.round((activeEntry.value / total) * 100) : 0;
 
   return (
     <section className="overflow-hidden rounded-2xl border border-outline-variant/50 bg-surface-container-lowest">
@@ -89,8 +86,8 @@ export default function RevenueShareDonut({
                   stroke="none"
                   activeIndex={active >= 0 ? active : undefined}
                   activeShape={ActiveSlice}
-                  onMouseEnter={(_, i) => setActive(i)}
-                  onMouseLeave={() => setActive(-1)}
+                  onClick={(_, i) => toggle(i)}
+                  style={{ cursor: 'pointer' }}
                   animationBegin={80}
                   animationDuration={900}
                   animationEasing="ease-out"
@@ -106,12 +103,20 @@ export default function RevenueShareDonut({
                 <Tooltip content={<RevenueTooltip total={total} />} />
               </PieChart>
             </ResponsiveContainer>
-            <div
-              className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
-              style={{ opacity: active === -1 ? 1 : 0, transition: 'opacity 160ms ease' }}
-            >
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/50">Total</span>
-              <span className="num mt-1 text-[22px] font-bold tabular-nums text-on-surface">{moneyCompact(total)}</span>
+            {/* Centre label — switches between total and active-slice info */}
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-200">
+              {activeEntry ? (
+                <>
+                  <span className="max-w-[120px] text-[12px] font-bold leading-tight text-on-surface">{activeEntry.name}</span>
+                  <span className="num mt-1 text-[20px] font-bold tabular-nums text-on-surface">{moneyCompact(activeEntry.value)}</span>
+                  <span className="mt-0.5 text-[10.5px] font-semibold text-on-surface-variant/60">{activeShare}% share</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/50">Total</span>
+                  <span className="num mt-1 text-[22px] font-bold tabular-nums text-on-surface">{moneyCompact(total)}</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -123,12 +128,16 @@ export default function RevenueShareDonut({
               return (
                 <li
                   key={entry.name}
-                  onMouseEnter={() => setActive(i)}
-                  onMouseLeave={() => setActive(-1)}
-                  className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-surface-container/60"
+                  onClick={() => toggle(i)}
+                  className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors ${
+                    active === i ? 'bg-surface-container-high shadow-sm' : 'hover:bg-surface-container/60'
+                  }`}
                 >
-                  <span className="size-2.5 shrink-0 rounded-full" style={{ background: color }} />
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-on-surface-variant">{entry.name}</span>
+                  <span
+                    className="size-2.5 shrink-0 rounded-full transition-transform duration-150"
+                    style={{ background: color, transform: active === i ? 'scale(1.25)' : 'scale(1)' }}
+                  />
+                  <span className={`min-w-0 flex-1 truncate text-[12.5px] font-medium transition-colors ${active === i ? 'text-on-surface' : 'text-on-surface-variant'}`}>{entry.name}</span>
                   <span className="num text-[12.5px] font-semibold tabular-nums text-on-surface">{moneyCompact(entry.value)}</span>
                   <span
                     className="w-10 rounded-full px-1.5 py-0.5 text-center text-[10.5px] font-bold tabular-nums"
