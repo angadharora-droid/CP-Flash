@@ -204,9 +204,10 @@ function WeeklyMixCard({ title, subtitle, mix, kind }) {
   );
 }
 
-function WeeklySettlementSummary({ data, revenue, weekLabel }) {
+function WeeklySettlementSummary({ data, revenue, weekLabel, pnlRows: weekPnlRows = [] }) {
   const totals = settlementTotals(data);
   const diff = numberValue(revenue) - totals.groupTotal;
+  const unitRevenue = Object.fromEntries(weekPnlRows.map((r) => [r.unit, numberValue(r.revenueToday)]));
 
   return (
     <SectionCard
