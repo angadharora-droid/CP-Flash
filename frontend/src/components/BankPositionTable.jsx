@@ -28,7 +28,7 @@ export default function BankPositionTable({ rows = [] }) {
   const { totals, net } = getBankPositionTotals(rows);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-outline-variant/40 bg-surface-container-lowest">
+    <div className="overflow-clip rounded-xl border border-outline-variant/40 bg-surface-container-lowest">
       <div className="flex items-center justify-between gap-4 border-b border-outline-variant/30 bg-surface-container-low px-4 py-3">
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -62,7 +62,6 @@ export default function BankPositionTable({ rows = [] }) {
           }, { actual: 0, fd: 0, issued: 0, hand: 0, net: 0 });
           const hasMulti = unitRows.length > 1;
           const expanded = !!expandedUnits[unit];
-          const initials = unit.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
           built.push({
             key: `unit-${unit}`,
             cells: [
@@ -70,12 +69,9 @@ export default function BankPositionTable({ rows = [] }) {
                 <button
                   type="button"
                   onClick={() => setExpandedUnits((s) => ({ ...s, [unit]: !s[unit] }))}
-                  className="group/unit -mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-app-accentTint/40"
+                  className="group/unit -mx-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-app-accentTint/40"
                   aria-expanded={expanded}
                 >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-[11px] font-bold text-app-subtle ring-1 ring-app-border">
-                    {initials}
-                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold text-app-text">{unit}</span>
                   </span>
@@ -87,12 +83,7 @@ export default function BankPositionTable({ rows = [] }) {
                   </svg>
                 </button>
               ) : (
-                <div className="flex items-center gap-3">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-[11px] font-bold text-app-subtle ring-1 ring-app-border">
-                    {initials}
-                  </span>
-                  <span className="font-semibold text-app-text">{unit}</span>
-                </div>
+                <span className="font-semibold text-app-text">{unit}</span>
               ),
               <span className="num text-[12px] sm:text-[14px] font-semibold tabular-nums">{money(unitTotals.actual)}</span>,
               <span className="num text-[12px] sm:text-[14px] font-semibold tabular-nums">{money(unitTotals.fd)}</span>,
