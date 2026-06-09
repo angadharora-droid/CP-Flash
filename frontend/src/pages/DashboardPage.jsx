@@ -268,11 +268,24 @@ function WeeklySettlementSummary({ data, revenue, weekLabel }) {
           ]
         }))}
         footer={
-          <tr>
-            <td className="px-4 py-3">UNIT TOTAL</td>
-            {UNITS.map((unit) => <td key={unit} className="num px-4 py-3 text-right">{money(totals.unitTotals[unit])}</td>)}
-            <td className="num px-4 py-3 text-right">{money(totals.groupTotal)}</td>
-          </tr>
+          <>
+            <tr>
+              <td className="sticky left-0 z-[1] bg-surface-container px-3 py-2.5 sm:px-4 sm:py-3">Unit Total</td>
+              {UNITS.map((unit) => (
+                <td key={unit} className="num px-3 py-2.5 text-right sm:px-4 sm:py-3">{money(totals.unitTotals[unit])}</td>
+              ))}
+              <td className="num px-3 py-2.5 text-right sm:px-4 sm:py-3">{money(totals.groupTotal)}</td>
+            </tr>
+            <tr className="border-t border-outline-variant/30">
+              <td className="sticky left-0 z-[1] bg-surface-container px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-on-surface-variant/60 sm:px-4">Revenue</td>
+              {UNITS.map((unit) => (
+                <td key={unit} className="num px-3 py-2 text-right text-[11.5px] text-on-surface-variant/80 sm:px-4">
+                  {money(unitRevenue[unit] ?? 0)}
+                </td>
+              ))}
+              <td className="num px-3 py-2 text-right text-[11.5px] text-on-surface-variant/80 sm:px-4">{money(numberValue(revenue))}</td>
+            </tr>
+          </>
         }
       />
     </SectionCard>
@@ -930,6 +943,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               data={weeklySettlementData}
               revenue={weeklyPnlTotals.revenue}
               weekLabel={weekLabel}
+              pnlRows={weeklyPnlRows}
             />
           </div>
         </section>
