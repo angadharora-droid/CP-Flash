@@ -5,13 +5,13 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
 
   return (
     <div className={`scroll-touch w-full overflow-x-auto rounded-xl border border-outline-variant/40 ${className}`}>
-      <table className="w-full min-w-[640px] text-[12.5px] md:min-w-full">
+      <table className="w-full min-w-[480px] text-[11.5px] sm:text-[12.5px] md:min-w-full">
         <thead>
           <tr className="bg-surface-container">
             {columns.map((col, i) => (
               <th
                 key={col}
-                className={`whitespace-nowrap px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant ${
+                className={`whitespace-nowrap px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant sm:px-4 sm:py-2.5 ${
                   isNumeric(i) ? 'text-right' : 'text-left'
                 } ${
                   i === 0 ? 'sticky left-0 z-[2] bg-surface-container' : ''
@@ -30,11 +30,11 @@ export default function DataTable({ columns, rows, footer, numericFrom, classNam
             >
               {row.cells.map((cell, cellIndex) => {
                 const sticky = cellIndex === 0
-                  ? 'sticky left-0 z-[1] min-w-28 max-w-[11rem] bg-inherit font-semibold shadow-[1px_0_0_0_rgba(202,211,218,0.8)] sm:min-w-40 sm:max-w-none'
+                  ? 'sticky left-0 z-[1] min-w-[100px] max-w-[9rem] bg-surface-container-lowest font-semibold shadow-[1px_0_0_0_rgba(202,211,218,0.8)] sm:min-w-40 sm:max-w-none'
                   : '';
                 const align = isNumeric(cellIndex) ? 'text-right' : '';
                 return (
-                  <td key={cellIndex} className={`px-4 py-2.5 align-middle text-on-surface ${sticky} ${align}`}>
+                  <td key={cellIndex} className={`px-3 py-2 align-middle text-on-surface sm:px-4 sm:py-2.5 ${sticky} ${align}`}>
                     {cell}
                   </td>
                 );
