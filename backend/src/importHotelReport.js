@@ -48,25 +48,28 @@ export async function importHotelReport(file, outDate) {
   // (e.g. occupancy report may have already run before this one)
   const data = (await readDaily(outDate)) ?? buildSeedData();
 
-  const room = net(findRow(rows, 'Total ( A )', 'Total (A)', 'TOTAL ( A )'));
-  const meetingPoint = net(findRow(rows, 'MEETING POINT', 'Meeting Point'));
-  const freakk = net(findRow(rows, 'FREAKK', 'Freakk'));
-  const roomService = net(findRow(rows, 'ROOM SERVICE', 'Room Service'));
-  const bougainvillea = net(findRow(rows, 'BOUGAINVILLEA', 'Bougainvillea'));
-  const banquet = net(findRow(rows, 'BANQUET', 'Banquet'));
-  const highSteak = net(findRow(rows, 'HIGH STEAK', 'HIGH STEAKS', 'High Steaks'));
-  const otherSales = net(findRow(rows, 'Total ( C )', 'Total (C)', 'TOTAL ( C )'));
+  const room        = net(findRow(rows, 'Total ( A )', 'Total (A)', 'TOTAL ( A )'));
+  const fnb         = net(findRow(rows, 'Total ( B )', 'Total (B)', 'TOTAL ( B )'));
+  const otherSales  = net(findRow(rows, 'Total ( C )', 'Total (C)', 'TOTAL ( C )'));
 
-  setKpi(data, unit, 'Room Revenue', room);
+  // Individual F&B rows — kept for the KPI tables, not used for P&L total
+  const meetingPoint  = net(findRow(rows, 'MEETING POINT', 'Meeting Point'));
+  const freakk        = net(findRow(rows, 'FREAKK', 'Freakk'));
+  const roomService   = net(findRow(rows, 'ROOM SERVICE', 'Room Service'));
+  const bougainvillea = net(findRow(rows, 'BOUGAINVILLEA', 'Bougainvillea'));
+  const banquet       = net(findRow(rows, 'BANQUET', 'Banquet'));
+  const highSteak     = net(findRow(rows, 'HIGH STEAK', 'HIGH STEAKS', 'High Steaks'));
+
+  setKpi(data, unit, 'Room Revenue',        room);
   setKpi(data, unit, 'Meeting Point Revenue', meetingPoint);
-  setKpi(data, unit, 'Freakk Revenue', freakk);
+  setKpi(data, unit, 'Freakk Revenue',      freakk);
   setKpi(data, unit, 'Bougainvillea Revenue', bougainvillea);
   setKpi(data, unit, 'High Steaks Revenue', highSteak);
   setKpi(data, unit, 'In-Room Dining Revenue', roomService);
-  setKpi(data, unit, 'Revenue Today', banquet);
+  setKpi(data, unit, 'Revenue Today',       banquet);
 
-  const totalRevenue = room.actual + meetingPoint.actual + freakk.actual + roomService.actual +
-    bougainvillea.actual + banquet.actual + highSteak.actual + otherSales.actual;
+  // P&L revenue = Total A + Total B + Total C (matches the night audit report totals exactly)
+  const totalRevenue = room.actual + fnb.actual + otherSales.actual;
   data.pnl = data.pnl.map((row) =>
     row.unit === unit ? { ...row, revenueToday: String(Math.round(totalRevenue * 100) / 100) } : row
   );
@@ -98,10 +101,9 @@ export async function importHotelReport(file, outDate) {
   return {
     ok: true, date: outDate, file: `${outDate}.json`,
     mapped: {
-      roomRevenue: room.actual,
-      fnbRevenue: meetingPoint.actual + freakk.actual + roomService.actual + bougainvillea.actual + highSteak.actual,
-      banquetRevenue: banquet.actual,
-      otherSales: otherSales.actual,
+      totalA: room.actual,
+      totalB: fnb.actual,
+      totalC: otherSales.actual,
       pnlRevenue: totalRevenue,
       cash: num(cashRow[3]),
       creditCard: num(ccRow[3]),
