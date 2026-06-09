@@ -73,7 +73,7 @@ export default function BankPositionTable({ rows = [] }) {
                   aria-expanded={expanded}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold text-app-text">{unit}</span>
+                    <span className="block font-semibold text-app-text">{unit}</span>
                   </span>
                   <svg
                     className={`size-4 shrink-0 text-app-subtle transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
@@ -117,7 +117,7 @@ export default function BankPositionTable({ rows = [] }) {
       })()}
       footer={
         <tr>
-          <td className="px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-on-surface-variant sm:px-4 sm:py-3.5 sm:text-[11px]">Group Total</td>
+          <td className="sticky left-0 z-[1] bg-surface-container px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-on-surface-variant sm:px-4 sm:py-3.5 sm:text-[11px]">Group Total</td>
           <td className="num px-3 py-2.5 text-right text-[12px] tabular-nums sm:px-4 sm:py-3.5 sm:text-[14px]">{money(totals.actual)}</td>
           <td className="num px-3 py-2.5 text-right text-[12px] tabular-nums sm:px-4 sm:py-3.5 sm:text-[14px]">{money(totals.fd)}</td>
           <td className="num px-3 py-2.5 text-right text-[12px] tabular-nums sm:px-4 sm:py-3.5 sm:text-[14px]">{money(totals.issued)}</td>
