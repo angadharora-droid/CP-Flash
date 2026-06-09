@@ -709,7 +709,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   function kpiTable(title, rows, options = {}) {
-    const actualColumn = isWeekly ? 'Week' : 'Today';
+    const actualColumn = isWeekly ? 'Week' : 'Actual';
     const visibleRows = rows.filter((row) => !/\bytd\b|year\s*to\s*date/i.test(row?.name ?? ''));
     const tableOptions = { widths: [145, 90, 86, 90, 112] };
     sectionTitle(title, (options.note ? 20 : 0) + tablePreviewHeight(visibleRows, tableOptions));
@@ -802,7 +802,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     ];
     const pnlTableOptions = { widths: [112, 88, 88, 88, 62, 85] };
     sectionTitle('Estimated P&L Summary', tablePreviewHeight(pnlTableRows, pnlTableOptions));
-    table(['Unit', isWeekly ? 'Revenue WTD' : 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'], pnlTableRows, pnlTableOptions);
+    table(['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'], pnlTableRows, pnlTableOptions);
   }
 
   // ── Helper: render flags table ───────────────────────────────────────────────
@@ -818,7 +818,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (!flagTableRows.length) return;
     const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
     sectionTitle('Action Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
-    table(['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Today', 'Status', 'Action Required'], flagTableRows, flagTableOptions);
+    table(['Unit', 'KPI', 'Target', isWeekly ? 'Week' : 'Actual', 'Status', 'Action Required'], flagTableRows, flagTableOptions);
   }
 
   // ── Helper: render hotel section for a unit ──────────────────────────────────
