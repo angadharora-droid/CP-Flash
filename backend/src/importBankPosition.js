@@ -7,7 +7,7 @@ import { readDaily, writeDaily, withDateLock } from './dailyStore.js';
 const SHEET_ID = '1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf';
 
 const OUTLET_ACCOUNTS = [
-  { unit: 'CP Nagpur', account: 'HDFC Wardha', gid: 1969859912, cells: { actualBalance: 'F5', fdTotal: 'J20', chequesIssued: 'G19', chequeTotalAmount: 'E19', netBalance: 'G28' } },
+  { unit: 'CP Nagpur', account: 'HDFC Wardha', gid: 1969859912, cells: { actualBalance: 'F5', fdTotal: 'J22', chequesIssued: 'G21', chequeTotalAmount: 'E21', netBalance: 'G30' } },
   { unit: 'CP Nagpur', account: 'HDFC Dhantoli', gid: 556642800, cells: { actualBalance: 'E5', fdTotal: 'J16', chequesIssued: 'F16', chequeTotalAmount: 'E16', netBalance: 'F24' } },
   { unit: 'CP Nagpur', account: 'IDBI BANK C AC 742', gid: 1919634794, cells: { actualBalance: 'F5', chequesIssued: 'G20', chequeTotalAmount: 'E20', netBalance: 'G22' } },
   { unit: 'CP Nagpur', account: 'HAPL YES BANK', gid: 1771716053, cells: { actualBalance: 'F5', chequesIssued: 'G17', chequeTotalAmount: 'E17', netBalance: 'G26' } },
