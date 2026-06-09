@@ -89,7 +89,7 @@ export function ReportValue({ value, className = '', numeric = false }) {
   const empty = value === '' || value == null;
   const display = empty ? '—' : (numeric ? formatIndianNumber(value) : value);
   return (
-    <span className={`num block min-w-24 px-2.5 py-1.5 text-[16px] ${numeric ? 'text-right tabular-nums' : ''} ${empty ? 'text-on-surface-variant/35' : 'text-on-surface'} ${className}`}>
+    <span className={`num block min-w-0 px-2.5 py-1.5 text-[12px] sm:min-w-24 sm:text-[14px] md:text-[16px] ${numeric ? 'text-right tabular-nums' : ''} ${empty ? 'text-on-surface-variant/35' : 'text-on-surface'} ${className}`}>
       {display}
     </span>
   );
