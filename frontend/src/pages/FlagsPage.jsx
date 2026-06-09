@@ -31,7 +31,7 @@ export default function FlagsPage({ data }) {
         }
       ]} />
       <DataTable
-        columns={['Unit', 'KPI Name', 'AOP Target', 'Today Actual', '% vs Target', 'Flag']}
+        columns={['Unit', 'KPI Name', 'AOP Target', 'Actual', '% vs Target', 'Flag']}
         numericFrom={2}
         rows={filtered.map((row) => ({
           key: `${row.unit}-${row.kpiName}`,

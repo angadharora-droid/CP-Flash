@@ -133,7 +133,7 @@ export default function PnlPage({ data, setData, onSave, period }) {
         }
       ]} />
       <DataTable
-        columns={['Unit', 'Revenue Today', 'Purchases Today', 'Gross Profit', 'GP%', 'Fixed Cost (Daily)', 'Est. Net Profit', 'Net Margin%', 'MTD Net Profit']}
+        columns={['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Fixed Cost (Daily)', 'Est. Net Profit', 'Net Margin%', 'MTD Net Profit']}
         numericFrom={1}
         rows={rows.map((row) => {
           const mtdNet = mtdByUnit[row.unit]?.netProfit;
