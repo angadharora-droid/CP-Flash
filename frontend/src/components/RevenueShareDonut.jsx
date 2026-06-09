@@ -54,6 +54,7 @@ export default function RevenueShareDonut({
     .sort((a, b) => b.value - a.value);
   const total = revenueShare.reduce((sum, entry) => sum + entry.value, 0);
   const toggle = (i) => setActive((cur) => (cur === i ? -1 : i));
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches;
   const activeEntry = active >= 0 ? revenueShare[active] : null;
   const activeShare = activeEntry && total ? Math.round((activeEntry.value / total) * 100) : 0;
 
@@ -100,7 +101,7 @@ export default function RevenueShareDonut({
                     />
                   ))}
                 </Pie>
-                <Tooltip content={<RevenueTooltip total={total} />} />
+                {!isMobile && <Tooltip content={<RevenueTooltip total={total} />} />}
               </PieChart>
             </ResponsiveContainer>
             {/* Centre label — switches between total and active-slice info */}
