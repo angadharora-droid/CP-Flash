@@ -3,7 +3,7 @@ import { getEmailImportStatus, getPnlPeriod, getPnlWeek, getSeed, getSourceRepor
 import { numberValue, withFlags } from './lib/calculations';
 import AppHeader from './components/AppHeader';
 import { BrandLoader, googleSheetPreviewUrl } from './components/DashboardUi';
-import { BOTTOM_TABS, NAV_GROUPS, NAV_ITEM_BY_KEY, pages } from './lib/navigation';
+import { NAV_GROUPS, NAV_ITEM_BY_KEY, pages } from './lib/navigation';
 import DashboardPage from './pages/DashboardPage';
 import PerformanceChartsPage from './pages/PerformanceChartsPage';
 import BankPage from './pages/BankPage';
@@ -746,7 +746,7 @@ export default function App() {
       />
 
       {/* ---- Main content ---- */}
-      <main className={`min-h-screen px-3 pb-28 pt-16 transition-all duration-300 sm:px-4 md:pb-12 md:pt-20 md:px-6 lg:px-8 xl:px-10 2xl:px-12 ${
+      <main className={`min-h-screen px-3 pb-10 pt-16 transition-all duration-300 sm:px-4 md:pb-12 md:pt-20 md:px-6 lg:px-8 xl:px-10 2xl:px-12 ${
         desktopSidebarOpen ? 'md:ml-72' : 'md:ml-0'
       }`}>
         <div className="mx-auto max-w-[110rem] 2xl:max-w-[120rem]">
@@ -775,63 +775,6 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* ---- Floating bottom nav (mobile only) with center FAB ---- */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-[68px] items-center justify-around border-t border-outline-variant/70 bg-surface-container-lowest/92 px-4 pb-safe shadow-2xl backdrop-blur-2xl sm:h-20 sm:px-6 md:hidden">
-        {BOTTOM_TABS.slice(0, 2).map(({ key, label }) => {
-          const isActive = active === key;
-          const item = NAV_ITEM_BY_KEY[key];
-          const hasBadge = key === 'flags' && riskCount > 0;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActive(key)}
-              aria-current={isActive ? 'page' : undefined}
-              className={`relative flex flex-col items-center justify-center gap-1 p-2 transition-all active:scale-90 ${
-                isActive ? 'text-primary' : 'text-on-surface-variant/60'
-              }`}
-            >
-              <MIcon name={item.icon} filled={isActive} />
-              <span className="text-[10px] font-medium uppercase tracking-tight">{label}</span>
-              {hasBadge ? (
-                <span className="absolute right-1 top-1 size-2 rounded-full bg-error" />
-              ) : null}
-            </button>
-          );
-        })}
-        {/* Center FAB → PDF Preview */}
-        <button
-          type="button"
-          onClick={() => { setPdfReturnTo(active); setActive('pdf'); }}
-          disabled={!data}
-          className="-mt-10 flex size-14 items-center justify-center rounded-2xl border-4 border-surface bg-primary text-on-primary shadow-primary transition-all active:scale-90 disabled:opacity-50"
-          aria-label="Preview PDF"
-        >
-          <MIcon name="picture_as_pdf" filled />
-        </button>
-        {BOTTOM_TABS.slice(2).map(({ key, label }) => {
-          const isActive = active === key;
-          const item = NAV_ITEM_BY_KEY[key];
-          const hasBadge = key === 'flags' && riskCount > 0;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActive(key)}
-              aria-current={isActive ? 'page' : undefined}
-              className={`relative flex flex-col items-center justify-center gap-1 p-2 transition-all active:scale-90 ${
-                isActive ? 'text-primary' : 'text-on-surface-variant/60'
-              }`}
-            >
-              <MIcon name={item.icon} filled={isActive} />
-              <span className="text-[10px] font-medium uppercase tracking-tight">{label}</span>
-              {hasBadge ? (
-                <span className="absolute right-1 top-1 size-2 rounded-full bg-error" />
-              ) : null}
-            </button>
-          );
-        })}
-      </nav>
     </div>
   );
 }
