@@ -18,6 +18,7 @@ import {
   pnlRows,
   settlementModes,
   settlementTotals,
+  stripToday,
   UNITS
 } from '../lib/calculations';
 
@@ -169,7 +170,7 @@ function WeeklyKpiTable({ rows }) {
       rows={rows.map((row) => ({
         key: row.id,
         cells: [
-          <span className="font-semibold text-app-text">{row.name}</span>,
+          <span className="font-semibold text-app-text">{stripToday(row.name)}</span>,
           <span className="num">{row.target}</span>,
           <span className="num font-bold text-primary">{row.actual}</span>,
           <span className={`num font-semibold ${row.percentVsTarget >= 95 ? 'text-emerald-700' : row.percentVsTarget >= 85 ? 'text-amber-700' : 'text-rose-700'}`}>
@@ -764,7 +765,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
                 key: `${row.unit}-${row.kpiName}`,
                 cells: [
                   <span className="font-semibold text-app-text">{row.unit}</span>,
-                  <span className="text-app-text">{row.kpiName}</span>,
+                  <span className="text-app-text">{stripToday(row.kpiName)}</span>,
                   <span className="num">{row.aopTarget}</span>,
                   <span className="num">{row.weekActual}</span>,
                   <span className={`num font-semibold ${row.percentVsTarget >= 90 ? 'text-emerald-700' : 'text-rose-700'}`}>{row.percentVsTarget}%</span>,
@@ -772,7 +773,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
                   <button
                     type="button"
                     onClick={() => {}}
-                    aria-label={`Investigate ${row.kpiName} for ${row.unit}`}
+                    aria-label={`Investigate ${stripToday(row.kpiName)} for ${row.unit}`}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-outline-variant/70 bg-surface-container-lowest px-3 py-2 text-[11.5px] font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:bg-surface-container hover:text-primary"
                   >
                     <span className="material-symbols-outlined text-[13px]" aria-hidden>edit_note</span>

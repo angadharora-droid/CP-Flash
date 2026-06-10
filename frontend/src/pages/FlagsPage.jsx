@@ -2,7 +2,7 @@ import React from 'react';
 import DataTable from '../components/DataTable';
 import FlagBadge from '../components/FlagBadge';
 import StatStrip from '../components/StatStrip';
-import { withFlags } from '../lib/calculations';
+import { withFlags, stripToday } from '../lib/calculations';
 
 export default function FlagsPage({ data }) {
   const flags = withFlags(data);
@@ -37,7 +37,7 @@ export default function FlagsPage({ data }) {
           key: `${row.unit}-${row.kpiName}`,
           cells: [
             <span className="font-semibold text-app-text">{row.unit}</span>,
-            <span className="text-app-text">{row.kpiName}</span>,
+            <span className="text-app-text">{stripToday(row.kpiName)}</span>,
             <span className="num">{row.aopTarget}</span>,
             <span className="num">{row.todayActual}</span>,
             <span className={`num font-semibold ${row.percentVsTarget >= 90 ? 'text-emerald-700' : 'text-rose-700'}`}>{row.percentVsTarget}%</span>,

@@ -20,6 +20,10 @@ const UNIT_REVENUE_META = {
 
 const HIDDEN_PUROSOUL_REVENUE_COST_ROWS = new Set(['RM Cost Today', 'RM Cost %', 'Revenue MTD', 'Purchase MTD']);
 
+function stripToday(name) {
+  return String(name ?? '').replace(/\s*\btoday\b\s*$/i, '').trim();
+}
+
 const colors = {
   primary:      '#A3006A',
   primaryDark:  '#7a004e',
@@ -719,7 +723,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
       visibleRows.map((row) => {
         const target = aopTargetValue(row);
         const flag = calcFlag(row.actual, target, row.direction).label;
-        return [row.name, formatValue(row.actual, row.name), formatValue(target, row.name), formatValue(row.mtd, row.name), flagCell(flag)];
+        return [stripToday(row.name), formatValue(row.actual, row.name), formatValue(target, row.name), formatValue(row.mtd, row.name), flagCell(flag)];
       }),
       tableOptions
     );
@@ -814,7 +818,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   function renderFlags() {
     const flags = collectPdfFlags(data).filter((row) => row.flag === 'ACTION').slice(0, 16);
-    const flagTableRows = flags.map((row) => [row.unit, row.kpiName, formatValue(aopTargetValue(row), row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), '']);
+    const flagTableRows = flags.map((row) => [row.unit, stripToday(row.kpiName), formatValue(aopTargetValue(row), row.kpiName), formatValue(row.todayActual, row.kpiName), flagCell(row.flag), '']);
     if (!flagTableRows.length) return;
     const flagTableOptions = { widths: [78, 120, 62, 62, 72, 129], leftColumns: [1, 5], fontSize: 7 };
     sectionTitle('Action Flag Summary', tablePreviewHeight(flagTableRows, flagTableOptions));
@@ -822,12 +826,15 @@ export function createDailyFlashPdf(data, date, options = {}) {
   }
 
   // ── Helper: render hotel section for a unit ──────────────────────────────────
+  const tomorrowStr = (() => { const d = new Date(`${date}T00:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+
   function renderHotelSections(unit, sectionNames) {
     const label = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
     const hotelRows = data.hotels ?? [];
     for (const section of sectionNames) {
       const rows = hotelRows.filter((row) => row.unit === unit && row.section === section);
-      if (rows.length) kpiTable(`${label} - ${section}`, rows);
+      const title = section === 'Forecast' ? `${label} - Forecast – ${niceDate(tomorrowStr)}` : `${label} - ${section}`;
+      if (rows.length) kpiTable(title, rows);
     }
   }
 
@@ -880,12 +887,19 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 1. Bank Position
     if (hasSection('bank')) {
       const bankTableRows = [
-        ...bankRows.map((row) => [row.unit, money(row.actual), money(row.fd), money(row.issued), money(row.hand), { text: money(row.net), color: row.net > 0 ? colors.green : row.net < 0 ? colors.red : colors.subtle, bold: row.net !== 0 }]),
-        [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true }, { text: money(bankTotals.fd), bold: true }, { text: money(bankTotals.issued), bold: true }, { text: money(bankTotals.hand), bold: true }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
+        ...bankRows.map((row) => [
+          row.unit,
+          { text: money(row.actual), color: row.actual < 0 ? colors.red : undefined },
+          { text: money(row.fd), color: row.fd < 0 ? colors.red : undefined },
+          { text: money(row.issued), color: row.issued < 0 ? colors.red : undefined },
+          { text: money(row.hand), color: row.hand < 0 ? colors.red : undefined },
+          { text: money(row.net), color: row.net > 0 ? colors.green : row.net < 0 ? colors.red : colors.subtle, bold: row.net !== 0 },
+        ]),
+        [{ text: 'GROUP TOTAL', bold: true }, { text: money(bankTotals.actual), bold: true, color: bankTotals.actual < 0 ? colors.red : undefined }, { text: money(bankTotals.fd), bold: true, color: bankTotals.fd < 0 ? colors.red : undefined }, { text: money(bankTotals.issued), bold: true, color: bankTotals.issued < 0 ? colors.red : undefined }, { text: money(bankTotals.hand), bold: true, color: bankTotals.hand < 0 ? colors.red : undefined }, { text: money(bankTotals.net), bold: true, color: bankTotals.net >= 0 ? colors.green : colors.red }]
       ];
       const bankTableOptions = { widths: [126, 78, 62, 78, 78, 101], fontSize: 6.7 };
       sectionTitle('Bank Position', tablePreviewHeight(bankTableRows, bankTableOptions));
-      table(['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Available'], bankTableRows, bankTableOptions);
+      table(['Unit', 'Actual Balance', 'FD / OD Limit', 'Cheques Issued', 'Cheques in Hand', 'Net Available'], bankTableRows, bankTableOptions);
     }
 
     // 2. Unit-wise Revenue Share donut
@@ -896,8 +910,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
       renderUnitRevenueHeader('CP Nagpur');
       renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'Forecast', 'Banquets']);
       for (const list of [
-        { title: 'CP Nagpur - Banquet Function List Today', rows: data.banquetToday ?? [] },
-        { title: 'CP Nagpur - Banquet Function List Tomorrow', rows: data.banquetTomorrow ?? [] }
+        { title: `CP Nagpur - Banquet Function List – ${niceDate(date)}`, rows: data.banquetToday ?? [] },
+        { title: `CP Nagpur - Banquet Function List – ${niceDate(tomorrowStr)}`, rows: data.banquetTomorrow ?? [] }
       ]) {
         const banqRows = list.rows.map((row) => [
           String(row.marketSegment ?? '-'),
