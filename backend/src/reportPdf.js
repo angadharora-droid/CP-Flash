@@ -828,13 +828,14 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   // ── Helper: render hotel section for a unit ──────────────────────────────────
   const tomorrowStr = (() => { const d = new Date(`${date}T00:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+  const dayAfterStr = (() => { const d = new Date(`${date}T00:00:00`); d.setDate(d.getDate() + 2); return d.toISOString().slice(0, 10); })();
 
   function renderHotelSections(unit, sectionNames) {
     const label = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
     const hotelRows = data.hotels ?? [];
     for (const section of sectionNames) {
       const rows = hotelRows.filter((row) => row.unit === unit && row.section === section);
-      const title = section === 'Forecast' ? `${label} - Forecast – ${niceDate(tomorrowStr)}` : `${label} - ${section}`;
+      const title = section === 'Forecast' ? `${label} - Forecast – ${niceDate(data.forecastDate ?? dayAfterStr)}` : `${label} - ${section}`;
       if (rows.length) kpiTable(title, rows);
     }
   }
@@ -911,8 +912,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
       renderUnitRevenueHeader('CP Nagpur');
       renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'Forecast', 'Banquets']);
       for (const list of [
-        { title: `CP Nagpur - Banquet Function List – ${niceDate(date)}`, rows: data.banquetToday ?? [] },
-        { title: `CP Nagpur - Banquet Function List – ${niceDate(tomorrowStr)}`, rows: data.banquetTomorrow ?? [] }
+        { title: `CP Nagpur - Banquet Function List – ${niceDate(data.banquetTodayDate ?? tomorrowStr)}`, rows: data.banquetToday ?? [] },
+        { title: `CP Nagpur - Banquet Function List – ${niceDate(data.banquetTomorrowDate ?? dayAfterStr)}`, rows: data.banquetTomorrow ?? [] }
       ]) {
         const banqRows = list.rows.map((row) => [
           String(row.marketSegment ?? '-'),
