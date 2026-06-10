@@ -51,7 +51,8 @@ const colors = {
 };
 
 function numberValue(value) {
-  const parsed = Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
+  const s = String(value ?? '').replace(/^Rs\.?\s*/i, '').replace(/[^0-9.-]/g, '');
+  const parsed = Number(s);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
