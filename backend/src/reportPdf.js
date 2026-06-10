@@ -912,8 +912,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
       renderUnitRevenueHeader('CP Nagpur');
       renderHotelSections('CP Nagpur', ['Room Revenue & Occupancy', 'Forecast', 'Banquets']);
       for (const list of [
-        { title: `CP Nagpur - Banquet Function List – ${niceDate(data.banquetTodayDate ?? tomorrowStr)}`, rows: data.banquetToday ?? [] },
-        { title: `CP Nagpur - Banquet Function List – ${niceDate(data.banquetTomorrowDate ?? dayAfterStr)}`, rows: data.banquetTomorrow ?? [] }
+        { title: `CP Nagpur - Banquet Function List Today – ${niceDate(data.banquetTodayDate ?? tomorrowStr)}`, rows: data.banquetToday ?? [] },
+        { title: `CP Nagpur - Banquet Function List Tomorrow – ${niceDate(data.banquetTomorrowDate ?? dayAfterStr)}`, rows: data.banquetTomorrow ?? [] }
       ]) {
         const banqRows = list.rows.map((row) => [
           String(row.marketSegment ?? '-'),
