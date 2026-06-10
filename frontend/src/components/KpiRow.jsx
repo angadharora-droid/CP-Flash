@@ -28,7 +28,7 @@ export default function KpiRow({ kpi }) {
 
   return (
     <tr className={`group border-b border-slate-200/70 bg-white transition-colors last:border-0 ${style.row}`}>
-      <td className={`sticky left-0 z-[1] w-[1%] min-w-0 p-0 shadow-[1px_0_0_0_rgba(226,232,240,0.9)] transition-colors ${style.sticky}`}>
+      <td className={`sticky left-0 z-[1] w-[1%] min-w-0 p-0 shadow-[1px_0_0_0_rgba(226,232,240,0.9)] transition-colors sm:w-[180px] ${style.sticky}`}>
         <div className="flex min-h-[44px] items-center px-2 py-2 sm:min-h-[56px] sm:px-4 sm:py-3">
           <span className="text-[14px] font-bold text-slate-800 sm:text-[13.5px]">{kpi.name}</span>
         </div>
