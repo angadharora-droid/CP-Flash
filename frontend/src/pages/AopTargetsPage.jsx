@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import SectionCard from '../components/SectionCard';
 import { ActionButton, BrandLoader } from '../components/DashboardUi';
 import { getAopTargets, saveAopTargets } from '../lib/api';
+import { stripToday } from '../lib/calculations';
 
 const MIcon = ({ name, className = '', filled = false }) => (
   <span className={`material-symbols-outlined ${filled ? 'fill-1' : ''} ${className}`} aria-hidden>{name}</span>
@@ -325,7 +326,7 @@ export default function AopTargetsPage({ authToken }) {
                         >
                           <div className="col-span-2 min-w-0 sm:col-span-1">
                             <div className="flex items-center gap-2">
-                              <span className="truncate text-[13px] font-bold text-on-surface">{row.name}</span>
+                              <span className="truncate text-[13px] font-bold text-on-surface">{stripToday(row.name)}</span>
                               {isCustom ? (
                                 <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-primary">Custom</span>
                               ) : null}

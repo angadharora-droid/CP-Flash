@@ -24,6 +24,10 @@ export const settlementModes = [
   'Discounts/Staff'
 ];
 
+export function stripToday(name) {
+  return String(name ?? '').replace(/\s*\btoday\b\s*$/i, '').trim();
+}
+
 export function numberValue(value) {
   const parsed = Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
   return Number.isFinite(parsed) ? parsed : 0;
