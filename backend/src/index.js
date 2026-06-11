@@ -313,7 +313,7 @@ function isCumulativeKpiName(name) {
   return CUMULATIVE_KPI_PATTERN.test(String(name ?? ''));
 }
 
-const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit'];
+const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit', 'fixedCost'];
 
 function hasEnteredPnlValues(row) {
   return PNL_VALUE_KEYS.some((key) => String(row?.[key] ?? '').trim() !== '');
