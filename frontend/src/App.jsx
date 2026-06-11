@@ -48,7 +48,7 @@ function wait(ms) {
 
 const SEED_FALLBACK_KEYS = ['pnl', 'bankPosition', 'hotels', 'rabbits', 'mickys', 'purosoul', 'purosoulSku', 'fixedCosts'];
 
-const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit'];
+const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit', 'fixedCost'];
 
 function hasEnteredPnlValues(row) {
   return PNL_VALUE_KEYS.some((key) => String(row?.[key] ?? '').trim() !== '');
@@ -448,7 +448,17 @@ export default function App() {
 
   const page = useMemo(() => {
     if (!enrichedData) return null;
-    const common = { data: enrichedData, setData, date, authToken, onSave: () => saveData(date, data, authToken) };
+    const common = {
+      data: enrichedData,
+      setData,
+      date,
+      authToken,
+      onSave: async () => {
+        await saveData(date, data, authToken);
+        // Refresh data from backend to confirm save and update local state
+        handleRefresh();
+      }
+    };
     const activeKey = canonicalPageKey(renderedActive);
     if (activeKey === 'dashboard') {
       return (
