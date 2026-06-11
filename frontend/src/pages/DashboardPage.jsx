@@ -667,8 +667,8 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             <MailStatusCard
               title="Purosoul"
               icon={SECTION_ICONS.kpi}
-              importedAt={null}
-              rows={[]}
+              importedAt={data?.importSource?.purosoulSalesImportedAt}
+              rows={purosoulRevenueRows}
             />
           )}
         </section>

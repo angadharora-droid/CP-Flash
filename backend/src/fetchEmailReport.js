@@ -21,7 +21,7 @@ import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import { readDailyJson, writeDailyJson, closeDailyStore } from './dailyStore.js';
+import { readDaily, readDailyJson, writeDailyJson, closeDailyStore } from './dailyStore.js';
 import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
 import { importOccupancyMix } from './importOccupancyMix.js';
@@ -42,6 +42,16 @@ import { importCpNmManagerFlash, importCpNmHistForecast, importCpNmPayType } fro
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
+
+// When a cloud backend is configured, importers write to fast local JSON files
+// and syncToCloud pushes the result once per date via the REST API. Without
+// this, every handler's read-modify-write hits remote MongoDB directly (many
+// seconds each), which made scheduled imports far slower than the manual
+// "Refresh Sources" button (which already stripped MONGODB_URI when spawning).
+if (process.env.CLOUD_API_URL && process.env.DAILYFLASH_PIN && process.env.MONGODB_URI) {
+  process.env.MONGODB_URI = '';
+  console.log(`[${new Date().toISOString()}] Cloud sync configured — using fast local-JSON mode (skipping direct MongoDB writes).`);
+}
 const SHEET_REFRESH_MINUTES = Number(process.env.SHEET_REFRESH_MINUTES) || 30;
 const SHEET_REFRESH_MS = SHEET_REFRESH_MINUTES * 60 * 1000;
 const TIME_SALES_IMPORT_VERSION = 3;
@@ -65,6 +75,40 @@ function istIso(offsetDays = 0) {
 
 function yesterday() {
   return istIso(-1);
+}
+
+// ── Per-email business-date detection ────────────────────────────────────────
+// Source timing model (confirmed with operations):
+//   AUTOMATED, always on schedule → night audit, occupancy analysis, Petpooja,
+//     CP NM. These keep strict run-date filing; CP NM additionally reads the
+//     exact date embedded in its PDF filename (authoritative, not a heuristic).
+//   MANUAL, may arrive late/backdated → the "HCP REPORT" bundle and the
+//     Micky's/Purosoul Tally reports. Both carry dates INSIDE the files:
+//     forecast/events derive the business date from content (detectedDate,
+//     propagated to the whole bundle), and Tally rows are invoice-dated.
+
+function addDaysIso(iso, days) {
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// Reject garbage parses: not in the future, not absurdly old.
+function clampBusinessDate(candidate, runDate) {
+  if (!candidate || !/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return null;
+  if (candidate > istIso(0)) return null;
+  if (candidate < addDaysIso(runDate, -45)) return null;
+  return candidate;
+}
+
+// CP NM PDFs embed exact dates in the attachment filename
+// (e.g. "Manager_Flash_Report_For_2026-05-31_2097_20260531183719.pdf").
+function attachmentNameDate(parsed, filePattern, datePattern, runDate) {
+  const att = parsed.attachments?.find((a) => filePattern.test(a.filename ?? ''));
+  const m = datePattern.exec(att?.filename ?? '');
+  if (!m) return runDate;
+  const raw = m[1].length === 8 ? `${m[1].slice(0, 4)}-${m[1].slice(4, 6)}-${m[1].slice(6, 8)}` : m[1];
+  return clampBusinessDate(raw, runDate) ?? runDate;
 }
 
 function subjectContains(subject, ...keywords) {
@@ -159,6 +203,7 @@ const HANDLERS = [
   {
     name: 'Night Audit (CP Nagpur)',
     importSourceKey: 'importedAt',
+    // Automated by IDS, always on schedule — file under the run date.
     matches: (s, parsed) => subjectContains(s, 'night audit') && /nagpur|centre point|hcp/i.test(messageText(parsed)),
     run: async (parsed, date) => {
       const att = findSpreadsheet(parsed);
@@ -171,6 +216,7 @@ const HANDLERS = [
   {
     name: 'Occupancy Analysis (CP Nagpur)',
     importSourceKey: 'occupancyImportedAt',
+    // Automated by IDS, always on schedule — file under the run date.
     // actual subject has typo: "Occupency"
     matches: (s, parsed) => (subjectContains(s, 'occupancy analysis') || subjectContains(s, 'occupency analysis')) && /nagpur|centre point|hcp/i.test(messageText(parsed)),
     run: async (parsed, date) => {
@@ -355,6 +401,8 @@ const HANDLERS = [
     name: 'CP NM Manager Flash Report',
     importSourceKey: 'cpNmImportedAt',
     bundled: true,
+    // Exact business date is in the filename: Manager_Flash_Report_For_YYYY-MM-DD_…
+    businessDate: (parsed, runDate) => attachmentNameDate(parsed, /Manager_Flash_Report/i, /For_(\d{4}-\d{2}-\d{2})/i, runDate),
     matches: (s, parsed) => {
       const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
         || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
@@ -373,6 +421,8 @@ const HANDLERS = [
     name: 'CP NM History & Forecast Report',
     importSourceKey: 'cpNmForecastImportedAt',
     bundled: true,
+    // Generation timestamp trails the filename: …_2098_YYYYMMDDhhmmss.pdf
+    businessDate: (parsed, runDate) => attachmentNameDate(parsed, /History_and_Forecast_Report/i, /_(\d{8})\d{6}\.pdf$/i, runDate),
     matches: (s, parsed) => {
       const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
         || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
@@ -391,6 +441,8 @@ const HANDLERS = [
     name: 'CP NM Pay Type Report',
     importSourceKey: 'cpNmPayTypeImportedAt',
     bundled: true,
+    // Exact business date is in the filename: Pay_Type_Report_Between_YYYY-MM-DD_and_…
+    businessDate: (parsed, runDate) => attachmentNameDate(parsed, /Pay_Type_Report/i, /Between_(\d{4}-\d{2}-\d{2})/i, runDate),
     matches: (s, parsed) => {
       const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
         || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
@@ -452,7 +504,7 @@ async function processMessage(parsed, date, existingData, touchedDates) {
   handlers.sort((a, b) => (b.validatesDate ? 1 : 0) - (a.validatesDate ? 1 : 0));
   let effectiveDate = date;
   for (const handler of handlers) {
-    const result = await runHandler(handler, parsed, effectiveDate, existingData, touchedDates);
+    const result = await runHandler(handler, parsed, effectiveDate, existingData, touchedDates, date);
     // If a handler detected a different business date (backdated report), use it for the
     // remaining bundled handlers so occ-mix / pos-sales file under the same correct date.
     if (result?.detectedDate && result.detectedDate !== effectiveDate) {
@@ -462,10 +514,26 @@ async function processMessage(parsed, date, existingData, touchedDates) {
   }
 }
 
-async function runHandler(handler, parsed, date, existingData, touchedDates) {
+async function runHandler(handler, parsed, date, existingData, touchedDates, runDate = date) {
   log(`  → Handler: ${handler.name}`);
 
-  if (handler.importSourceKey && existingData?.importSource?.[handler.importSourceKey]) {
+  // `date` is the bundle's effective business date (possibly detected by an
+  // earlier content-dated handler in the same email); `runDate` is the run's
+  // default. Handlers with a businessDate rule (CP NM filename dates) override.
+  const targetDate = handler.businessDate
+    ? (handler.businessDate(parsed, date) ?? date)
+    : date;
+  if (targetDate !== runDate) {
+    log(`  Business date: ${targetDate} (run date ${runDate}).`);
+  }
+
+  // Content-dated handlers (validatesDate: forecast/events) must NOT be
+  // pre-skipped off the run-date record: they derive the true business date
+  // while running and are idempotent. Pre-skipping them dropped the older of
+  // two manually-sent bundles arriving in the same run (e.g. Sunday's and
+  // Monday's HCP REPORT both sent on Monday).
+  if (handler.importSourceKey && !handler.validatesDate && targetDate === runDate
+    && existingData?.importSource?.[handler.importSourceKey]) {
     const att = findSpreadsheet(parsed);
     const existingFileKey = handler.importSourceKey.replace(/ImportedAt$/, 'File');
     const existingVersionKey = handler.importSourceKey.replace(/ImportedAt$/, 'Version');
@@ -484,16 +552,36 @@ async function runHandler(handler, parsed, date, existingData, touchedDates) {
     log(`  Re-importing because saved file "${existingFile}" does not match ${handler.name}.`);
   }
 
+  // Backdated email (e.g. occ-mix/pos-sales following a backdated bundle date):
+  // dedupe against the target date's own saved record, not the run-date record
+  // (FORCE_IMPORT reprocesses regardless — imports are idempotent).
+  if (handler.importSourceKey && !handler.validatesDate && targetDate !== runDate && process.env.FORCE_IMPORT !== 'true') {
+    const targetData = await readDaily(targetDate);
+    if (targetData?.importSource?.[handler.importSourceKey]) {
+      log(`  Already imported for ${targetDate} — skipping.`);
+      return;
+    }
+  }
+
   try {
-    const result = await handler.run(parsed, date);
+    const result = await handler.run(parsed, targetDate);
     if (result?.pending) {
       log(`  Pending: ${result.reason ?? 'not imported'} — leaving source unset.`);
     } else {
       log(`  Done: ${JSON.stringify(result?.mapped ?? result)}`);
-      // Handlers may file under a date other than the run date (forward-looking
-      // reports use their own content date) — track it so the run syncs it too.
-      if (result?.date) touchedDates?.add(result.date);
-      if (handler.importSourceKey) {
+      // Handlers may file under a date other than the run date (content-dated
+      // reports use their own date) — track every written date for cloud sync.
+      const filedDate = result?.date ?? targetDate;
+      touchedDates?.add(targetDate);
+      touchedDates?.add(filedDate);
+      // Multi-day reports (monthly Tally invoices) return every date they wrote;
+      // sync those as well, not just the focus date.
+      for (const entry of result?.dates ?? []) {
+        if (entry?.date) touchedDates?.add(entry.date);
+      }
+      // Only a run-date import marks the in-run "already imported" tracker —
+      // a backdated import must not block the current day's email (or vice versa).
+      if (handler.importSourceKey && filedDate === runDate) {
         existingData.importSource = {
           ...(existingData.importSource ?? {}),
           [handler.importSourceKey]: new Date().toISOString()
@@ -606,7 +694,8 @@ async function run() {
       log('Fetching Dali cost sheet from Google Sheets…');
       try {
         const daliResult = await importDaliCostHistory();
-        log(`Dali cost imported: ${daliResult.rowCount} rows → ${daliResult.written.join(', ')}`);
+        daliResult.written.forEach((d) => touchedDates.add(d));
+        log(`Dali cost imported: ${daliResult.rowCount} rows, ${daliResult.written.length} changed → ${daliResult.written.join(', ') || 'none'}`);
       } catch (err) {
         log(`Dali cost ERROR: ${err.message}`);
       }
@@ -619,7 +708,8 @@ async function run() {
       log('Fetching Pablo cost sheet from Google Sheets…');
       try {
         const pabloResult = await importPabloCostHistory();
-        log(`Pablo cost imported: ${pabloResult.rowCount} rows → ${pabloResult.written.join(', ')}`);
+        pabloResult.written.forEach((d) => touchedDates.add(d));
+        log(`Pablo cost imported: ${pabloResult.rowCount} rows, ${pabloResult.written.length} changed → ${pabloResult.written.join(', ') || 'none'}`);
       } catch (err) {
         log(`Pablo cost ERROR: ${err.message}`);
       }
@@ -645,16 +735,28 @@ async function run() {
       log('Fetching Purosoul SKU flash report from Google Sheets…');
       try {
         const purosoulSkuResult = await importPurosoulFlashReport();
-        log(`Purosoul SKU imported: ${purosoulSkuResult.rowCount} rows → ${purosoulSkuResult.written.join(', ')}`);
+        purosoulSkuResult.written.forEach((d) => touchedDates.add(d));
+        log(`Purosoul SKU imported: ${purosoulSkuResult.rowCount} rows, ${purosoulSkuResult.written.length} changed → ${purosoulSkuResult.written.join(', ') || 'none'}`);
       } catch (err) {
         log(`Purosoul SKU ERROR: ${err.message}`);
       }
     })()
   ]);
 
-  // Push processed data to cloud backend — one sync per date any handler wrote to.
-  // (forward-looking reports may land on a different day than the run date.)
-  await Promise.all([...touchedDates].sort().map((d) => syncToCloud(d)));
+  // Push processed data to cloud backend — one sync per date any importer wrote to
+  // (forward-looking reports and multi-day sheets may touch dates other than the
+  // run date). Login once, then sync in small batches so a backfill of many dates
+  // doesn't open dozens of simultaneous requests against the cloud API.
+  if (!process.env.CLOUD_API_URL || !process.env.DAILYFLASH_PIN) {
+    log('Cloud sync skipped — CLOUD_API_URL or DAILYFLASH_PIN not set.');
+    return;
+  }
+  const syncDates = [...touchedDates].sort();
+  const cloudToken = await getCloudToken();
+  const SYNC_BATCH = 5;
+  for (let i = 0; i < syncDates.length; i += SYNC_BATCH) {
+    await Promise.all(syncDates.slice(i, i + SYNC_BATCH).map((d) => syncToCloud(d, cloudToken)));
+  }
 }
 
 async function clearManualSalesSourcesNotImported(date, runData) {
@@ -697,11 +799,36 @@ async function clearManualSalesSourcesNotImported(date, runData) {
   }
 }
 
-async function syncToCloud(date) {
+// One login for the whole run — the previous per-date login multiplied round
+// trips and burned the login rate limit when many dates needed syncing.
+async function getCloudToken() {
+  const cloudUrl = process.env.CLOUD_API_URL;
+  const pin = process.env.DAILYFLASH_PIN;
+  if (!cloudUrl || !pin) return null;
+  try {
+    const loginRes = await fetch(`${cloudUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+    if (!loginRes.ok) throw new Error(`Login failed: ${loginRes.status}`);
+    const { token } = await loginRes.json();
+    return token;
+  } catch (err) {
+    log(`Cloud login ERROR: ${err.message}`);
+    return null;
+  }
+}
+
+async function syncToCloud(date, token) {
   const cloudUrl = process.env.CLOUD_API_URL;
   const pin = process.env.DAILYFLASH_PIN;
   if (!cloudUrl || !pin) {
     log('Cloud sync skipped — CLOUD_API_URL or DAILYFLASH_PIN not set.');
+    return;
+  }
+  if (!token) {
+    log(`Cloud sync skipped for ${date} — no auth token (login failed).`);
     return;
   }
 
@@ -713,14 +840,6 @@ async function syncToCloud(date) {
 
   log(`Syncing ${date} to ${cloudUrl} …`);
   try {
-    const loginRes = await fetch(`${cloudUrl}/api/login`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ pin })
-    });
-    if (!loginRes.ok) throw new Error(`Login failed: ${loginRes.status}`);
-    const { token } = await loginRes.json();
-
     const existingRes = await fetch(`${cloudUrl}/api/seed?date=${date}`, {
       headers: { authorization: `Bearer ${token}` }
     });

@@ -151,12 +151,11 @@ function getInvoiceRows(wb, preferredSheetNames, reportName, targetDate) {
   }
 
   if (targetDate && best) {
-    if (!Object.keys(best.parsed.byDate).length) {
-      // Sheet exists but has no data at all
-      return { ...best, noSaleDate: targetDate };
-    }
-    // Sheet has data but not for targetDate — process what we have
-    return best;
+    // No sheet had a row for targetDate (empty sheet, or data only for other
+    // days). Either way the mail WAS received — write the historical rows that
+    // are present and record targetDate as a no-sale day, so the dashboard
+    // shows "Mail received — no sales" instead of "Report not uploaded".
+    return { ...best, noSaleDate: targetDate };
   }
   if (best) return best;
   throw new Error(`No invoice sheet found in ${reportName}. Tried: ${errors.join('; ')}`);
@@ -188,12 +187,30 @@ async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiR
     const mtdForDate = mtdByDate[date];
     const data = await readData(date);
 
+    // A monthly Tally report re-sends every prior day on each import — compare
+    // before/after so already-current dates skip the write (and cloud sync).
+    const before = JSON.stringify([
+      data[kpiBucket],
+      data.pnl,
+      data.importSource?.[`${sourceKeyPrefix}SalesFile`],
+      data.importSource?.[`${sourceKeyPrefix}SalesNotes`] ?? null
+    ]);
+
     setKpi(data[kpiBucket], kpiRevenueName, round(revenue), round(mtdForDate));
     setKpi(data[kpiBucket], 'Revenue MTD',  round(mtdForDate), '');
 
     data.pnl = (data.pnl ?? []).map((r) =>
       r.unit === pnlUnit ? { ...r, revenueToday: round(revenue) } : r
     );
+
+    const after = JSON.stringify([
+      data[kpiBucket],
+      data.pnl,
+      fileName,
+      notesByDate[date] ?? data.importSource?.[`${sourceKeyPrefix}SalesNotes`] ?? null
+    ]);
+    const changed = after !== before || !data.importSource?.[`${sourceKeyPrefix}SalesImportedAt`];
+
     data.importSource = {
       ...(data.importSource ?? {}),
       [`${sourceKeyPrefix}SalesFile`]: fileName,
@@ -201,16 +218,25 @@ async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiR
       [`${sourceKeyPrefix}SalesDate`]: date,
       [`${sourceKeyPrefix}SalesImportedAt`]: importedAt,
     };
-    if (notesByDate[date]) data.importSource[`${sourceKeyPrefix}SalesNotes`] = notesByDate[date];
+    const notesKey = `${sourceKeyPrefix}SalesNotes`;
+    if (notesByDate[date]) {
+      data.importSource[notesKey] = notesByDate[date];
+    } else if (revenue > 0 && /no sale done/i.test(String(data.importSource[notesKey] ?? ''))) {
+      // A later report brought real sales for a day previously marked "no sale" —
+      // drop the stale auto-note so the dashboard doesn't keep showing it.
+      delete data.importSource[notesKey];
+    }
 
-    return { date, data, revenueToday: revenue, mtd: mtdForDate };
+    return { date, data, changed, revenueToday: revenue, mtd: mtdForDate };
   }));
 
-  // Write all dates in parallel
-  await Promise.all(updates.map(({ date, data }) => writeDaily(date, data)));
+  // Write only changed dates, in parallel
+  const changedUpdates = updates.filter(({ changed }) => changed);
+  await Promise.all(changedUpdates.map(({ date, data }) => writeDaily(date, data)));
 
-  // Build result
-  written.push(...updates.map(({ date, revenueToday, mtd }) => ({ date, revenueToday, mtd })));
+  // Build result — `written` lists only the dates that were actually saved,
+  // so the caller can cloud-sync just those.
+  written.push(...changedUpdates.map(({ date, revenueToday, mtd }) => ({ date, revenueToday, mtd })));
 
   return written;
 }

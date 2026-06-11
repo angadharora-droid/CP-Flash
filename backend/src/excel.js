@@ -23,8 +23,11 @@ export function readWorkbookSummary() {
 let _seedCache = null;
 export function invalidateSeedCache() { _seedCache = null; }
 
+// Always hand out a deep copy: importers mutate the returned object in place
+// (setKpi etc.), and sharing the cached template across dates would let one
+// date's import bleed into every other date that fell back to the seed.
 export function buildSeedData() {
-  if (_seedCache) return _seedCache;
+  if (_seedCache) return structuredClone(_seedCache);
   const hotels = ['CP Nagpur', 'CP NM'].flatMap((unit) => schemaRowsToKpis(unit, 'hotels', pageSchemas.hotels));
   const fnb = {
     Pablo: schemaRowsToKpis('Pablo', 'fnb', pageSchemas.fnb.Pablo),
@@ -48,5 +51,5 @@ export function buildSeedData() {
     topItems: { Pablo: ['', '', ''], Dali: ['', '', ''] },
     purosoulSku: ['250ml', '500ml', '1L'].map((sku) => ({ sku, produced: '', dispatched: '', clStock: '', mtd: '', ytd: '' }))
   };
-  return _seedCache;
+  return structuredClone(_seedCache);
 }

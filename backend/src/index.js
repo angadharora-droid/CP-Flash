@@ -121,6 +121,12 @@ const LOGIN_IP_MAX = 10;
 function loginIpRateLimit(req, res, next) {
   const ip = req.ip || req.socket?.remoteAddress || 'unknown';
   const now = Date.now();
+  // Drop expired windows so the map can't grow without bound.
+  if (loginAttemptsByIp.size > 1000) {
+    for (const [key, value] of loginAttemptsByIp) {
+      if (now > value.resetAt) loginAttemptsByIp.delete(key);
+    }
+  }
   const entry = loginAttemptsByIp.get(ip) ?? { count: 0, resetAt: now + LOGIN_IP_WINDOW_MS };
   if (now > entry.resetAt) {
     entry.count = 0;
@@ -592,6 +598,22 @@ function getKpiAggregationMode(name) {
   return 'sum';
 }
 
+// mergeDailyData is deterministic for a given raw record (the seed template is
+// static content), so memoize per raw object. The WeakMap keys on the exact
+// object held in dailyDataCache — when a date is re-written or invalidated a new
+// raw object replaces it and the memo naturally misses. This avoids re-running
+// the full seed merge for every date on every week/MTD/YTD aggregation pass.
+const mergedDailyDataCache = new WeakMap();
+function mergeDailyDataCached(seedTemplate, raw) {
+  if (!raw || typeof raw !== 'object') return mergeDailyData(seedTemplate, raw);
+  let merged = mergedDailyDataCache.get(raw);
+  if (!merged) {
+    merged = mergeDailyData(seedTemplate, raw);
+    mergedDailyDataCache.set(raw, merged);
+  }
+  return merged;
+}
+
 async function getRawByDate(dates, rawByDate = null) {
   if (!rawByDate) return readDailyDataMany(dates);
   const rawMap = rawByDate instanceof Map ? rawByDate : new Map(rawByDate);
@@ -620,7 +642,7 @@ async function aggregatePeriodForDates(dates, rawByDate = null) {
   const periodRawByDate = await getRawByDate(sortedDates, rawByDate);
   for (const [date, raw] of periodRawByDate) {
     if (!raw) continue;
-    const merged = mergeDailyData(seedTemplate, raw);
+    const merged = mergeDailyDataCached(seedTemplate, raw);
 
     for (const row of derivePnlRows(merged)) {
       const entry = pnlByUnit[row.unit];
@@ -829,7 +851,7 @@ async function aggregateSettlementForDates(dates, rawByDate = null) {
 
   for (const [, raw] of periodRawByDate) {
     if (!raw) continue;
-    const merged = mergeDailyData(seedTemplate, raw);
+    const merged = mergeDailyDataCached(seedTemplate, raw);
     for (const mode of settlementModes) {
       const sourceRow = merged.settlement?.[mode] ?? {};
       for (const unit of UNITS) {

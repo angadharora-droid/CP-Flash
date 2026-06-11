@@ -10,8 +10,13 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Split the stable React runtime into its own long-cached chunk.
-        manualChunks: {
-          react: ['react', 'react-dom'],
+        manualChunks(id) {
+          // Stable vendor chunks: cached long-term across app deploys.
+          if (/node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'react';
+          // Recharts (+ its d3 deps) is only needed by chart pages — keep it in
+          // one shared chunk instead of duplicating it across lazy page chunks.
+          if (/node_modules[\\/](recharts|d3-|victory-vendor|decimal\.js-light)/.test(id)) return 'recharts';
+          return undefined;
         },
       },
     },

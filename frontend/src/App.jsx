@@ -4,23 +4,26 @@ import { numberValue, withFlags } from './lib/calculations';
 import AppHeader from './components/AppHeader';
 import { BrandLoader, googleSheetPreviewUrl } from './components/DashboardUi';
 import { NAV_GROUPS, NAV_ITEM_BY_KEY, pages } from './lib/navigation';
-import DashboardPage from './pages/DashboardPage';
-import PerformanceChartsPage from './pages/PerformanceChartsPage';
-import BankPage from './pages/BankPage';
-import PnlPage from './pages/PnlPage';
-import FlagsPage from './pages/FlagsPage';
 import SourceReportPreviewScreen from './pages/SourceReportPreviewScreen';
-import SourceControlPage from './pages/SourceControlPage';
-import HotelsPage from './pages/HotelsPage';
-import FnbPage from './pages/FnbPage';
-import RabbitPage from './pages/RabbitPage';
-import MickysPage from './pages/MickysPage';
-import PurosoulPage from './pages/PurosoulPage';
-import SettlementPage from './pages/SettlementPage';
-import AiPage from './pages/AiPage';
-import PdfPreviewPage from './pages/PdfPreviewPage';
-import AopTargetsPage from './pages/AopTargetsPage';
 import PinPage from './pages/PinPage';
+
+// Lazy-load every page behind the PIN gate so the initial bundle stays small —
+// the login screen no longer waits on Recharts and 15 page modules to parse.
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
+const PerformanceChartsPage = React.lazy(() => import('./pages/PerformanceChartsPage'));
+const BankPage = React.lazy(() => import('./pages/BankPage'));
+const PnlPage = React.lazy(() => import('./pages/PnlPage'));
+const FlagsPage = React.lazy(() => import('./pages/FlagsPage'));
+const SourceControlPage = React.lazy(() => import('./pages/SourceControlPage'));
+const HotelsPage = React.lazy(() => import('./pages/HotelsPage'));
+const FnbPage = React.lazy(() => import('./pages/FnbPage'));
+const RabbitPage = React.lazy(() => import('./pages/RabbitPage'));
+const MickysPage = React.lazy(() => import('./pages/MickysPage'));
+const PurosoulPage = React.lazy(() => import('./pages/PurosoulPage'));
+const SettlementPage = React.lazy(() => import('./pages/SettlementPage'));
+const AiPage = React.lazy(() => import('./pages/AiPage'));
+const PdfPreviewPage = React.lazy(() => import('./pages/PdfPreviewPage'));
+const AopTargetsPage = React.lazy(() => import('./pages/AopTargetsPage'));
 import cpLogo from './cp-logo.png';
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
@@ -518,7 +521,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [authToken, handleRefresh]);
 
-  const riskCount = data ? withFlags(data).filter((row) => row.flag === 'ACTION').length : 0;
+  const riskCount = useMemo(
+    () => (data ? withFlags(data).filter((row) => row.flag === 'ACTION').length : 0),
+    [data]
+  );
   const activePage = pages.find(([key]) => key === canonicalPageKey(active)) ?? pages[0];
   const activeNavItem = NAV_ITEM_BY_KEY[canonicalPageKey(active)];
 
@@ -541,14 +547,20 @@ export default function App() {
 
   if (canonicalPageKey(renderedActive) === 'pdf') {
     return (
-      <PdfPreviewPage
-        date={date}
-        authToken={authToken}
-        data={data}
-        period={period}
-        onSave={() => saveData(date, data, authToken)}
-        onClose={() => setActive(pdfReturnTo)}
-      />
+      <React.Suspense fallback={
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-surface">
+          <BrandLoader size={72} label="Loading PDF preview..." />
+        </div>
+      }>
+        <PdfPreviewPage
+          date={date}
+          authToken={authToken}
+          data={data}
+          period={period}
+          onSave={() => saveData(date, data, authToken)}
+          onClose={() => setActive(pdfReturnTo)}
+        />
+      </React.Suspense>
     );
   }
 
@@ -770,11 +782,17 @@ export default function App() {
             </div>
           ) : null}
           <div key={renderedActive} className="space-y-5 animate-fade-in-up">
-            {page ?? (
+            <React.Suspense fallback={
               <div className="flex min-h-[38vh] flex-col items-center justify-center gap-4 py-16 text-center sm:py-20">
                 <BrandLoader size={72} label="Loading dashboard data..." />
               </div>
-            )}
+            }>
+              {page ?? (
+                <div className="flex min-h-[38vh] flex-col items-center justify-center gap-4 py-16 text-center sm:py-20">
+                  <BrandLoader size={72} label="Loading dashboard data..." />
+                </div>
+              )}
+            </React.Suspense>
           </div>
         </div>
       </main>

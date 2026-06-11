@@ -59,7 +59,12 @@ export default function SectionCard({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {actions}
+          {/* Keep clicks on header actions (toggles, save buttons) from collapsing the card. */}
+          {actions ? (
+            <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+              {actions}
+            </span>
+          ) : null}
           <span
             className={`material-symbols-outlined text-[18px] text-on-surface-variant transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
             aria-hidden

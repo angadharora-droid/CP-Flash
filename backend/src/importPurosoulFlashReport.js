@@ -55,6 +55,15 @@ async function readData(date) {
   return (await readDaily(date)) ?? buildSeedData();
 }
 
+// Historical sheet rows never change once the day is closed — only dates in
+// this window are read/written; MTD/YTD cumulative math still walks the full
+// sheet so values stay exact. FULL_IMPORT_HISTORY=true rebuilds everything.
+const HISTORY_WINDOW_DAYS = 45;
+function historyCutoffDate() {
+  if (process.env.FULL_IMPORT_HISTORY === 'true') return '0000-00-00';
+  return new Date(Date.now() - HISTORY_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10);
+}
+
 export async function importPurosoulFlashReport() {
   const allRawRows = await fetchAllRows();
 
@@ -73,6 +82,7 @@ export async function importPurosoulFlashReport() {
   let lastMonth = null;
   let lastYear = null;
   const written = [];
+  const cutoff = historyCutoffDate();
 
   for (const { date, row } of daily) {
     const month = date.slice(0, 7);
@@ -99,13 +109,15 @@ export async function importPurosoulFlashReport() {
       skuData[block.sku] = { production, dispatched, clStock, mtd: mtd[block.sku], ytd: ytd[block.sku] };
     }
 
+    if (date < cutoff) continue;
+
     const EXPECTED_SKUS = ['250ml', '500ml', '1L'];
     await withDateLock(date, async () => {
       const data = await readData(date);
       const existingBySku = {};
       (data.purosoulSku ?? []).forEach((r) => { existingBySku[r.sku] = r; });
 
-      data.purosoulSku = EXPECTED_SKUS.map((sku) => {
+      const nextSku = EXPECTED_SKUS.map((sku) => {
         const base = existingBySku[sku] ?? { sku, produced: '', dispatched: '', clStock: '', mtd: '', ytd: '' };
         const d = skuData[sku];
         if (!d) return base;
@@ -119,6 +131,11 @@ export async function importPurosoulFlashReport() {
         };
       });
 
+      // Values identical to what's already stored — skip the write entirely.
+      if (JSON.stringify(nextSku) === JSON.stringify(data.purosoulSku ?? [])
+        && data.importSource?.purosoulFlashImportedAt) return;
+
+      data.purosoulSku = nextSku;
       data.importSource = {
         ...(data.importSource ?? {}),
         purosoulFlashFile: 'Purosoul Flash Report (all tabs)',
@@ -126,8 +143,8 @@ export async function importPurosoulFlashReport() {
       };
 
       await writeDaily(date, data);
+      written.push(date);
     });
-    written.push(date);
   }
 
   return { ok: true, written, rowCount: daily.length };

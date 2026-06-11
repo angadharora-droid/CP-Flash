@@ -77,15 +77,31 @@ function extractDailyRows(rows) {
     }));
 }
 
+// Returns true when the row's stored values actually changed, so callers can
+// skip the expensive write for dates that are already up to date.
 function setKpi(data, name, actual, mtd, { preserveActual = false } = {}) {
   const row = data.fnb?.Dali?.find((r) => r.name === name);
-  if (!row) return;
-  if (!preserveActual || String(row.actual ?? '').trim() === '') row.actual = String(actual);
-  row.mtd = String(mtd);
+  if (!row) return false;
+  let changed = false;
+  if (!preserveActual || String(row.actual ?? '').trim() === '') {
+    if (String(row.actual ?? '') !== String(actual)) { row.actual = String(actual); changed = true; }
+  }
+  if (String(row.mtd ?? '') !== String(mtd)) { row.mtd = String(mtd); changed = true; }
+  return changed;
 }
 
 async function readData(date) {
   return (await readDaily(date)) ?? buildSeedData();
+}
+
+// Historical sheet rows never change once the day is closed — re-writing the
+// whole history every 30-minute run is what made sheet imports slow. Only
+// dates inside this window are read/written; cumulative MTD math still walks
+// the full sheet so the values stay exact. FULL_IMPORT_HISTORY=true rebuilds everything.
+const HISTORY_WINDOW_DAYS = 45;
+function historyCutoffDate() {
+  if (process.env.FULL_IMPORT_HISTORY === 'true') return '0000-00-00';
+  return new Date(Date.now() - HISTORY_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10);
 }
 
 export async function importDaliCostHistory() {
@@ -99,6 +115,7 @@ export async function importDaliCostHistory() {
   let cumFS = 0, cumFP = 0, cumLS = 0, cumLP = 0;
   let lastMonth = null;
   const written = [];
+  const cutoff = historyCutoffDate();
 
   for (const row of daily) {
     const month = row.date.slice(0, 7);
@@ -113,6 +130,8 @@ export async function importDaliCostHistory() {
     cumLS += row.liquorSales;
     cumLP += row.liquorPurchase;
 
+    if (row.date < cutoff) continue;
+
     const totalPurchase = row.foodPurchase + row.liquorPurchase;
     const totalSales = row.foodSales + row.liquorSales;
     const cumTotalSales = cumFS + cumLS;
@@ -121,17 +140,23 @@ export async function importDaliCostHistory() {
     const snapshot = { totalSales, totalPurchase, cumTotalSales, cumTotalPurchase, row };
     await withDateLock(row.date, async () => {
       const data = await readData(row.date);
-      setKpi(data, 'Gross Sales',           round(snapshot.totalSales),              round(snapshot.cumTotalSales), { preserveActual: true });
-      setKpi(data, 'Food Cost %',           costPct(snapshot.row.foodPurchase, snapshot.row.foodSales), costPct(cumFP, cumFS));
-      setKpi(data, 'Liquor Cost %',         costPct(snapshot.row.liquorPurchase, snapshot.row.liquorSales), costPct(cumLP, cumLS));
-      setKpi(data, 'Food Purchase Today',   round(snapshot.row.foodPurchase),        round(cumFP));
-      setKpi(data, 'Liquor Purchase Today', round(snapshot.row.liquorPurchase),      round(cumLP));
-      setKpi(data, 'Total Purchase',        round(snapshot.totalPurchase),           round(snapshot.cumTotalPurchase));
-      data.pnl = (data.pnl ?? []).map((r) =>
+      const kpiChanges = [
+        setKpi(data, 'Gross Sales',           round(snapshot.totalSales),              round(snapshot.cumTotalSales), { preserveActual: true }),
+        setKpi(data, 'Food Cost %',           costPct(snapshot.row.foodPurchase, snapshot.row.foodSales), costPct(cumFP, cumFS)),
+        setKpi(data, 'Liquor Cost %',         costPct(snapshot.row.liquorPurchase, snapshot.row.liquorSales), costPct(cumLP, cumLS)),
+        setKpi(data, 'Food Purchase Today',   round(snapshot.row.foodPurchase),        round(cumFP)),
+        setKpi(data, 'Liquor Purchase Today', round(snapshot.row.liquorPurchase),      round(cumLP)),
+        setKpi(data, 'Total Purchase',        round(snapshot.totalPurchase),           round(snapshot.cumTotalPurchase))
+      ];
+      const nextPnl = (data.pnl ?? []).map((r) =>
         r.unit === 'Dali'
           ? { ...r, revenueToday: String(r.revenueToday ?? '').trim() ? r.revenueToday : round(snapshot.totalSales), purchasesToday: round(snapshot.totalPurchase) }
           : r
       );
+      const pnlChanged = JSON.stringify(nextPnl) !== JSON.stringify(data.pnl ?? []);
+      if (pnlChanged) data.pnl = nextPnl;
+      // Values identical to what's already stored — skip the write entirely.
+      if (!kpiChanges.some(Boolean) && !pnlChanged && data.importSource?.daliCostImportedAt) return;
       data.importSource = {
         ...(data.importSource ?? {}),
         daliCostFile: `Dali Cost Sheet (all tabs)`,
@@ -139,8 +164,8 @@ export async function importDaliCostHistory() {
         daliCostNotes: `Fetched from Google Sheet. MTD cumulative through ${snapshot.row.date}.`,
       };
       await writeDaily(row.date, data);
+      written.push(row.date);
     });
-    written.push(row.date);
   }
 
   return { ok: true, written, rowCount: daily.length };

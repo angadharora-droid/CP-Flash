@@ -85,6 +85,11 @@ function referencedReportFiles(data = {}) {
   });
 }
 
+// Per-process memo: a multi-day report (e.g. a monthly Tally workbook) is
+// referenced by many dates in one import run — parse the file once, not once
+// per date. The import process is short-lived, so this never goes stale.
+const _previewCache = new Map();
+
 export async function attachReportPreviews(data = {}, attachmentsDir, log = () => {}) {
   const files = [...new Set(referencedReportFiles(data).map((file) => path.basename(String(file))))];
   if (!files.length) return data;
@@ -94,8 +99,13 @@ export async function attachReportPreviews(data = {}, attachmentsDir, log = () =
 
   for (const file of files) {
     if (reportPreviews[file]?.previewVersion === PREVIEW_VERSION) continue;
+    if (_previewCache.has(file)) {
+      reportPreviews[file] = _previewCache.get(file);
+      continue;
+    }
     try {
       reportPreviews[file] = await readAttachmentPreview(file, attachmentsDir);
+      _previewCache.set(file, reportPreviews[file]);
     } catch (err) {
       log(`Report preview skipped for ${file}: ${err.message}`);
     }
