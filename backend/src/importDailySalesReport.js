@@ -180,8 +180,10 @@ async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiR
   const mtdByDate = buildMtdByDate(byDate);
   const importedAt = new Date().toISOString();
   const written = [];
+  const dates = Object.keys(byDate).sort();
 
-  for (const date of Object.keys(byDate).sort()) {
+  // Prepare all data in memory first
+  const updates = await Promise.all(dates.map(async (date) => {
     const revenue = byDate[date];
     const mtdForDate = mtdByDate[date];
     const data = await readData(date);
@@ -201,9 +203,14 @@ async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiR
     };
     if (notesByDate[date]) data.importSource[`${sourceKeyPrefix}SalesNotes`] = notesByDate[date];
 
-    await writeDaily(date, data);
-    written.push({ date, revenueToday: revenue, mtd: mtdForDate });
-  }
+    return { date, data, revenueToday: revenue, mtd: mtdForDate };
+  }));
+
+  // Write all dates in parallel
+  await Promise.all(updates.map(({ date, data }) => writeDaily(date, data)));
+
+  // Build result
+  written.push(...updates.map(({ date, revenueToday, mtd }) => ({ date, revenueToday, mtd })));
 
   return written;
 }
