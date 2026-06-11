@@ -886,7 +886,8 @@ function mergePnlRows(existingRows = [], incomingRows = []) {
       ...previous,
       ...row,
       revenueToday: filled(row.revenueToday) ? row.revenueToday : previous.revenueToday,
-      purchasesToday: filled(row.purchasesToday) ? row.purchasesToday : previous.purchasesToday
+      purchasesToday: filled(row.purchasesToday) ? row.purchasesToday : previous.purchasesToday,
+      fixedCost: filled(previous.fixedCost) ? previous.fixedCost : row.fixedCost
     });
   }
   return [...byUnit.values()];
