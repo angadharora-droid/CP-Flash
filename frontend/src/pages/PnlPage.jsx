@@ -31,7 +31,7 @@ export default function PnlPage({ data, setData, onSave, period }) {
     setData((prev) => ({
       ...prev,
       pnl: (prev.pnl ?? []).map((row) => (
-        row.unit === unit ? { ...row, fixedCost: value } : row
+        row.unit === unit ? { ...row, fixedCost: value ? String(parseFloat(value)) : '' } : row
       ))
     }));
   }, [setData]);

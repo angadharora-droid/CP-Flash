@@ -801,13 +801,14 @@ export function createDailyFlashPdf(data, date, options = {}) {
 
   // ── Helper: render P&L table ─────────────────────────────────────────────────
   function renderPnlTable() {
+    const fixedCostTotal = pnl.reduce((sum, row) => sum + numberValue(row.fixedCost), 0);
     const pnlTableRows = [
-      ...pnl.map((row) => [row.unit, money(row.revenueToday), money(row.purchasesToday), money(row.grossProfit), { text: percent(row.gpPercent), color: row.gpPercent >= 0 ? colors.green : colors.red, bold: true }, { text: money(row.netProfit), color: row.netProfit >= 0 ? colors.green : colors.red, bold: true }]),
-      [{ text: 'GROUP TOTAL', bold: true }, { text: money(pnlTotals.revenue), bold: true }, { text: money(pnlTotals.purchases), bold: true }, { text: money(pnlTotals.gp), bold: true }, '', { text: money(pnlTotals.net), bold: true, color: pnlTotals.net >= 0 ? colors.green : colors.red }]
+      ...pnl.map((row) => [row.unit, money(row.revenueToday), money(row.purchasesToday), money(row.grossProfit), { text: percent(row.gpPercent), color: row.gpPercent >= 0 ? colors.green : colors.red, bold: true }, money(row.fixedCost), { text: money(row.netProfit), color: row.netProfit >= 0 ? colors.green : colors.red, bold: true }]),
+      [{ text: 'GROUP TOTAL', bold: true }, { text: money(pnlTotals.revenue), bold: true }, { text: money(pnlTotals.purchases), bold: true }, { text: money(pnlTotals.gp), bold: true }, '', { text: money(fixedCostTotal), bold: true }, { text: money(pnlTotals.net), bold: true, color: pnlTotals.net >= 0 ? colors.green : colors.red }]
     ];
-    const pnlTableOptions = { widths: [112, 88, 88, 88, 62, 85] };
+    const pnlTableOptions = { widths: [100, 80, 80, 85, 55, 75, 75] };
     sectionTitle('Estimated P&L Summary', tablePreviewHeight(pnlTableRows, pnlTableOptions));
-    table(['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Est. Net Profit'], pnlTableRows, pnlTableOptions);
+    table(['Unit', 'Revenue', 'Purchases', 'Gross Profit', 'GP%', 'Fixed Cost', 'Est. Net Profit'], pnlTableRows, pnlTableOptions);
   }
 
   // ── Helper: render flags table ───────────────────────────────────────────────
