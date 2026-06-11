@@ -151,9 +151,6 @@ function getInvoiceRows(wb, preferredSheetNames, reportName, targetDate) {
   }
 
   if (targetDate && best) {
-    if (Object.keys(best.parsed.byDate).length) {
-      throw new Error(`No ${targetDate} invoice rows found in ${reportName}; latest available is ${best.parsed.latestDate} on ${best.sheetName}`);
-    }
     return { ...best, noSaleDate: targetDate };
   }
   if (best) return best;
