@@ -131,7 +131,15 @@ function getInvoiceRows(wb, preferredSheetNames, reportName, targetDate) {
     ...preferredSheetNames,
     ...wb.SheetNames.filter((name) => !preferredSheetNames.includes(name))
   ];
-  let best = null;
+
+  // The vendor's Tally export may split invoices across monthly tabs
+  // ("MAY-26", "JUNE-26", …) instead of one "Sales" sheet — merge every
+  // parseable sheet so a tab rename/restructure never drops a month of data.
+  // First sheet wins per date, so a cumulative summary tab can't double-count.
+  const byDate = {};
+  const sheetForDate = {};
+  let parsedAnySheet = false;
+  let firstSheetName = '';
 
   for (const sheetName of sheetNames) {
     const sheet = wb.Sheets[sheetName];
@@ -143,22 +151,36 @@ function getInvoiceRows(wb, preferredSheetNames, reportName, targetDate) {
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false, raw: false });
     try {
       const parsed = parseInvoiceSheet(rows);
-      if (targetDate && Object.hasOwn(parsed.byDate, targetDate)) return { rows, sheetName, parsed };
-      if ((targetDate || Object.keys(parsed.byDate).length) && !best) best = { rows, sheetName, parsed };
+      parsedAnySheet = true;
+      if (!firstSheetName) firstSheetName = sheetName;
+      for (const [date, value] of Object.entries(parsed.byDate)) {
+        if (!Object.hasOwn(byDate, date)) {
+          byDate[date] = value;
+          sheetForDate[date] = sheetName;
+        }
+      }
     } catch (err) {
       errors.push(`${sheetName}: ${err.message}`);
     }
   }
 
-  if (targetDate && best) {
-    // No sheet had a row for targetDate (empty sheet, or data only for other
-    // days). Either way the mail WAS received — write the historical rows that
-    // are present and record targetDate as a no-sale day, so the dashboard
-    // shows "Mail received — no sales" instead of "Report not uploaded".
-    return { ...best, noSaleDate: targetDate };
+  if (!parsedAnySheet) {
+    throw new Error(`No invoice sheet found in ${reportName}. Tried: ${errors.join('; ')}`);
   }
-  if (best) return best;
-  throw new Error(`No invoice sheet found in ${reportName}. Tried: ${errors.join('; ')}`);
+
+  const dates = Object.keys(byDate).sort();
+  const latestDate = dates.at(-1);
+  const mtd = Object.values(byDate).reduce((a, b) => a + b, 0);
+  const sheetName = (targetDate && sheetForDate[targetDate]) || (latestDate && sheetForDate[latestDate]) || firstSheetName;
+  const result = { sheetName, parsed: { byDate, latestDate, mtd } };
+
+  if (targetDate && !Object.hasOwn(byDate, targetDate)) {
+    // No sheet had a row for targetDate. The mail WAS received — write the
+    // rows that are present and record targetDate as a no-sale day, so the
+    // dashboard shows "Mail received — no sales" instead of "Report not uploaded".
+    return { ...result, noSaleDate: targetDate };
+  }
+  return result;
 }
 
 function buildMtdByDate(byDate) {
@@ -186,6 +208,16 @@ async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiR
     const revenue = byDate[date];
     const mtdForDate = mtdByDate[date];
     const data = await readData(date);
+
+    // Never let a no-sale marker (revenue 0) overwrite real revenue already
+    // imported for this date — an older report file (e.g. a "Re:" reply
+    // carrying yesterday's workbook) must not clobber a newer import.
+    if (notesByDate[date] && revenue === 0) {
+      const revenueRow = data[kpiBucket]?.find((r) => r.name === kpiRevenueName);
+      if (num(revenueRow?.actual) > 0) {
+        return { date, data, changed: false, revenueToday: num(revenueRow.actual), mtd: mtdForDate };
+      }
+    }
 
     // A monthly Tally report re-sends every prior day on each import — compare
     // before/after so already-current dates skip the write (and cloud sync).
