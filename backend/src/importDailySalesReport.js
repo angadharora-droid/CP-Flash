@@ -151,7 +151,12 @@ function getInvoiceRows(wb, preferredSheetNames, reportName, targetDate) {
   }
 
   if (targetDate && best) {
-    return { ...best, noSaleDate: targetDate };
+    if (!Object.keys(best.parsed.byDate).length) {
+      // Sheet exists but has no data at all
+      return { ...best, noSaleDate: targetDate };
+    }
+    // Sheet has data but not for targetDate — process what we have
+    return best;
   }
   if (best) return best;
   throw new Error(`No invoice sheet found in ${reportName}. Tried: ${errors.join('; ')}`);
