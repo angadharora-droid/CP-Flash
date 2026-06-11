@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import DashboardCharts from '../components/DashboardCharts';
-import { getPnlPeriod } from '../lib/api';
+import { getPnlWeek } from '../lib/api';
 import { buildMonthOptions, buildWeekOptions, monthKeyFromDate, weekStartContaining } from '../lib/weeks';
 
 const selectClass =
@@ -28,7 +28,8 @@ export default function PerformanceChartsPage({ data, date, authToken }) {
     if (!authToken) return undefined;
     let cancelled = false;
     setLoading(true);
-    getPnlPeriod(effectiveDate, authToken)
+    // Only week-scope data is charted here — /api/pnl-week skips the costly MTD/YTD aggregation.
+    getPnlWeek(effectiveDate, authToken)
       .then((payload) => { if (!cancelled) setWeekPeriod(payload); })
       .catch(() => { if (!cancelled) setWeekPeriod(null); })
       .finally(() => { if (!cancelled) setLoading(false); });

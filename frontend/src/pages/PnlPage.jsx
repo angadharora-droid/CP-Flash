@@ -31,7 +31,9 @@ export default function PnlPage({ data, setData, onSave, period }) {
     setData((prev) => ({
       ...prev,
       pnl: (prev.pnl ?? []).map((row) => (
-        row.unit === unit ? { ...row, fixedCost: value ? String(parseFloat(value)) : '' } : row
+        // Keep the raw (digit/dot-stripped) text so in-progress decimals like "1500."
+        // survive typing; parseFloat here would drop the dot and turn "." into "NaN".
+        row.unit === unit ? { ...row, fixedCost: value } : row
       ))
     }));
   }, [setData]);

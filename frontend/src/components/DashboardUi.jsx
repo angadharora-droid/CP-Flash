@@ -9,7 +9,6 @@ function localIso(date) {
   const dd = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
 }
-const NOW = localIso(new Date());
 
 // Status tone classes used by SourceControlPage and friends. Pill-shaped pills with M3 hues.
 export const statusTone = {
@@ -47,7 +46,8 @@ function fmtDate(isoDate) {
 export function getFreshness(importedAt, hasData, fileDate) {
   if (!importedAt && !hasData) return { label: 'Pending', cls: 'border-outline-variant/40 bg-surface-container-high/40 text-on-surface-variant' };
   const label = fmtDate(fileDate);
-  const diff = Math.round((new Date(NOW) - new Date(fileDate)) / 86400000);
+  // Compute "today" per call — a module-level constant goes stale if the app stays open past midnight.
+  const diff = Math.round((new Date(localIso(new Date())) - new Date(fileDate)) / 86400000);
   if (importedAt) {
     if (diff === 0) return { label, cls: 'border-secondary/20 bg-secondary/10 text-secondary' };
     if (diff === 1) return { label, cls: 'border-tertiary/20 bg-tertiary/10 text-tertiary' };
