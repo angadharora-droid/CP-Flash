@@ -10,10 +10,9 @@ backend/data/attachments/
 data/
 .env
 .env.*
-!.env.example
 backend/.env
 backend/.env.*
-!backend/.env.example
+SECURITY.md
 .claude/
 .vercel/
 *.log
