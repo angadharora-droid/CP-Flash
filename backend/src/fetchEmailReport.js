@@ -77,6 +77,28 @@ function yesterday() {
   return istIso(-1);
 }
 
+// IST calendar date the email was received (from its Date header).
+function emailIstDate(parsed) {
+  const d = parsed.date instanceof Date ? parsed.date : null;
+  if (!d || !Number.isFinite(d.getTime())) return null;
+  const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+  return new Date(d.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+// The Micky's/Purosoul Tally report for business date D is mailed the next
+// morning (D+1). An email received on or before D is an earlier day's report —
+// importing it with targetDate=D would write a false "Mail received — no sale"
+// marker for D. Import such emails by content date only, so the dashboard keeps
+// showing "Report not uploaded" until D's mail actually arrives.
+function salesTargetDate(parsed, date) {
+  const receivedDate = emailIstDate(parsed);
+  if (receivedDate && receivedDate <= date) {
+    log(`  Email received ${receivedDate} cannot cover business date ${date} — importing by content date only.`);
+    return undefined;
+  }
+  return date;
+}
+
 // ── Per-email business-date detection ────────────────────────────────────────
 // Source timing model (confirmed with operations):
 //   AUTOMATED, always on schedule → night audit, occupancy analysis, Petpooja,
@@ -466,7 +488,7 @@ const HANDLERS = [
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       await saveAttachment(att, 'purosoul-sales', att.filename);
-      return importPurosoulSalesReport(att.content, att.filename, date);
+      return importPurosoulSalesReport(att.content, att.filename, salesTargetDate(parsed, date));
     }
   },
   {
@@ -479,7 +501,7 @@ const HANDLERS = [
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       await saveAttachment(att, 'mickys-sales', att.filename);
-      return importMickysSalesReport(att.content, att.filename, date);
+      return importMickysSalesReport(att.content, att.filename, salesTargetDate(parsed, date));
     }
   }
 ];
