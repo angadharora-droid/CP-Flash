@@ -49,7 +49,7 @@ export function buildSeedData() {
     banquetToday: [],
     banquetTomorrow: [],
     topItems: { Pablo: ['', '', ''], Dali: ['', '', ''] },
-    purosoulSku: ['250ml', '500ml', '1L'].map((sku) => ({ sku, produced: '', dispatched: '', clStock: '', mtd: '', ytd: '' }))
+    purosoulSku: ['250ml', '500ml', '1L', '20L Jar'].map((sku) => ({ sku, produced: '', dispatched: '', clStock: '', mtd: '', ytd: '' }))
   };
   return structuredClone(_seedCache);
 }

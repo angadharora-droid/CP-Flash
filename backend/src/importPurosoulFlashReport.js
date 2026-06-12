@@ -3,22 +3,38 @@ import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
 import { readDaily, writeDaily, withDateLock } from './dailyStore.js';
 
-const SHEET_ID = '1NeheL3S8opBiwpQLLR_0CHjFxbZONk_uxLGKkPPip90';
+// Purosoul "DISPATCH AND PRODUCTION" workbook. The daily tab is a vertical
+// layout: each date spans one row per product —
+//   DATE | PRODUCT | OPENING STOCK | PRODUCTION | BILL DISPATCH |
+//   SCHEME DISPATCH | EXTRA | NC | TOTAL DISPATCH | CLOSING STOCK
+// The date cell ("02.4.26") is filled only on the first product row of the
+// day; month markers ("Apr/26") and "WEEKLY OFF" rows are interleaved, and a
+// monthly summary block sits in unrelated columns further right.
+const SHEET_ID = '1F_ygPqRUvzuecr3TICSztrVbNx1YhV-m';
 
-// Side-by-side SKU layout — gviz CSV has a leading empty col, so dates land at 1/10/19
-// Per-block offsets: +0=Date, +1=Op.Stock, +2=Production, +3=Bill Dispatch, +4=Scheme Dispatch, +5=Cl.Stock
-const SKU_BLOCKS = [
-  { col: 1,  sku: '250ml' },
-  { col: 10, sku: '500ml' },
-  { col: 19, sku: '1L'    },
-];
+const EXPECTED_SKUS = ['250ml', '500ml', '1L', '20L Jar'];
 
-// "13/05/26", "1/5/2026", "01/05/26" → "2026-05-01"
+// "250 ml " → 250ml, "1 Ltr" → 1L, "20 L Jar " → 20L Jar
+const SKU_ALIASES = {
+  '250ml': '250ml',
+  '500ml': '500ml',
+  '1ltr': '1L',
+  '1l': '1L',
+  '20ljar': '20L Jar',
+  '20l': '20L Jar'
+};
+
+function normalizeSku(cell) {
+  const key = String(cell ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return SKU_ALIASES[key] ?? null;
+}
+
+// "01.4.26", "13/05/26", "1-5-2026" → "2026-04-01" (day first)
 function parseDate(cell) {
   if (!cell && cell !== 0) return null;
   if (cell instanceof Date) return cell.toISOString().slice(0, 10);
   const s = String(cell).trim();
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  const m = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/);
   if (!m) return null;
   const [, d, mo, y] = m;
   const year = y.length === 2 ? `20${y}` : y;
@@ -31,24 +47,83 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-async function fetchAllRows() {
-  // Discover all tab names from the workbook
-  const xlsxRes = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`);
-  if (!xlsxRes.ok) throw new Error(`HTTP ${xlsxRes.status} fetching Purosoul sheet`);
-  const wb = XLSX.read(await xlsxRes.arrayBuffer(), { type: 'array' });
+function normalizeHeader(value) {
+  return String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
 
-  // Fetch each tab as CSV so dates stay as text strings (e.g. "13/05/26")
-  const allRows = await Promise.all(
-    wb.SheetNames.map(async (name) => {
-      const csvRes = await fetch(
-        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name.trim())}`
-      );
-      if (!csvRes.ok) return [];
-      const csvWb = XLSX.read(await csvRes.text(), { type: 'string' });
-      return XLSX.utils.sheet_to_json(csvWb.Sheets[csvWb.SheetNames[0]], { header: 1, defval: '', blankrows: true });
-    })
-  );
-  return allRows.flat();
+function findColumn(header, ...names) {
+  return header.findIndex((cell) => names.includes(normalizeHeader(cell)));
+}
+
+export async function fetchWorkbook() {
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`);
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching Purosoul dispatch & production sheet`);
+  return XLSX.read(await res.arrayBuffer(), { type: 'array' });
+}
+
+// Parse every tab that carries the DATE/PRODUCT/PRODUCTION header (the daily
+// snapshot tab has a different layout and is skipped). First tab wins per
+// date+SKU so a duplicated row can't double-count.
+export function parseDailyRows(wb) {
+  const byDate = {};
+
+  for (const sheetName of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '', blankrows: false, raw: false });
+    const headerIdx = rows.findIndex((r) =>
+      normalizeHeader(r[0]) === 'date' && findColumn(r, 'product') !== -1 && findColumn(r, 'production') !== -1
+    );
+    if (headerIdx === -1) continue;
+
+    const header = rows[headerIdx];
+    const cols = {
+      product: findColumn(header, 'product'),
+      opening: findColumn(header, 'opening stock'),
+      production: findColumn(header, 'production'),
+      bill: findColumn(header, 'bill dispatch'),
+      scheme: findColumn(header, 'scheme dispatch'),
+      extra: findColumn(header, 'extra'),
+      nc: findColumn(header, 'nc'),
+      total: findColumn(header, 'total dispatch'),
+      closing: findColumn(header, 'closing stock')
+    };
+    // Cells the operator types in. TOTAL DISPATCH / CLOSING STOCK are formulas
+    // that read "0" even on untouched future rows, so they can't be used to
+    // tell a real zero day from a pre-created blank template row.
+    const inputCols = [cols.opening, cols.production, cols.bill, cols.scheme, cols.extra, cols.nc];
+
+    let currentDate = null;
+    for (const row of rows.slice(headerIdx + 1)) {
+      const date = parseDate(row[0]);
+      if (date) {
+        currentDate = date;
+        if (!byDate[currentDate]) byDate[currentDate] = { skus: {}, offDay: false };
+      }
+      if (!currentDate) continue;
+
+      // "WEEKLY OFF" appears in different columns depending on the day.
+      if (row.some((cell) => /weekly\s*off|holiday/i.test(String(cell)))) {
+        byDate[currentDate].offDay = true;
+        continue;
+      }
+
+      const sku = normalizeSku(row[cols.product]);
+      if (!sku || byDate[currentDate].skus[sku]) continue;
+      if (inputCols.every((c) => String(row[c] ?? '').trim() === '')) continue;
+
+      const totalCell = String(row[cols.total] ?? '').trim();
+      const dispatched = totalCell !== ''
+        ? num(totalCell)
+        : num(row[cols.bill]) + num(row[cols.scheme]) + num(row[cols.extra]) + num(row[cols.nc]);
+
+      byDate[currentDate].skus[sku] = {
+        production: num(row[cols.production]),
+        dispatched,
+        clStock: num(row[cols.closing])
+      };
+    }
+  }
+
+  return byDate;
 }
 
 async function readData(date) {
@@ -65,53 +140,51 @@ function historyCutoffDate() {
 }
 
 export async function importPurosoulFlashReport() {
-  const allRawRows = await fetchAllRows();
+  const byDate = parseDailyRows(await fetchWorkbook());
+  const dates = Object.keys(byDate).sort();
+  if (dates.length === 0) throw new Error('No daily rows found in Purosoul dispatch & production sheet');
 
-  // Keep only daily rows — serial-date rows and blank rows are filtered by parseDate
-  const daily = allRawRows
-    .map((r) => ({ date: parseDate(r[SKU_BLOCKS[0].col]), row: r }))
-    .filter(({ date }) => date !== null)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  if (daily.length === 0) throw new Error('No daily rows found in Purosoul flash report');
-
-  // MTD resets each month; YTD resets each year
+  // MTD resets each month; YTD resets each year. Closing stock carries over
+  // weekly-off days so an off day still shows a complete (zero-movement) row.
   const mtd = {};
   const ytd = {};
-  SKU_BLOCKS.forEach((b) => { mtd[b.sku] = 0; ytd[b.sku] = 0; });
+  const lastClosing = {};
+  EXPECTED_SKUS.forEach((sku) => { mtd[sku] = 0; ytd[sku] = 0; lastClosing[sku] = 0; });
   let lastMonth = null;
   let lastYear = null;
   const written = [];
   const cutoff = historyCutoffDate();
 
-  for (const { date, row } of daily) {
+  for (const date of dates) {
     const month = date.slice(0, 7);
     const year = date.slice(0, 4);
 
     if (year !== lastYear) {
-      SKU_BLOCKS.forEach((b) => { ytd[b.sku] = 0; });
+      EXPECTED_SKUS.forEach((sku) => { ytd[sku] = 0; });
       lastYear = year;
     }
     if (month !== lastMonth) {
-      SKU_BLOCKS.forEach((b) => { mtd[b.sku] = 0; });
+      EXPECTED_SKUS.forEach((sku) => { mtd[sku] = 0; });
       lastMonth = month;
     }
 
+    const { skus, offDay } = byDate[date];
     const skuData = {};
-    for (const block of SKU_BLOCKS) {
-      const production     = num(row[block.col + 2]);
-      const billDispatch   = num(row[block.col + 3]);
-      const schemeDispatch = num(row[block.col + 4]);
-      const clStock        = num(row[block.col + 5]);
-      const dispatched     = billDispatch + schemeDispatch;
-      mtd[block.sku] += dispatched;
-      ytd[block.sku] += dispatched;
-      skuData[block.sku] = { production, dispatched, clStock, mtd: mtd[block.sku], ytd: ytd[block.sku] };
+    for (const sku of EXPECTED_SKUS) {
+      const d = skus[sku];
+      if (d) {
+        mtd[sku] += d.dispatched;
+        ytd[sku] += d.dispatched;
+        lastClosing[sku] = d.clStock;
+        skuData[sku] = { ...d, mtd: mtd[sku], ytd: ytd[sku] };
+      } else if (offDay) {
+        skuData[sku] = { production: 0, dispatched: 0, clStock: lastClosing[sku], mtd: mtd[sku], ytd: ytd[sku] };
+      }
     }
+    if (!Object.keys(skuData).length) continue;
 
     if (date < cutoff) continue;
 
-    const EXPECTED_SKUS = ['250ml', '500ml', '1L'];
     await withDateLock(date, async () => {
       const data = await readData(date);
       const existingBySku = {};
@@ -138,7 +211,7 @@ export async function importPurosoulFlashReport() {
       data.purosoulSku = nextSku;
       data.importSource = {
         ...(data.importSource ?? {}),
-        purosoulFlashFile: 'Purosoul Flash Report (all tabs)',
+        purosoulFlashFile: 'Purosoul Dispatch & Production Sheet',
         purosoulFlashImportedAt: new Date().toISOString(),
       };
 
@@ -147,7 +220,7 @@ export async function importPurosoulFlashReport() {
     });
   }
 
-  return { ok: true, written, rowCount: daily.length };
+  return { ok: true, written, rowCount: dates.length };
 }
 
 // CLI: node importPurosoulFlashReport.js

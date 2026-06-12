@@ -254,14 +254,14 @@ export const dailySources = [
   },
   {
     id: 'purosoul-flash',
-    label: 'Purosoul Flash Report',
+    label: 'Purosoul Dispatch & Production',
     unit: 'Purosoul',
-    type: 'Excel / CSV',
+    type: 'Google Sheets',
     paths: ['purosoulSku'],
     meta: {
       file: 'purosoulFlashFile',
       importedAt: 'purosoulFlashImportedAt',
-      reportLabels: { purosoulFlashFile: 'Flash Report' }
+      reportLabels: { purosoulFlashFile: 'Dispatch & Production Sheet' }
     },
     cadence: 'Daily'
   }
