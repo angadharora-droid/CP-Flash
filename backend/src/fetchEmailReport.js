@@ -21,7 +21,7 @@ import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import { readDaily, readDailyJson, writeDailyJson, closeDailyStore } from './dailyStore.js';
+import { readDaily, writeDaily, readDailyJson, closeDailyStore } from './dailyStore.js';
 import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
 import { importOccupancyMix } from './importOccupancyMix.js';
@@ -86,17 +86,16 @@ function emailIstDate(parsed) {
 }
 
 // The Micky's/Purosoul Tally report for business date D is mailed the next
-// morning (D+1). An email received on or before D is an earlier day's report —
-// importing it with targetDate=D would write a false "Mail received — no sale"
-// marker for D. Import such emails by content date only, so the dashboard keeps
-// showing "Report not uploaded" until D's mail actually arrives.
-function salesTargetDate(parsed, date) {
+// morning (D+1), so an email received on date R covers business date R-1.
+// Filing every email under the run date wrote a false "Mail received — no
+// sale" marker for dates whose mail hadn't arrived yet. An older email keeps
+// its own business date (R-1): its invoice rows are content-dated anyway, and
+// a genuine no-sale day is marked on the date that email actually covers.
+function salesBusinessDate(parsed, date) {
   const receivedDate = emailIstDate(parsed);
-  if (receivedDate && receivedDate <= date) {
-    log(`  Email received ${receivedDate} cannot cover business date ${date} — importing by content date only.`);
-    return undefined;
-  }
-  return date;
+  if (!receivedDate) return date;
+  const covers = addDaysIso(receivedDate, -1);
+  return covers > date ? date : covers;
 }
 
 // ── Per-email business-date detection ────────────────────────────────────────
@@ -481,6 +480,8 @@ const HANDLERS = [
   {
     name: 'Purosoul Daily Sales Report',
     importSourceKey: 'purosoulSalesImportedAt',
+    // The report mailed on day R covers business date R-1.
+    businessDate: salesBusinessDate,
     matches: (s, parsed) => (/(daily\s+sales|sales report)/i.test(s) || !!findAttachmentByName(parsed, /AFVPL|purosoul/i)) && /amarjit fiscal|afvpl|purosoul/i.test(messageText(parsed)),
     currentFile: (file) => /AFVPL|purosoul/i.test(file),
     run: async (parsed, date) => {
@@ -488,12 +489,14 @@ const HANDLERS = [
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       await saveAttachment(att, 'purosoul-sales', att.filename);
-      return importPurosoulSalesReport(att.content, att.filename, salesTargetDate(parsed, date));
+      return importPurosoulSalesReport(att.content, att.filename, date);
     }
   },
   {
     name: "Micky's Daily Sales Report",
     importSourceKey: 'mickysSalesImportedAt',
+    // The report mailed on day R covers business date R-1.
+    businessDate: salesBusinessDate,
     matches: (s, parsed) => (subjectContains(s, 'daily sales report') || !!findAttachmentByName(parsed, /CP[_\s-]?FOODS/i)) && /cp[\s_-]?foods/i.test(messageText(parsed)),
     currentFile: (file) => /CP[_\s-]?FOODS/i.test(file),
     run: async (parsed, date) => {
@@ -501,7 +504,7 @@ const HANDLERS = [
       if (!att) { logAttachments(parsed); throw new Error('No spreadsheet attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       await saveAttachment(att, 'mickys-sales', att.filename);
-      return importMickysSalesReport(att.content, att.filename, salesTargetDate(parsed, date));
+      return importMickysSalesReport(att.content, att.filename, date);
     }
   }
 ];
@@ -579,7 +582,12 @@ async function runHandler(handler, parsed, date, existingData, touchedDates, run
   // (FORCE_IMPORT reprocesses regardless — imports are idempotent).
   if (handler.importSourceKey && !handler.validatesDate && targetDate !== runDate && process.env.FORCE_IMPORT !== 'true') {
     const targetData = await readDaily(targetDate);
-    if (targetData?.importSource?.[handler.importSourceKey]) {
+    // A date carrying only the auto "no sale done" marker must not block a
+    // covering email — reprocessing is idempotent and lets real (or corrected)
+    // data replace a marker that was written before the date's mail arrived.
+    const notesKey = handler.importSourceKey.replace(/ImportedAt$/, 'Notes');
+    const noSaleMarked = /no sale done/i.test(String(targetData?.importSource?.[notesKey] ?? ''));
+    if (targetData?.importSource?.[handler.importSourceKey] && !noSaleMarked) {
       log(`  Already imported for ${targetDate} — skipping.`);
       return;
     }
@@ -782,7 +790,7 @@ async function run() {
 }
 
 async function clearManualSalesSourcesNotImported(date, runData) {
-  const data = await readDailyJson(date);
+  const data = await readDaily(date);
   if (!data) return;
 
   let changed = false;
@@ -794,8 +802,12 @@ async function clearManualSalesSourcesNotImported(date, runData) {
 
     for (const suffix of ['File', 'Sheet', 'Date', 'ImportedAt', 'Notes']) {
       const key = `${prefix}Sales${suffix}`;
-      if (importSource[key] !== undefined) {
-        delete importSource[key];
+      // Explicit null rather than delete/absent: syncToCloud merges local
+      // importSource OVER the cloud copy, so a deleted or missing key would be
+      // resurrected from the cloud's stale value, while a null overrides it
+      // and the dashboard sees "not uploaded".
+      if (importSource[key] !== null) {
+        importSource[key] = null;
         changed = true;
       }
     }
@@ -816,7 +828,7 @@ async function clearManualSalesSourcesNotImported(date, runData) {
 
   if (changed) {
     data.importSource = importSource;
-    await writeDailyJson(date, data);
+    await writeDaily(date, data);
     log('Cleared manual sales sources not found in this forced refresh.');
   }
 }
