@@ -1417,7 +1417,11 @@ app.listen(port, () => {
     }, 14 * 60 * 1000);
   }
 
-  // Hosted import scheduler — runs fetchEmailReport.js every 30 minutes on Render.
+  // Hosted import scheduler — tiered IST cadence matched to when reports arrive:
+  // automated mails land overnight/early morning, manual Tally mails late morning.
+  //   12:00 AM – 11:00 AM IST  → hourly (at :00)
+  //   11:00 AM – 2:00 PM IST   → every 15 minutes (final sweep at 2:00 PM)
+  //   after 2:00 PM IST        → no automatic runs (use Refresh Sources manually)
   // Enable by setting ENABLE_CLOUD_IMPORT=true in Render environment variables.
   // Also requires: REPORT_EMAIL_PASSWORD, REPORT_EMAIL, REPORT_IMAP_HOST on Render.
   if (process.env.ENABLE_CLOUD_IMPORT === 'true') {
@@ -1449,9 +1453,29 @@ app.listen(port, () => {
       });
     };
 
-    // First run 90 seconds after startup (let the server fully boot), then every 30 minutes.
+    // The host runs UTC, so the schedule is computed in IST explicitly.
+    const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+    const importDueNow = () => {
+      const ist = new Date(Date.now() + IST_OFFSET_MS);
+      const h = ist.getUTCHours();
+      const m = ist.getUTCMinutes();
+      if (h >= 11 && h < 14) return m % 15 === 0; // 11:00–13:45 fast lane
+      if (h <= 10 || h === 14) return m === 0;    // hourly overnight; 14:00 is the last sweep
+      return false;                               // dark after 2 PM IST
+    };
+
+    // First run 90 seconds after startup (let the server fully boot), then a
+    // 30-second tick fires runImport on the IST schedule above; the slot key
+    // ensures one run per due minute.
+    let lastFiredSlot = '';
     setTimeout(runImport, 90_000);
-    setInterval(runImport, 30 * 60 * 1000);
-    console.log('Hosted import scheduler enabled — runs every 30 minutes.');
+    setInterval(() => {
+      if (!importDueNow()) return;
+      const slot = new Date(Date.now() + IST_OFFSET_MS).toISOString().slice(0, 16);
+      if (slot === lastFiredSlot) return;
+      lastFiredSlot = slot;
+      runImport();
+    }, 30_000);
+    console.log('Hosted import scheduler enabled — hourly 12AM–11AM IST, every 15 min 11AM–2PM IST.');
   }
 });
