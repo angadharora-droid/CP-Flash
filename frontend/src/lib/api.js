@@ -162,6 +162,20 @@ export async function saveAopTargets(payload, token) {
   }, 'Unable to save AOP targets');
 }
 
+export async function getFixedCosts(token) {
+  return apiFetch('/api/fixed-costs', {
+    headers: { ...authHeaders(token) }
+  }, 'Unable to load fixed costs');
+}
+
+export async function saveFixedCosts(units, token) {
+  return apiFetch('/api/fixed-costs', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ units })
+  }, 'Unable to save fixed costs');
+}
+
 export async function generateAiNotes(prompt, token) {
   const json = await apiFetch('/api/ai-notes', {
     method: 'POST',

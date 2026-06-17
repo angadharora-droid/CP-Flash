@@ -20,7 +20,8 @@ function sumPeriod(period) {
   }, { revenue: 0, purchases: 0, gp: 0, netProfit: 0 });
 }
 
-export default function PnlPage({ data, setData, onSave, period }) {
+export default function PnlPage({ data, setData, onSave, onSaveFixedCosts, period }) {
+  const saveHandler = onSaveFixedCosts ?? onSave;
   const [savingFixedCosts, setSavingFixedCosts] = React.useState(false);
   const [fixedCostStatus, setFixedCostStatus] = React.useState('');
   const rows = pnlRows(data);
@@ -38,18 +39,18 @@ export default function PnlPage({ data, setData, onSave, period }) {
     }));
   }, [setData]);
   const saveFixedCosts = React.useCallback(async () => {
-    if (!onSave) return;
+    if (!saveHandler) return;
     setSavingFixedCosts(true);
     setFixedCostStatus('');
     try {
-      await onSave();
+      await saveHandler();
       setFixedCostStatus('Saved');
     } catch (err) {
       setFixedCostStatus(err.message || 'Unable to save');
     } finally {
       setSavingFixedCosts(false);
     }
-  }, [onSave]);
+  }, [saveHandler]);
 
   const totals = rows.reduce((acc, row) => {
     acc.revenue += numberValue(row.revenueToday);

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getEmailImportStatus, getPnlPeriod, getPnlWeek, getSeed, getSourceReportPreview, runEmailImport, saveData } from './lib/api';
+import { getEmailImportStatus, getPnlPeriod, getPnlWeek, getSeed, getSourceReportPreview, runEmailImport, saveData, saveFixedCosts } from './lib/api';
 import { numberValue, withFlags } from './lib/calculations';
 import AppHeader from './components/AppHeader';
 import { BrandLoader, googleSheetPreviewUrl } from './components/DashboardUi';
@@ -447,6 +447,16 @@ export default function App() {
     }
   }, [authToken, handleRefresh, sourceRefreshRunning]);
 
+  // Fixed costs are a global config (not per-date), so this saves them to the
+  // dedicated store rather than burying them inside the current day's report.
+  const onSaveFixedCosts = React.useCallback(async () => {
+    const units = Object.fromEntries(
+      (data?.pnl ?? []).map((row) => [canonicalUnit(row.unit), row.fixedCost])
+    );
+    await saveFixedCosts(units, authToken);
+    await handleRefresh();
+  }, [data, authToken, handleRefresh]);
+
   const enrichedData = useMemo(() => applyPeriodToData(data, period), [data, period]);
 
   const page = useMemo(() => {
@@ -477,7 +487,7 @@ export default function App() {
     if (activeKey === 'performance') return <PerformanceChartsPage {...common} />;
     if (activeKey === 'sources') return <SourceControlPage date={date} authToken={authToken} onOpenReportPreview={openSourceReportPreview} onRefreshData={handleRefresh} />;
     if (activeKey === 'bank') return <BankPage {...common} />;
-    if (activeKey === 'pnl') return <PnlPage {...common} period={period} />;
+    if (activeKey === 'pnl') return <PnlPage {...common} period={period} onSaveFixedCosts={onSaveFixedCosts} />;
     if (activeKey === 'flags') return <FlagsPage data={enrichedData} />;
     if (activeKey === 'hotels') return <HotelsPage {...common} />;
     if (activeKey === 'fnb') return <FnbPage {...common} />;
@@ -487,7 +497,7 @@ export default function App() {
     if (activeKey === 'settlement') return <SettlementPage {...common} />;
     if (activeKey === 'aop') return <AopTargetsPage authToken={authToken} />;
     return <AiPage data={enrichedData} authToken={authToken} />;
-  }, [renderedActive, enrichedData, data, date, authToken, period, openSourceReportPreview, handleRefresh, handleRefreshSources, sourceRefreshRunning, sourceRefreshError]);
+  }, [renderedActive, enrichedData, data, date, authToken, period, openSourceReportPreview, handleRefresh, handleRefreshSources, sourceRefreshRunning, sourceRefreshError, onSaveFixedCosts]);
 
   const lockApp = React.useCallback(() => {
     localStorage.removeItem('dailyflashToken');
