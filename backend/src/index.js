@@ -18,6 +18,7 @@ import { normalizeRabbitCategoryBreakdown, settlementModes, UNITS } from './sche
 import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
 import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
 import { readAopTargets, writeAopTargets, applyDailyTargetOverrides, collectKpiCatalog } from './aopTargets.js';
+import { readFixedCosts, writeFixedCosts, applyFixedCostOverrides, effectiveFixedCosts } from './fixedCosts.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -423,6 +424,16 @@ function invalidateAopTargetsCache() {
   cachedAopTargets = null;
 }
 
+let cachedFixedCosts = null;
+async function getFixedCosts() {
+  if (cachedFixedCosts) return cachedFixedCosts;
+  cachedFixedCosts = await readFixedCosts(getDb);
+  return cachedFixedCosts;
+}
+function invalidateFixedCostsCache() {
+  cachedFixedCosts = null;
+}
+
 const pnlPeriodCache = new Map();
 const pnlPeriodInflight = new Map();
 const pnlWeekCache = new Map();
@@ -622,9 +633,9 @@ async function getRawByDate(dates, rawByDate = null) {
 
 async function aggregatePeriodForDates(dates, rawByDate = null) {
   const seedTemplate = buildSeedData();
-  const fixedCostByUnit = Object.fromEntries(
-    (seedTemplate.pnl ?? []).map((row) => [row.unit, numberValue(row.fixedCost)])
-  );
+  const fcOverrides = await getFixedCosts();
+  // Effective fixed cost = global override when set, else the built-in default.
+  const fixedCostByUnit = effectiveFixedCosts(fcOverrides);
   const pnlByUnit = Object.fromEntries(
     UNITS.map((unit) => [unit, {
       revenue: 0,
@@ -649,7 +660,11 @@ async function aggregatePeriodForDates(dates, rawByDate = null) {
       if (!entry) continue;
       const revenue = numberValue(row.revenueToday);
       const purchases = numberValue(row.purchasesToday);
-      const fixed = numberValue(row.fixedCost) || entry.fixedCost;
+      // Global override is authoritative; otherwise fall back to the per-date
+      // saved value, then the default carried on entry.fixedCost.
+      const fixed = fcOverrides[row.unit] != null
+        ? fcOverrides[row.unit]
+        : (numberValue(row.fixedCost) || entry.fixedCost);
       entry.revenue += revenue;
       entry.purchases += purchases;
       entry.gp += revenue - purchases;
@@ -703,10 +718,7 @@ async function aggregateYtdFromMonthlyMtd(dates, rawByDate = null) {
     Array.from(datesByMonth.values(), (monthDates) => aggregatePeriodForDates(monthDates, rawByDate))
   );
 
-  const seedTemplate = buildSeedData();
-  const fixedCostByUnit = Object.fromEntries(
-    (seedTemplate.pnl ?? []).map((row) => [row.unit, numberValue(row.fixedCost)])
-  );
+  const fixedCostByUnit = effectiveFixedCosts(await getFixedCosts());
   const pnlByUnit = Object.fromEntries(
     UNITS.map((unit) => [unit, {
       revenue: 0,
@@ -1100,8 +1112,11 @@ app.get('/api/seed', wrap(async (req, res) => {
   const seed = buildSeedData();
   const rawSaved = await readDailyData(date);
   const overrides = await getAopTargets();
-  const seedWithOverrides = applyDailyTargetOverrides(seed, overrides.daily);
-  const saved = rawSaved ? applyDailyTargetOverrides(mergeDailyData(seed, rawSaved), overrides.daily) : null;
+  const fixedCosts = await getFixedCosts();
+  const seedWithOverrides = applyFixedCostOverrides(applyDailyTargetOverrides(seed, overrides.daily), fixedCosts);
+  const saved = rawSaved
+    ? applyFixedCostOverrides(applyDailyTargetOverrides(mergeDailyData(seed, rawSaved), overrides.daily), fixedCosts)
+    : null;
   res.json({ seed: seedWithOverrides, saved, date });
 }));
 
@@ -1111,7 +1126,8 @@ for (const route of ['bank-position', 'pnl', 'hotels', 'fnb', 'rabbits', 'mickys
     const seed = buildSeedData();
     const saved = await readDailyData(req.query.date || dateKey());
     const overrides = await getAopTargets();
-    const data = applyDailyTargetOverrides(mergeDailyData(seed, saved), overrides.daily);
+    const fixedCosts = await getFixedCosts();
+    const data = applyFixedCostOverrides(applyDailyTargetOverrides(mergeDailyData(seed, saved), overrides.daily), fixedCosts);
     res.json(data[key] ?? null);
   }));
 }
@@ -1141,6 +1157,19 @@ app.post('/api/aop-targets', wrap(async (req, res) => {
   const saved = await writeAopTargets(req.body ?? {}, getDb);
   invalidateAopTargetsCache();
   res.json({ ok: true, daily: saved.daily, weekly: saved.weekly });
+}));
+
+app.get('/api/fixed-costs', wrap(async (_req, res) => {
+  const overrides = await getFixedCosts();
+  res.json({ units: effectiveFixedCosts(overrides), overrides });
+}));
+
+app.post('/api/fixed-costs', wrap(async (req, res) => {
+  const saved = await writeFixedCosts(req.body ?? {}, getDb);
+  invalidateFixedCostsCache();
+  // Fixed costs feed net-profit math, so MTD/YTD/week aggregates must recompute.
+  invalidatePnlPeriodCache();
+  res.json({ ok: true, units: effectiveFixedCosts(saved), overrides: saved });
 }));
 
 app.get('/api/source-status', wrap(async (req, res) => {
@@ -1337,7 +1366,8 @@ app.get('/api/report.pdf', wrap(async (req, res) => {
   const seed = buildSeedData();
   const saved = await readDailyData(date);
   const overrides = await getAopTargets();
-  const dailyData = applyDailyTargetOverrides(mergeDailyData(seed, saved), overrides.daily);
+  const fixedCosts = await getFixedCosts();
+  const dailyData = applyFixedCostOverrides(applyDailyTargetOverrides(mergeDailyData(seed, saved), overrides.daily), fixedCosts);
   const weekly = reportType === 'weekly'
     ? await buildWeeklyReportData(dailyData, date, weekStart ? { weekStart } : {})
     : null;
