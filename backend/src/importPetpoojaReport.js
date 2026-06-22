@@ -159,6 +159,21 @@ function getMatching(map, ...patterns) {
   return null;
 }
 
+/**
+ * Net Sales = Core Amount − Discount (pre-tax revenue, what management tracks).
+ * Prefer the email's own "Net Sales" row (what we've always read); Petpooja
+ * occasionally omits or renames it, so fall back to a fuzzy match and finally to
+ * Core Amount − Discount. `values` is a Map of lowercased label → number.
+ */
+export function resolveNetSales(values) {
+  const coreAmount = get(values, 'core amount');
+  const discount = get(values, 'discount');
+  const derivedNetSales = coreAmount !== null ? coreAmount - (discount ?? 0) : null;
+  return get(values, 'net sales')
+    ?? getMatching(values, 'net sales', 'net sale')
+    ?? derivedNetSales;
+}
+
 export async function importPetpoojaReport(emailHtml, outlet, outDate) {
   const values = parseHtml(emailHtml);
   const categoryBreakdown = parseCategoryBreakdown(emailHtml);
@@ -187,16 +202,8 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     row.actual = round(actual);
   }
 
-  // Net Sales = Core Amount − Discount (pre-tax revenue, what management tracks).
-  // Prefer the email's own "Net Sales" row (what we've always read); but Petpooja
-  // occasionally omits or renames that row, so when it doesn't come through, derive
-  // the same figure from Core Amount − Discount before falling back to Total Sales.
-  const coreAmount = get(values, 'core amount');
-  const discount = get(values, 'discount');
-  const derivedNetSales = coreAmount !== null ? coreAmount - (discount ?? 0) : null;
-  const netSales = get(values, 'net sales')
-    ?? getMatching(values, 'net sales', 'net sale')
-    ?? derivedNetSales;
+  // Net sales (pre-tax) is the first-priority headline number for the F&B outlets.
+  const netSales = resolveNetSales(values);
   const totalSales = get(values, 'total sales');
   const grossSales = netSales ?? totalSales;
   const bills = get(values, 'no. of bills', 'number of bills', 'covers', 'total bills', 'no of bills');
@@ -225,8 +232,12 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
       setKpi('Main Course Revenue', getMatching(values, 'main course'));
     }
   } else {
+    // Net sales from this email is the first-priority headline number for Pablo/Dali —
+    // write it even when the Payment Wise Summary was imported. (The payment summary
+    // reports settled/collected revenue, post-tax; net sales is pre-tax Core − Discount.)
+    // The payment summary stays the source for covers / avg bill / settlement breakdown.
+    setKpi('Gross Sales', grossSales);
     if (!hasPaymentImport) {
-      setKpi('Gross Sales', grossSales);
       setKpi('Covers', bills);
       setKpi('Covers/day', bills);
       setKpi('Avg Bill', avgBill);
@@ -237,7 +248,9 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     if (grossSales) setKpi('Combo Sales %', (comboCategorySales / grossSales) * 100);
   }
 
-  if (!hasPaymentImport) {
+  // Pablo/Dali P&L revenue follows net sales (first priority, even with a payment
+  // import); Rabbit keeps deferring to its payment-summary revenue when present.
+  if (outlet !== 'Rabbit' || !hasPaymentImport) {
     data.pnl = (data.pnl ?? []).map((row) =>
       row.unit === outlet ? { ...row, revenueToday: round(grossSales ?? 0) } : row
     );

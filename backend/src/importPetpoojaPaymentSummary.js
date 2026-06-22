@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { readDaily, writeDaily } from './dailyStore.js';
+import { resolveNetSales } from './importPetpoojaReport.js';
 
 function num(value) {
   if (typeof value === 'number') return value;
@@ -137,7 +138,17 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
       ? successTotals.dineInRevenue / successTotals.covers
       : null;
 
-    setKpi(rowsToUpdate, 'Gross Sales', successTotals.revenue);
+    // Net sales from the Petpooja Billing email is the first-priority headline number.
+    // If that email was already imported for this date, keep its net sales for Gross
+    // Sales / P&L revenue rather than overwriting with the settled (post-tax) revenue;
+    // the settled revenue is only the fallback when the email hasn't arrived.
+    const petpoojaValues = data.importSource?.[`${outlet.toLowerCase()}PetpoojaValues`];
+    const emailNetSales = petpoojaValues
+      ? resolveNetSales(new Map(Object.entries(petpoojaValues)))
+      : null;
+    const headlineRevenue = emailNetSales ?? successTotals.revenue;
+
+    setKpi(rowsToUpdate, 'Gross Sales', headlineRevenue);
     if (outlet === 'Pablo') {
       setKpi(rowsToUpdate, 'Covers', successTotals.covers);
       setKpi(rowsToUpdate, 'Avg Bill', averagePerCover);
@@ -147,7 +158,7 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
     }
 
     data.pnl = (data.pnl ?? []).map((row) =>
-      row.unit === outlet ? { ...row, revenueToday: round(successTotals.revenue) } : row
+      row.unit === outlet ? { ...row, revenueToday: round(headlineRevenue) } : row
     );
   }
 
