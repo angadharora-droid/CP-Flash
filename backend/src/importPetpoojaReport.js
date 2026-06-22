@@ -187,8 +187,16 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     row.actual = round(actual);
   }
 
-  // Net Sales = Core Amount − Discount (pre-tax revenue, what management tracks)
-  const netSales = get(values, 'net sales');
+  // Net Sales = Core Amount − Discount (pre-tax revenue, what management tracks).
+  // Prefer the email's own "Net Sales" row (what we've always read); but Petpooja
+  // occasionally omits or renames that row, so when it doesn't come through, derive
+  // the same figure from Core Amount − Discount before falling back to Total Sales.
+  const coreAmount = get(values, 'core amount');
+  const discount = get(values, 'discount');
+  const derivedNetSales = coreAmount !== null ? coreAmount - (discount ?? 0) : null;
+  const netSales = get(values, 'net sales')
+    ?? getMatching(values, 'net sales', 'net sale')
+    ?? derivedNetSales;
   const totalSales = get(values, 'total sales');
   const grossSales = netSales ?? totalSales;
   const bills = get(values, 'no. of bills', 'number of bills', 'covers', 'total bills', 'no of bills');
