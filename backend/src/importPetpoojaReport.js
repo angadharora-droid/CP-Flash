@@ -54,6 +54,14 @@ function parseHtml(html) {
 
   const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || [];
   for (const row of rows) {
+    // The figures we read (Net Sales, Core Amount, Total Sales, …) live in the sales
+    // summary table at the top. Below it Petpooja prints a "Last 7 Days" comparison
+    // table that repeats some of the same labels for prior days; left unbounded this
+    // parser would overwrite the real figures with last-7-days values (last-write-wins)
+    // and pull in per-day noise rows. Stop at that boundary so only the sales table
+    // feeds the map — mirrors parseCategoryBreakdown / parseComboCategorySales.
+    if (normalizeText(stripHtmlTags(row)).includes('last 7 days')) break;
+
     const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
       .map((m) => stripHtmlTags(m[1]));
 
