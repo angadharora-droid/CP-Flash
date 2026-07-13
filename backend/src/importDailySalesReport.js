@@ -61,7 +61,9 @@ function parseVisibleDate(cell) {
     return isoDate(year, Number(slash[2]), Number(slash[1]));
   }
 
-  const namedMonth = s.match(/^(\d{1,2})[-\s]([A-Za-z]{3,})[-\s](\d{2,4})$/);
+  // Tally exports vary the named-month separator between files ("1-Jun-26" in
+  // June's AFVPL export, "03/Jul/26" in July's) — accept dash, slash, or space.
+  const namedMonth = s.match(/^(\d{1,2})[-/\s]([A-Za-z]{3,})[-/\s](\d{2,4})$/);
   if (namedMonth) {
     const month = MONTHS[namedMonth[2].slice(0, 3).toLowerCase()];
     if (!month) return null;

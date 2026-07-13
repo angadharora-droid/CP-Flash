@@ -11,7 +11,10 @@ import { readDaily, writeDaily } from './dailyStore.js';
 // the section headers. v6: 3-day file (D business-day / D+1 today / D+2 tomorrow) — D+1/D+2
 // feed the function lists and D feeds the Banquets Covers + No. of Functions KPIs.
 // v7: supports the newer detailed "Function Details" banquet report layout.
-export const EVENTS_IMPORT_VERSION = 7;
+// v8: anchor on outDate (subject-derived business date) instead of the earliest
+// section — the hotel's export now starts at D−1, so "earliest = D" misfiled every
+// bundle one day early (proven 2026-07-13 against night-audit outlet revenue).
+export const EVENTS_IMPORT_VERSION = 8;
 
 const BANQUETS_SECTION = 'Banquets';
 
@@ -149,9 +152,9 @@ function parseCompactEvents(rows) {
  * Parses the HCP_EVENT banquet booking sheet into the daily function lists.
  *
  * The sheet groups confirmed functions under "Event Date:DD-MMM-YYYY" headers and
- * carries THREE days relative to the business date D (`outDate`): D (the closed business
- * day), D+1 ("today" from the reader's viewpoint) and D+2 ("tomorrow"). Each function is a
- * main row (Res#/Party/Function/From/To/Pax/…/Net.Amt/Status) followed by a "Room: <Hall>"
+ * carries a variable window of days around the business date D (`outDate`): current
+ * exports run D−1…D+2, older ones D…D+2. Each function is a main row
+ * (Res#/Party/Function/From/To/Pax/…/Net.Amt/Status) followed by a "Room: <Hall>"
  * detail row.
  *
  * Date note: the HCP report for business date D is generated the morning the D flash is
@@ -159,7 +162,7 @@ function parseCompactEvents(rows) {
  *   D   → Banquets Covers (Σ pax) + No. of Functions (count)
  *   D+1 → banquetToday list
  *   D+2 → banquetTomorrow list
- * Everything is filed under the run's flash date (`outDate`).
+ * Everything is filed under D (`outDate`, anchored on the email subject by the caller).
  */
 export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   const wb = XLSX.readFile(file, { cellDates: true });
@@ -173,49 +176,23 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
 
   const hasDetailedRows = rows.some((row) => row.some((cell) => /^Function Details:/i.test(clean(cell))));
   const events = hasDetailedRows ? parseDetailedEvents(rows) : parseCompactEvents(rows);
-  if (false) {
-  let eventDate = '';
-  for (let r = 0; r < rows.length; r += 1) {
-    const row = rows[r];
-    const c0 = clean(row?.[0]);
-
-    if (/^Event Date:/i.test(c0)) { eventDate = toISO(c0); continue; }
-    if (/^S\s*U\s*M\s*M\s*A\s*R\s*Y/i.test(c0)) break; // summary block — stop
-    if (!isFunctionRow(c0) || !eventDate) continue;
-
-    // The hall sits on the following "Room:" detail row.
-    const detail = rows[r + 1];
-    const venue = detail && /^Room:/i.test(clean(detail[0])) ? clean(detail[1]) : '';
-
-    const fromTime = timePart(row[3]);
-    const toTime = timePart(row[4]);
-    events.push({
-      date: eventDate,
-      marketSegment: clean(row[1]),                                  // party / client
-      pax: String(Math.round(num(row[5]))),
-      venue,
-      session: fromTime && toTime ? `${fromTime}–${toTime}` : (fromTime || ''),
-      revenue: String(Math.round(num(row[10]) || num(row[7]))),      // Net.Amt, else Value
-      notes: [clean(row[2]), clean(row[11])].filter(Boolean).join(' · ') // Function · Status
-    });
-  }
-
-  }
 
   if (!events.length) throw new Error('No confirmed functions parsed.');
 
-  // The file spans business date D plus the two days ahead of it. Select by explicit
-  // date rather than by index so a day with no functions doesn't shift the mapping.
+  // The export spans a variable window around business day D (July 2026 files run
+  // D−1…D+2; older exports were D…D+2), so the earliest section is NOT a reliable
+  // anchor — assuming "earliest = D" filed whole bundles one day early. `outDate`
+  // arrives already anchored (subject "hcp report DD.MM.YY", else a sibling
+  // handler's detected date, else the run date): trust it whenever the file's
+  // window covers it, and only fall back to the D−1-start layout when it can't.
   const dates = [...new Set(events.map((e) => e.date))].sort();
-
-  // Derive the business date from the file: the earliest event date IS the business day D.
-  // Using it directly means late/backdated emails automatically file under the correct
-  // business date instead of yesterday's run date.
-  const businessDate = dates[0];               // D — closed business day (actuals)
+  const businessDate = (outDate >= dates[0] && outDate <= dates.at(-1))
+    ? outDate
+    : isoAddDays(dates[0], 1);
   const todayDate = isoAddDays(businessDate, 1);   // D+1 — "today" from the reader's viewpoint
   const tomorrowDate = isoAddDays(businessDate, 2); // D+2 — "tomorrow"
   if (businessDate !== outDate) {
-    console.log(`[importEvents] Backdated report: earliest date ${businessDate} → filing under ${businessDate} (run date ${outDate}).`);
+    console.log(`[importEvents] outDate ${outDate} outside file window ${dates[0]}…${dates.at(-1)} → filing under ${businessDate} (earliest section + 1).`);
   }
 
   const businessEvents = events.filter((e) => e.date === businessDate);
