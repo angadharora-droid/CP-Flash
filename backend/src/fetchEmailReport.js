@@ -115,9 +115,13 @@ function addDaysIso(iso, days) {
   return d.toISOString().slice(0, 10);
 }
 
-// Reject garbage parses: not in the future, not absurdly old.
+// Reject garbage parses: calendar-valid, not in the future, not absurdly old.
 function clampBusinessDate(candidate, runDate) {
   if (!candidate || !/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return null;
+  // Hand-typed subjects produce calendar-invalid dates ("31.06.26" → 2026-06-31);
+  // round-trip through Date so they fall back instead of keying phantom records.
+  const ms = Date.parse(`${candidate}T00:00:00.000Z`);
+  if (!Number.isFinite(ms) || new Date(ms).toISOString().slice(0, 10) !== candidate) return null;
   if (candidate > istIso(0)) return null;
   if (candidate < addDaysIso(runDate, -45)) return null;
   return candidate;
@@ -130,7 +134,7 @@ function clampBusinessDate(candidate, runDate) {
 // late-sent bundles (e.g. Saturday's + Sunday's both mailed on Monday) filing
 // under their own days regardless of arrival order or the events-file layout.
 function hcpSubjectDate(parsed, runDate) {
-  const m = /hcp\s*report[^\d]{0,10}(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})/i.exec(parsed.subject ?? '');
+  const m = /hcp[\s_-]*report[^\d]{0,10}(\d{1,2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{2,4})/i.exec(parsed.subject ?? '');
   if (!m) return null;
   const year = m[3].length === 2 ? `20${m[3]}` : m[3];
   const iso = `${year}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
@@ -333,7 +337,9 @@ const HANDLERS = [
       if (!att) { logAttachments(parsed); throw new Error('No HCP_EVENT attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'hcp-event-nagpur', date);
-      return importEvents(filePath, date, 'CP Nagpur');
+      // A parsed subject date is authoritative — importEvents must keep it even
+      // when the (sparse) events file carries no section for that day.
+      return importEvents(filePath, date, 'CP Nagpur', { anchored: hcpSubjectDate(parsed, date) != null });
     }
   },
   {
