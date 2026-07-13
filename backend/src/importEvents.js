@@ -164,7 +164,7 @@ function parseCompactEvents(rows) {
  *   D+2 → banquetTomorrow list
  * Everything is filed under D (`outDate`, anchored on the email subject by the caller).
  */
-export async function importEvents(file, outDate, unit = 'CP Nagpur') {
+export async function importEvents(file, outDate, unit = 'CP Nagpur', { anchored = false } = {}) {
   const wb = XLSX.readFile(file, { cellDates: true });
 
   let rows = null;
@@ -180,19 +180,19 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur') {
   if (!events.length) throw new Error('No confirmed functions parsed.');
 
   // The export spans a variable window around business day D (July 2026 files run
-  // D−1…D+2; older exports were D…D+2), so the earliest section is NOT a reliable
-  // anchor — assuming "earliest = D" filed whole bundles one day early. `outDate`
-  // arrives already anchored (subject "hcp report DD.MM.YY", else a sibling
-  // handler's detected date, else the run date): trust it whenever the file's
-  // window covers it, and only fall back to the D−1-start layout when it can't.
+  // D−1…D+2; older exports were D…D+2), and days without functions emit no section
+  // at all — so the earliest section is NOT a reliable anchor (assuming "earliest
+  // = D" filed whole bundles one day early). Trust `outDate` when it is anchored
+  // (subject "hcp report DD.MM.YY" parsed — authoritative even for a sparse file
+  // with no section on D) or when it isn't above the file's window (an on-time
+  // run date). Only an unanchored outDate above the window (a stale run date on
+  // a late resend) falls back to the D−1-start layout heuristic.
   const dates = [...new Set(events.map((e) => e.date))].sort();
-  const businessDate = (outDate >= dates[0] && outDate <= dates.at(-1))
-    ? outDate
-    : isoAddDays(dates[0], 1);
+  const businessDate = (anchored || outDate <= dates.at(-1)) ? outDate : isoAddDays(dates[0], 1);
   const todayDate = isoAddDays(businessDate, 1);   // D+1 — "today" from the reader's viewpoint
   const tomorrowDate = isoAddDays(businessDate, 2); // D+2 — "tomorrow"
   if (businessDate !== outDate) {
-    console.log(`[importEvents] outDate ${outDate} outside file window ${dates[0]}…${dates.at(-1)} → filing under ${businessDate} (earliest section + 1).`);
+    console.log(`[importEvents] Unanchored outDate ${outDate} above file window ${dates[0]}…${dates.at(-1)} → filing under ${businessDate} (earliest section + 1).`);
   }
 
   const businessEvents = events.filter((e) => e.date === businessDate);
