@@ -117,6 +117,37 @@ function splitSmallInts(str, max, count) {
   return result;
 }
 
+// Fit a concatenated digit run to EXACTLY `count` columns, consuming the whole
+// string. Greedy 2-digit-first splitting misreads runs like "30000024"
+// ([Dep=3, DayUse..HouseUse=0×5, Pax=24] read as Dep=30) whenever the greedy
+// token still fits under `max`; requiring an exact column fit rules those out.
+// IDS Next never zero-pads, so only a lone "0" may start with 0. Every column
+// is capped at `max` except the last (`lastMax`, e.g. Pax). Returns ALL valid
+// splits — the caller picks by its own tie-break.
+function fitConcatColumns(str, count, max, lastMax = max) {
+  const s = String(str ?? '').trim().replace(/\D/g, '');
+  const solutions = [];
+  const walk = (i, acc) => {
+    if (acc.length === count) {
+      if (i === s.length) solutions.push([...acc]);
+      return;
+    }
+    const isLast = acc.length === count - 1;
+    const cap = isLast ? lastMax : max;
+    for (let len = 1; len <= String(cap).length && i + len <= s.length; len++) {
+      const tok = s.slice(i, i + len);
+      if (len > 1 && tok[0] === '0') break; // no zero-padding
+      const val = parseInt(tok, 10);
+      if (val > cap) break;
+      acc.push(val);
+      walk(i + len, acc);
+      acc.pop();
+    }
+  };
+  walk(0, []);
+  return solutions;
+}
+
 // Extract the first (day-column) value from an IDS Next concatenated integer string.
 // IDS Next never zero-pads: 0 → "0", 5 → "5", 12 → "12", so if the string starts
 // with "0" the day value IS zero (e.g. "06150314" → day=0, month=6, year=15, …).
@@ -333,7 +364,15 @@ export async function importCpNmHistForecast(file, outDate) {
   const beforeOcc = afterDate.slice(0, afterDate.indexOf(occRaw));
   // beforeOcc has weekday letters only ("Tue"); the digit prefix is inside occRaw
   const intStr = beforeOcc.replace(/\D/g, '') + intPrefix;
-  const [, arrRooms] = splitSmallInts(intStr, totalRooms, 3); // second value = arrivals
+  // [RoomsOccupied, ArrRooms, CompRooms] — among exact 3-column fits, pick the
+  // one whose RoomsOccupied agrees with occ% × totalRooms (e.g. "6300" is
+  // rooms 6 / arr 30 / comp 0, which greedy 2-digit splitting would misread).
+  const expectedRooms = Math.round((occPct / 100) * totalRooms);
+  const occFits = fitConcatColumns(intStr, 3, totalRooms)
+    .sort((a, b) => Math.abs(a[0] - expectedRooms) - Math.abs(b[0] - expectedRooms));
+  const arrRooms = occFits.length
+    ? occFits[0][1]
+    : (splitSmallInts(intStr, totalRooms, 3)[1] ?? 0); // second value = arrivals
 
   // Integers after the last Rs value: [Dep Rooms][Day Use][No Show][Cncl][DNR][HouseUse][Pax]
   const allRsM = [...forecastLine.matchAll(/Rs\s*[\d,]+\.\d{2}/g)];
@@ -345,7 +384,15 @@ export async function importCpNmHistForecast(file, outDate) {
     const occEnd = forecastLine.indexOf(occRaw) + occRaw.length;
     afterRsStr = forecastLine.slice(occEnd).replace(/-+/g, '').trim();
   }
-  const [depRooms] = splitSmallInts(afterRsStr, totalRooms, 1);
+  // [Dep][DayUse][NoShow][Cncl][DNR][HouseUse][Pax] — the five middle columns
+  // are almost always 0, so among exact 7-column fits prefer the one carrying
+  // the most zero middles (then the smaller Dep). Pax may run to 3 digits.
+  const depFits = fitConcatColumns(afterRsStr, 7, totalRooms, 999);
+  const middleZeros = (sol) => sol.slice(1, -1).filter((v) => v === 0).length;
+  depFits.sort((a, b) => middleZeros(b) - middleZeros(a) || a[0] - b[0]);
+  const depRooms = depFits.length
+    ? depFits[0][0]
+    : splitSmallInts(afterRsStr, totalRooms, 1)[0];
 
   if (occPct > 0)    setForecast(data, 'Tomorrow Occupancy Forecast %', occPct);
   if (arrRooms > 0)  setForecast(data, 'Arrivals', arrRooms);

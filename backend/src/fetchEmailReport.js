@@ -104,9 +104,10 @@ function salesBusinessDate(parsed, date) {
 //     CP NM. These keep strict run-date filing; CP NM additionally reads the
 //     exact date embedded in its PDF filename (authoritative, not a heuristic).
 //   MANUAL, may arrive late/backdated → the "HCP REPORT" bundle and the
-//     Micky's/Purosoul Tally reports. Both carry dates INSIDE the files:
-//     forecast/events derive the business date from content (detectedDate,
-//     propagated to the whole bundle), and Tally rows are invoice-dated.
+//     Micky's/Purosoul Tally reports. The HCP bundle anchors on its subject date
+//     ("hcp report DD.MM.YY" = business day D, proven against the night audit);
+//     the forecast file still self-dates (forecastDate − 2) and its detectedDate
+//     covers bundles whose subject fails to parse. Tally rows are invoice-dated.
 
 function addDaysIso(iso, days) {
   const d = new Date(`${iso}T00:00:00.000Z`);
@@ -120,6 +121,20 @@ function clampBusinessDate(candidate, runDate) {
   if (candidate > istIso(0)) return null;
   if (candidate < addDaysIso(runDate, -45)) return null;
   return candidate;
+}
+
+// The manual "HCP REPORT" bundle's subject carries the business date it covers
+// ("hcp report 12.07.26", often behind mail-filter prefixes like "[SUSPICIOUS:]").
+// Proven against the night audit's outlet revenue (2026-07-13): the subject date
+// IS the closed business day D. Anchoring the whole bundle on it keeps multiple
+// late-sent bundles (e.g. Saturday's + Sunday's both mailed on Monday) filing
+// under their own days regardless of arrival order or the events-file layout.
+function hcpSubjectDate(parsed, runDate) {
+  const m = /hcp\s*report[^\d]{0,10}(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})/i.exec(parsed.subject ?? '');
+  if (!m) return null;
+  const year = m[3].length === 2 ? `20${m[3]}` : m[3];
+  const iso = `${year}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  return clampBusinessDate(iso, runDate);
 }
 
 // CP NM PDFs embed exact dates in the attachment filename
@@ -256,6 +271,7 @@ const HANDLERS = [
     name: 'HCP Occupancy Mix (CP Nagpur)',
     importSourceKey: 'occupancyMixImportedAt',
     bundled: true,
+    businessDate: hcpSubjectDate,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?OCC/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[_-]?OCC/i);
@@ -273,6 +289,7 @@ const HANDLERS = [
     name: 'HCP POS Sales / Covers (CP Nagpur)',
     importSourceKey: 'posSalesImportedAt',
     bundled: true,
+    businessDate: hcpSubjectDate,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?POS/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[_-]?POS/i);
@@ -291,6 +308,7 @@ const HANDLERS = [
     importVersion: FORECAST_IMPORT_VERSION,
     bundled: true,
     validatesDate: true,
+    businessDate: hcpSubjectDate,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?FORE/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[_-]?FORE/i);
@@ -308,6 +326,7 @@ const HANDLERS = [
     importVersion: EVENTS_IMPORT_VERSION,
     bundled: true,
     validatesDate: true,
+    businessDate: hcpSubjectDate,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?EVENT/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[_-]?EVENT/i);
@@ -442,8 +461,24 @@ const HANDLERS = [
     name: 'CP NM History & Forecast Report',
     importSourceKey: 'cpNmForecastImportedAt',
     bundled: true,
-    // Generation timestamp trails the filename: …_2098_YYYYMMDDhhmmss.pdf
-    businessDate: (parsed, runDate) => attachmentNameDate(parsed, /History_and_Forecast_Report/i, /_(\d{8})\d{6}\.pdf$/i, runDate),
+    // The H&F filename carries only a month range plus a generation timestamp
+    // (…_2098_YYYYMMDDhhmmss.pdf), and the hotel sometimes generates it after
+    // midnight — the timestamp date is then business date + 1 (e.g.
+    // …_20260713005825.pdf belongs to the 12th's audit). The sibling PDFs in the
+    // same email embed the exact business date; prefer those, keep the timestamp
+    // date only as a last resort.
+    businessDate: (parsed, runDate) => {
+      const siblings = [
+        [/Manager_Flash_Report/i, /For_(\d{4}-\d{2}-\d{2})/i],
+        [/Pay_Type_Report/i, /Between_(\d{4}-\d{2}-\d{2})/i]
+      ];
+      for (const [filePattern, datePattern] of siblings) {
+        const att = parsed.attachments?.find((a) => filePattern.test(a.filename ?? ''));
+        const date = clampBusinessDate(datePattern.exec(att?.filename ?? '')?.[1] ?? null, runDate);
+        if (date) return date;
+      }
+      return attachmentNameDate(parsed, /History_and_Forecast_Report/i, /_(\d{8})\d{6}\.pdf$/i, runDate);
+    },
     matches: (s, parsed) => {
       const isCpNm = /navimumbaicentrepoint@gmail\.com/i.test(messageText(parsed))
         || (subjectContains(s, 'hotel centre point') && subjectContains(s, 'vijan motors'));
