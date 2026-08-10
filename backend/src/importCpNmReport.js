@@ -47,14 +47,22 @@ function setForecast(data, name, value) {
   if (row && value > 0) row.actual = String(value);
 }
 
-function makeMixEntry(name, rooms, totalRooms, totalRevenue) {
-  const roomCount = Math.max(0, num(rooms));
-  return {
-    name,
-    rooms: roomCount,
-    pax: roomCount,
-    revenue: totalRooms ? Math.round((totalRevenue * roomCount) / totalRooms) : 0
-  };
+// Apportions the day's room revenue across ONE breakdown's buckets by room share,
+// nudging the largest bucket so the entries sum exactly to Math.round(revenue).
+// Each donut (S.O.B / Market Segment) is a complete view of the same room revenue,
+// so each must be apportioned over its OWN room total — dividing by a combined
+// cross-dimension total made every donut sum to only a fraction of room revenue.
+function apportionMixEntries(buckets, totalRevenue) {
+  const entries = buckets
+    .map(([name, rooms]) => ({ name, rooms: Math.max(0, num(rooms)) }))
+    .filter((entry) => entry.rooms > 0)
+    .map((entry) => ({ ...entry, pax: entry.rooms }));
+  const totalRooms = entries.reduce((sum, entry) => sum + entry.rooms, 0);
+  if (!totalRooms) return [];
+  for (const entry of entries) entry.revenue = Math.round((totalRevenue * entry.rooms) / totalRooms);
+  entries.sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue);
+  entries[0].revenue += Math.round(totalRevenue) - entries.reduce((sum, entry) => sum + entry.revenue, 0);
+  return entries;
 }
 
 function ensureForecastRows(data) {
@@ -265,24 +273,23 @@ export async function importCpNmManagerFlash(file, outDate) {
     );
   }
 
-  const mixTotalRooms = segCorporate + segFit + segOta + segGroup + segWalkIn + segNoShow || roomsSold;
   const occupancyMix = {
     unit: UNIT,
     asOf: outDate,
-    totalRooms: mixTotalRooms,
-    totalPax: mixTotalRooms,
+    totalRooms: roomsSold || segCorporate + segFit + segOta + segGroup,
+    totalPax: roomsSold || segCorporate + segFit + segOta + segGroup,
     totalRevenue: Math.round(roomRevenue),
-    sbo: [
-      makeMixEntry('Travel Agent / OTA', segOta, mixTotalRooms, roomRevenue),
-      makeMixEntry('Walk-ins', segWalkIn, mixTotalRooms, roomRevenue),
-      makeMixEntry('Group Bookings', segGroup, mixTotalRooms, roomRevenue),
-      makeMixEntry('No-shows', segNoShow, mixTotalRooms, roomRevenue)
-    ].filter((entry) => entry.rooms > 0).sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue),
-    segment: [
-      makeMixEntry('Corporate', segCorporate, mixTotalRooms, roomRevenue),
-      makeMixEntry('FIT/Leisure', segFit, mixTotalRooms, roomRevenue),
-      makeMixEntry('Group Bookings', segGroup, mixTotalRooms, roomRevenue)
-    ].filter((entry) => entry.rooms > 0).sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue)
+    sbo: apportionMixEntries([
+      ['Travel Agent / OTA', segOta],
+      ['Walk-ins', segWalkIn],
+      ['Group Bookings', segGroup],
+      ['No-shows', segNoShow]
+    ], roomRevenue),
+    segment: apportionMixEntries([
+      ['Corporate', segCorporate],
+      ['FIT/Leisure', segFit],
+      ['Group Bookings', segGroup]
+    ], roomRevenue)
   };
 
   data.importSource = {

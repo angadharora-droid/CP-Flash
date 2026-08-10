@@ -175,6 +175,16 @@ function niceDate(date) {
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${date}T00:00:00`));
 }
 
+// " - mix report on N of M days" when the occupancy-mix report was missing on some
+// days: the donut then covers less revenue than the week's Room Revenue KPI, and
+// the gap should read as under-coverage, not as a mismatch.
+function mixCoverageNote(mix, week) {
+  const totalDays = week?.dates?.length ?? 0;
+  return mix?.days && totalDays && mix.days < totalDays
+    ? ` - mix report on ${mix.days} of ${totalDays} days`
+    : '';
+}
+
 function safeText(value) {
   return String(value ?? '').replace(/\u20b9/g, 'Rs.');
 }
@@ -1023,9 +1033,10 @@ export function createDailyFlashPdf(data, date, options = {}) {
       if (cpnMix) {
         const sobRows = (cpnMix.sbo ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
         const msRows  = (cpnMix.segment ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
+        const cpnCoverage = mixCoverageNote(cpnMix, week);
         donutChartPair(
-          { title: 'CP Nagpur: Source of Business', subtitle: 'Week-to-date room source mix', entries: sobRows },
-          { title: 'CP Nagpur: Market Segment', subtitle: 'Week-to-date room segment mix', entries: msRows }
+          { title: 'CP Nagpur: Source of Business', subtitle: `Week-to-date room source mix${cpnCoverage}`, entries: sobRows },
+          { title: 'CP Nagpur: Market Segment', subtitle: `Week-to-date room segment mix${cpnCoverage}`, entries: msRows }
         );
       }
     }
@@ -1038,9 +1049,10 @@ export function createDailyFlashPdf(data, date, options = {}) {
       if (cpNmMix) {
         const sobRows = (cpNmMix.sbo ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
         const msRows  = (cpNmMix.segment ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
+        const cpNmCoverage = mixCoverageNote(cpNmMix, week);
         donutChartPair(
-          { title: 'CP NM: Source of Business', subtitle: 'Week-to-date room source mix', entries: sobRows },
-          { title: 'CP NM: Market Segment', subtitle: 'Week-to-date room segment mix', entries: msRows }
+          { title: 'CP NM: Source of Business', subtitle: `Week-to-date room source mix${cpNmCoverage}`, entries: sobRows },
+          { title: 'CP NM: Market Segment', subtitle: `Week-to-date room segment mix${cpNmCoverage}`, entries: msRows }
         );
       }
     }
