@@ -183,16 +183,21 @@ function WeeklyKpiTable({ rows }) {
   );
 }
 
-function WeeklyMixCard({ title, subtitle, mix, kind }) {
+function WeeklyMixCard({ title, subtitle, mix, kind, totalDays = 0 }) {
   const entries = kind === 'source' ? (mix?.sbo ?? []) : (mix?.segment ?? []);
   const chartRows = entries
     .map((row) => ({ name: row.name, value: numberValue(row.revenue), rooms: numberValue(row.rooms), pax: numberValue(row.pax) }))
     .filter((row) => row.value > 0)
     .sort((a, b) => b.value - a.value);
   const total = chartRows.reduce((sum, row) => sum + row.value, 0);
+  // When the mix report was missing on some days, the donut covers less revenue
+  // than the week's Room Revenue KPI — say so instead of looking mismatched.
+  const coverage = mix?.days && totalDays && mix.days < totalDays
+    ? ` — mix report on ${mix.days} of ${totalDays} days`
+    : '';
 
   return (
-    <SectionCard title={title} subtitle={subtitle} icon={SECTION_ICONS.hotel} tone="amber" defaultOpen>
+    <SectionCard title={title} subtitle={`${subtitle}${coverage}`} icon={SECTION_ICONS.hotel} tone="amber" defaultOpen>
       {chartRows.length ? (
         <DonutChart data={chartRows} total={total} />
       ) : (
@@ -810,12 +815,14 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               subtitle="Week-to-date room source mix"
               mix={weekCpnMix}
               kind="source"
+              totalDays={activeWeekPeriod?.weekDates?.length ?? 0}
             />
             <WeeklyMixCard
               title="CP Nagpur: Market Segment"
               subtitle="Week-to-date room segment mix"
               mix={weekCpnMix}
               kind="segment"
+              totalDays={activeWeekPeriod?.weekDates?.length ?? 0}
             />
           </div>
           <UnitRevenueHeader unit="CP NM" rows={weeklyPnlRows} scope="week to date" />
@@ -828,12 +835,14 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
               subtitle="Week-to-date room source mix"
               mix={weekCpNmMix}
               kind="source"
+              totalDays={activeWeekPeriod?.weekDates?.length ?? 0}
             />
             <WeeklyMixCard
               title="CP NM: Market Segment"
               subtitle="Week-to-date room segment mix"
               mix={weekCpNmMix}
               kind="segment"
+              totalDays={activeWeekPeriod?.weekDates?.length ?? 0}
             />
           </div>
           <div id="weekly-fnb" className="scroll-mt-24">

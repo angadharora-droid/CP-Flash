@@ -755,30 +755,36 @@ async function aggregateOccupancyMixForDates(dates, rawByDate = null) {
       walkin: get('walkin'),
       noshow: get('noshow')
     };
-    const totalRooms = Object.values(segments).reduce((sum, value) => sum + value, 0);
-    if (!totalRooms) return null;
-    const entry = (name, rooms) => ({
-      name,
-      rooms,
-      pax: rooms,
-      revenue: roomRevenue ? Math.round((roomRevenue * rooms) / totalRooms) : 0
-    });
+    const totalRooms = get('rooms') || segments.corporate + segments.fit + segments.ota + segments.group;
+    if (!Object.values(segments).some(Boolean)) return null;
+    // Same apportionment as importCpNmReport: each breakdown is a complete view of
+    // the day's room revenue, so divide by that breakdown's OWN room total — the
+    // entries then sum to Math.round(roomRevenue), matching the Room Revenue KPI.
+    const apportion = (buckets) => {
+      const entries = buckets.filter(([, rooms]) => rooms > 0).map(([name, rooms]) => ({ name, rooms, pax: rooms }));
+      const bucketRooms = entries.reduce((sum, item) => sum + item.rooms, 0);
+      if (!bucketRooms) return [];
+      for (const item of entries) item.revenue = Math.round((roomRevenue * item.rooms) / bucketRooms);
+      entries.sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue);
+      entries[0].revenue += Math.round(roomRevenue) - entries.reduce((sum, item) => sum + item.revenue, 0);
+      return entries;
+    };
     return {
       unit: 'CP NM',
       totalRooms,
       totalPax: totalRooms,
       totalRevenue: Math.round(roomRevenue),
-      sbo: [
-        entry('Travel Agent / OTA', segments.ota),
-        entry('Walk-ins', segments.walkin),
-        entry('Group Bookings', segments.group),
-        entry('No-shows', segments.noshow)
-      ].filter((item) => item.rooms > 0),
-      segment: [
-        entry('Corporate', segments.corporate),
-        entry('FIT/Leisure', segments.fit),
-        entry('Group Bookings', segments.group)
-      ].filter((item) => item.rooms > 0)
+      sbo: apportion([
+        ['Travel Agent / OTA', segments.ota],
+        ['Walk-ins', segments.walkin],
+        ['Group Bookings', segments.group],
+        ['No-shows', segments.noshow]
+      ]),
+      segment: apportion([
+        ['Corporate', segments.corporate],
+        ['FIT/Leisure', segments.fit],
+        ['Group Bookings', segments.group]
+      ])
     };
   }
 
@@ -789,20 +795,30 @@ async function aggregateOccupancyMixForDates(dates, rawByDate = null) {
       totalRooms: 0,
       totalPax: 0,
       totalRevenue: 0,
+      days: 0,
       sbo: new Map(),
       segment: new Map()
     };
     entry.totalRooms += numberValue(mix.totalRooms);
     entry.totalPax += numberValue(mix.totalPax);
     entry.totalRevenue += numberValue(mix.totalRevenue);
+    entry.days += 1;
 
     for (const key of ['sbo', 'segment']) {
-      for (const item of mix[key] ?? []) {
+      const items = mix[key] ?? [];
+      // Each breakdown is a complete view of the day's room revenue, so it must sum
+      // to totalRevenue. CP NM days saved before the apportionment fix divided by a
+      // cross-dimension room total and sum to only a fraction — rescale those here
+      // so stored history aggregates correctly too (no-op for well-formed days).
+      const dimTotal = items.reduce((sum, item) => sum + numberValue(item.revenue), 0);
+      const target = numberValue(mix.totalRevenue);
+      const scale = dimTotal && target ? target / dimTotal : 1;
+      for (const item of items) {
         const name = String(item.name ?? '').trim() || 'Unspecified';
         const bucket = entry[key].get(name) ?? { name, rooms: 0, pax: 0, revenue: 0 };
         bucket.rooms += numberValue(item.rooms);
         bucket.pax += numberValue(item.pax);
-        bucket.revenue += numberValue(item.revenue);
+        bucket.revenue += numberValue(item.revenue) * scale;
         entry[key].set(name, bucket);
       }
     }
@@ -813,7 +829,8 @@ async function aggregateOccupancyMixForDates(dates, rawByDate = null) {
     for (const mix of Object.values(raw.occupancyMixByUnit ?? {})) {
       addMix(mix);
     }
-    if (raw.occupancyMix) addMix(raw.occupancyMix);
+    // Guard the same unit against double counting if it ever lands in both stores.
+    if (raw.occupancyMix && !raw.occupancyMixByUnit?.[raw.occupancyMix.unit || 'CP Nagpur']) addMix(raw.occupancyMix);
     if (!raw.occupancyMixByUnit?.['CP NM']) addMix(mixEntryFromNotes(raw));
   }
 
@@ -823,6 +840,7 @@ async function aggregateOccupancyMixForDates(dates, rawByDate = null) {
       totalRooms: entry.totalRooms,
       totalPax: entry.totalPax,
       totalRevenue: Math.round(entry.totalRevenue),
+      days: entry.days,
       sbo: [...entry.sbo.values()].map((item) => ({ ...item, revenue: Math.round(item.revenue) })).sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue),
       segment: [...entry.segment.values()].map((item) => ({ ...item, revenue: Math.round(item.revenue) })).sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue)
     }
