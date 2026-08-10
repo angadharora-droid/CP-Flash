@@ -73,13 +73,33 @@ function percent(value) {
   return `${numberValue(value).toFixed(1)}%`;
 }
 
+// Ratio KPIs ("Food Cost %", "Combo Sales %", "Core 4 Revenue %", ...) also match
+// the money keywords below, so percentage detection must win over money detection.
+function isPercentKpi(name) {
+  return /%|\bmargin\b/i.test(String(name ?? ''));
+}
+
 function isMoneyKpi(name) {
-  return /revenue|sales|purchase|cost|profit|pipeline|balance|cheque|revpar|bill/i.test(name);
+  if (isPercentKpi(name)) return false;
+  // APC (average per cover) and AOV (average order value) are rupee amounts too.
+  return /revenue|sales|purchase|cost|profit|pipeline|balance|cheque|revpar|bill|\bapc\b|\baov\b/i.test(name);
+}
+
+// Strict parse: returns null for anything that isn't a plain number, so text
+// values ("N/A", "Pending") are printed as-is instead of becoming "Rs. 0".
+function parseNumeric(value) {
+  const text = String(value ?? '').replace(/^Rs\.?\s*/i, '').replace(/[,\s%]/g, '');
+  if (!/^-?(\d+\.?\d*|\.\d+)$/.test(text)) return null;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function formatValue(value, name = '') {
   if (value === null || value === undefined || String(value).trim() === '') return '-';
-  if (isMoneyKpi(name) && Number.isFinite(numberValue(value))) return money(value);
+  const numeric = parseNumeric(value);
+  if (numeric === null) return String(value);
+  if (isPercentKpi(name)) return percent(numeric);
+  if (isMoneyKpi(name)) return money(numeric);
   return String(value);
 }
 

@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { pageSchemas, schemaRowsToKpis } from './schema.js';
+import { ensureHotelSectionRows, normalizeHotelKpiRows } from './schema.js';
 import { readDaily, writeDaily } from './dailyStore.js';
 
 // Persisted in importSource as `eventsVersion`; the email handler's matching
@@ -23,17 +23,6 @@ function isoAddDays(iso, days) {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
-}
-
-/** Makes sure the Banquets KPI rows exist for `unit` (older daily files predate them). */
-function ensureSectionRows(data, unit) {
-  const section = pageSchemas.hotels.find((s) => s.title === BANQUETS_SECTION);
-  if (!section) return;
-  data.hotels = data.hotels ?? [];
-  const existingIds = new Set(data.hotels.map((r) => r.id));
-  for (const row of schemaRowsToKpis(unit, 'hotels', [section])) {
-    if (!existingIds.has(row.id)) data.hotels.push(row);
-  }
 }
 
 const clean = (value) => String(value ?? '').trim();
@@ -210,14 +199,21 @@ export async function importEvents(file, outDate, unit = 'CP Nagpur', { anchored
 
   // Business-day (D) functions feed the Banquets KPI summary. Revenue Today is left to the
   // Night Audit importer (its source of truth), so only Covers + No. of Functions here.
-  ensureSectionRows(data, unit);
+  data.hotels = normalizeHotelKpiRows(data.hotels ?? []);
+  ensureHotelSectionRows(data, unit, BANQUETS_SECTION);
+  const banquetRow = (name) => data.hotels.find((r) => r.unit === unit && r.section === BANQUETS_SECTION && r.name === name);
   const setBanquetKpi = (name, value) => {
-    const row = data.hotels.find((r) => r.unit === unit && r.section === BANQUETS_SECTION && r.name === name);
+    const row = banquetRow(name);
     if (row) row.actual = String(value);
   };
   const businessPax = businessEvents.reduce((sum, e) => sum + (Number(e.pax) || 0), 0);
   setBanquetKpi('Covers', businessPax);
   setBanquetKpi('No. of Functions', businessEvents.length);
+
+  // APC = banquet Revenue Today ÷ covers. Revenue comes from the Night Audit importer,
+  // which may run before or after this one — each recomputes when both inputs exist.
+  const banquetRevenue = num(banquetRow('Revenue Today')?.actual);
+  if (banquetRevenue && businessPax) setBanquetKpi('APC', Math.round(banquetRevenue / businessPax));
 
   data.importSource = {
     ...(data.importSource ?? {}),

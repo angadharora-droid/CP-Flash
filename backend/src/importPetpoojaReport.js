@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSeedData } from './excel.js';
-import { normalizeRabbitCategoryBreakdown } from './schema.js';
+import { mergeSeedKpiRows, normalizeFnbKpiRows, normalizeRabbitCategoryBreakdown } from './schema.js';
 import { readDaily, writeDaily } from './dailyStore.js';
 
 function num(str) {
@@ -141,18 +141,6 @@ function parseComboCategorySales(html) {
   return comboSales;
 }
 
-function mergeSeedKpiRows(seedRows = [], savedRows = []) {
-  if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
-  const savedById = new Map(savedRows.map((row) => [row.id, row]));
-  const seen = new Set();
-  const mergedSeedRows = seedRows.map((seedRow) => {
-    const savedRow = savedById.get(seedRow.id);
-    seen.add(seedRow.id);
-    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
-  });
-  return [...mergedSeedRows, ...savedRows.filter((row) => !seen.has(row.id))];
-}
-
 function get(map, ...labels) {
   for (const label of labels) {
     if (map.has(label)) return map.get(label);
@@ -195,7 +183,7 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     const seed = buildSeedData();
     data.fnb = {
       ...(data.fnb ?? {}),
-      [outlet]: mergeSeedKpiRows(seed.fnb?.[outlet], data.fnb?.[outlet])
+      [outlet]: mergeSeedKpiRows(seed.fnb?.[outlet], normalizeFnbKpiRows(data.fnb?.[outlet]))
     };
   }
 
@@ -243,12 +231,11 @@ export async function importPetpoojaReport(emailHtml, outlet, outDate) {
     // Net sales from this email is the first-priority headline number for Pablo/Dali —
     // write it even when the Payment Wise Summary was imported. (The payment summary
     // reports settled/collected revenue, post-tax; net sales is pre-tax Core − Discount.)
-    // The payment summary stays the source for covers / avg bill / settlement breakdown.
+    // The payment summary stays the source for covers / APC / settlement breakdown.
     setKpi('Gross Sales', grossSales);
     if (!hasPaymentImport) {
-      setKpi('Covers', bills);
       setKpi('Covers/day', bills);
-      setKpi('Avg Bill', avgBill);
+      setKpi('Total Covers', bills);
       setKpi('APC', avgBill);
     }
     setKpi('Lunch Revenue', get(values, 'lunch', 'lunch sales', 'lunch revenue'));
