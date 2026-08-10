@@ -279,11 +279,13 @@ export async function importCpNmManagerFlash(file, outDate) {
     totalRooms: roomsSold || segCorporate + segFit + segOta + segGroup,
     totalPax: roomsSold || segCorporate + segFit + segOta + segGroup,
     totalRevenue: Math.round(roomRevenue),
+    // Labels follow the shared canonical mix vocabulary (canonicalMixName in
+    // schema.js) so the CP NM donuts chart the same categories as CP Nagpur's.
     sbo: apportionMixEntries([
-      ['Travel Agent / OTA', segOta],
+      ['OTA (MMT/Booking.com)', segOta], // TA + OTA combined in the Manager Flash
       ['Walk-ins', segWalkIn],
       ['Group Bookings', segGroup],
-      ['No-shows', segNoShow]
+      ['Cancellations/No-shows', segNoShow]
     ], roomRevenue),
     segment: apportionMixEntries([
       ['Corporate', segCorporate],

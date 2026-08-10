@@ -14,7 +14,7 @@ import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
 import { buildSourceStatus } from './sources.js';
-import { canonicalUnit, mergeSeedKpiRows, normalizeFnbKpiRows, normalizeHotelKpiRows, normalizeRabbitCategoryBreakdown, settlementModes, UNITS } from './schema.js';
+import { canonicalizeOccupancyMix, canonicalMixName, canonicalUnit, mergeSeedKpiRows, normalizeFnbKpiRows, normalizeHotelKpiRows, normalizeRabbitCategoryBreakdown, settlementModes, UNITS } from './schema.js';
 import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
 import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
 import { readAopTargets, writeAopTargets, applyDailyTargetOverrides, collectKpiCatalog } from './aopTargets.js';
@@ -375,6 +375,8 @@ function mergeDailyData(seed, saved) {
   const merged = {
     ...seed,
     ...saved,
+    // Stored mixes may predate the shared donut vocabulary — normalize on read.
+    ...(saved.occupancyMix ? { occupancyMix: canonicalizeOccupancyMix(saved.occupancyMix) } : {}),
     hotels: mergeSeedKpiRows(seed.hotels, normalizeHotelKpiRows(saved.hotels)),
     rabbits: mergeSeedKpiRows(seed.rabbits, saved.rabbits),
     fnb: {
@@ -775,10 +777,10 @@ async function aggregateOccupancyMixForDates(dates, rawByDate = null) {
       totalPax: totalRooms,
       totalRevenue: Math.round(roomRevenue),
       sbo: apportion([
-        ['Travel Agent / OTA', segments.ota],
+        ['OTA (MMT/Booking.com)', segments.ota],
         ['Walk-ins', segments.walkin],
         ['Group Bookings', segments.group],
-        ['No-shows', segments.noshow]
+        ['Cancellations/No-shows', segments.noshow]
       ]),
       segment: apportion([
         ['Corporate', segments.corporate],
@@ -814,7 +816,9 @@ async function aggregateOccupancyMixForDates(dates, rawByDate = null) {
       const target = numberValue(mix.totalRevenue);
       const scale = dimTotal && target ? target / dimTotal : 1;
       for (const item of items) {
-        const name = String(item.name ?? '').trim() || 'Unspecified';
+        // Canonical vocabulary — merges stored history (raw IDS codes, legacy
+        // CP NM labels) into the same buckets as freshly imported days.
+        const name = canonicalMixName(key, item.name) || 'Unspecified';
         const bucket = entry[key].get(name) ?? { name, rooms: 0, pax: 0, revenue: 0 };
         bucket.rooms += numberValue(item.rooms);
         bucket.pax += numberValue(item.pax);

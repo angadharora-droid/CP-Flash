@@ -2,17 +2,19 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { pageSchemas, schemaRowsToKpis } from './schema.js';
+import { canonicalMixName, pageSchemas, schemaRowsToKpis } from './schema.js';
 import { readDaily, writeDaily } from './dailyStore.js';
 
-// HCP_OCC report value (uppercased) → preset row in the "Market Segments" KPI table.
-// Mar.Seg and S.O.B value sets don't overlap, so both feed the one table. Unmapped
-// values (NON-CONTRA, SALES OFF, CRO, HOTEL WEB, TRAV AGEN) are dropped — no "Other" row.
+// Canonical mix category → preset row in the "Market Segments" KPI table.
+// (Mix entries are tallied under the shared canonical vocabulary — see
+// canonicalMixName in schema.js.) Mar.Seg and S.O.B value sets don't overlap, so
+// both feed the one table. Categories without a matching row (Non-Contracted,
+// Sales Office, CRO, Hotel Website, Travel Agent) are dropped — no "Other" row.
 const MARKET_SEGMENT_MAP = {
-  CORPORATE: 'Corporate',          // Mar.Seg
-  FIT: 'FIT/Leisure',              // Mar.Seg
-  'ONLINE TR': 'OTA (MMT/Booking.com)', // S.O.B
-  'WALK-IN': 'Walk-ins'            // S.O.B
+  Corporate: 'Corporate',                          // Mar.Seg
+  'FIT/Leisure': 'FIT/Leisure',                    // Mar.Seg
+  'OTA (MMT/Booking.com)': 'OTA (MMT/Booking.com)', // S.O.B
+  'Walk-ins': 'Walk-ins'                           // S.O.B
 };
 
 function num(value) {
@@ -165,8 +167,10 @@ export async function importOccupancyMix(file, outDate, unit = 'CP Nagpur') {
     const pax = Math.round(num(row[cols.pax]));
     const sob = clean(row[cols.sob]).toUpperCase();
 
-    tallyInto(sboMap, sob, 1, nett, pax);
-    tallyInto(segMap, segment.toUpperCase(), 1, nett, pax);
+    // Tally under the shared canonical vocabulary so CP Nagpur and CP NM donuts
+    // chart the same category names.
+    tallyInto(sboMap, canonicalMixName('sbo', sob), 1, nett, pax);
+    tallyInto(segMap, canonicalMixName('segment', segment), 1, nett, pax);
     totalRooms += 1;
     totalPax += pax;
     totalRevenue += nett;
