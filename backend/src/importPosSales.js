@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { pageSchemas, schemaRowsToKpis } from './schema.js';
+import { ensureHotelSectionRows, normalizeHotelKpiRows } from './schema.js';
 import { readDaily, writeDaily } from './dailyStore.js';
 
 // HCP_POS_SALE outlet section header (uppercased) → "Covers" row in the hotels
@@ -14,10 +14,12 @@ const OUTLET_COVER_ROW = {
   'MEETING POINT': 'Meeting Point Covers'
 };
 
-// Outlets that also get an "Avg Bill" row = food+liquor sale ÷ deduped covers.
-// Only Meeting Point has an Avg Bill row in the F&B Outlets schema.
-const OUTLET_AVG_BILL_ROW = {
-  'MEETING POINT': 'Meeting Point Avg Bill'
+// Every tracked outlet also gets an APC row = food+liquor sale ÷ deduped covers,
+// matching the Pablo/Dali definition (average per cover, not per bill).
+const OUTLET_APC_ROW = {
+  FREAKK: 'Freakk APC',
+  'HIGH STEAK': 'High Steaks APC',
+  'MEETING POINT': 'Meeting Point APC'
 };
 
 // All outlet section headers in the report, used to switch context. Meal-period
@@ -99,21 +101,10 @@ function dedupParties(billList) {
   return { covers, bills };
 }
 
-/** Makes sure the F&B Outlets KPI rows exist for `unit` (older daily files predate new rows). */
-function ensureSectionRows(data, unit) {
-  const section = pageSchemas.hotels.find((s) => s.title === SECTION_TITLE);
-  if (!section) return;
-  data.hotels = data.hotels ?? [];
-  const existingIds = new Set(data.hotels.map((r) => r.id));
-  for (const row of schemaRowsToKpis(unit, 'hotels', [section])) {
-    if (!existingIds.has(row.id)) data.hotels.push(row);
-  }
-}
-
 /**
  * Parses the HCP_POS_SALE outlet-wise bill report and writes deduped daily covers
  * for Meeting Point, Freakk and High Steak into the hotels "F&B Outlets" KPI table,
- * plus Meeting Point's avg bill (food+liquor sale ÷ deduped covers).
+ * plus each outlet's APC (food+liquor sale ÷ deduped covers).
  */
 export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
   const wb = XLSX.readFile(file, { cellDates: true });
@@ -153,7 +144,8 @@ export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
   if (!billsByOutlet.size) throw new Error(`No outlet bill rows found in sheet "${usedSheet}".`);
 
   const data = (await readDaily(outDate)) ?? buildSeedData();
-  ensureSectionRows(data, unit);
+  data.hotels = normalizeHotelKpiRows(data.hotels ?? []);
+  ensureHotelSectionRows(data, unit, SECTION_TITLE);
 
   const setActual = (name, value) => {
     const row = data.hotels.find((r) => r.unit === unit && r.section === SECTION_TITLE && r.name === name);
@@ -167,13 +159,12 @@ export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
     const revenue = Math.round(outletBills.reduce((sum, b) => sum + b.fod + b.liq, 0));
     setActual(coverRow, covers);
 
-    // Avg bill = food+liquor sale ÷ deduped bills, so a party split into a food bill
-    // and a liquor bill counts as one bill, not two.
-    const avgBillRow = OUTLET_AVG_BILL_ROW[outletName];
-    const avgBill = avgBillRow && bills ? Math.round(revenue / bills) : null;
-    if (avgBillRow && avgBill != null) setActual(avgBillRow, avgBill);
+    // APC = food+liquor sale ÷ deduped covers, so a party split into a food bill
+    // and a liquor bill counts once.
+    const apc = covers ? Math.round(revenue / covers) : null;
+    if (apc != null) setActual(OUTLET_APC_ROW[outletName], apc);
 
-    mapped[outletName] = { covers, bills, revenue, ...(avgBill != null ? { avgBill } : {}) };
+    mapped[outletName] = { covers, bills, revenue, ...(apc != null ? { apc } : {}) };
   }
 
   data.importSource = {

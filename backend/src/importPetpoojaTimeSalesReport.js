@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
 import { readDaily, writeDaily } from './dailyStore.js';
+import { mergeSeedKpiRows, normalizeFnbKpiRows } from './schema.js';
 
 function num(value) {
   const parsed = Number(String(value ?? '').replace(/[^\d.-]/g, ''));
@@ -72,18 +73,6 @@ function isCore4Row(outlet, category, itemName) {
 function setKpi(rows, name, actual) {
   const row = rows?.find((item) => item.name === name);
   if (row && actual !== null && actual !== undefined) row.actual = round(actual);
-}
-
-function mergeSeedKpiRows(seedRows = [], savedRows = []) {
-  if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
-  const savedById = new Map(savedRows.map((row) => [row.id, row]));
-  const seen = new Set();
-  const mergedSeedRows = seedRows.map((seedRow) => {
-    const savedRow = savedById.get(seedRow.id);
-    seen.add(seedRow.id);
-    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id } : seedRow;
-  });
-  return [...mergedSeedRows, ...savedRows.filter((row) => !seen.has(row.id))];
 }
 
 function parseDate(value) {
@@ -253,7 +242,7 @@ export async function importPetpoojaTimeSalesReport(file, outlet, outDate) {
     const seed = buildSeedData();
     data.fnb = {
       ...(data.fnb ?? {}),
-      [outlet]: mergeSeedKpiRows(seed.fnb?.[outlet], data.fnb?.[outlet])
+      [outlet]: mergeSeedKpiRows(seed.fnb?.[outlet], normalizeFnbKpiRows(data.fnb?.[outlet]))
     };
   }
 

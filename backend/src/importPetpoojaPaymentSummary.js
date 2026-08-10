@@ -2,6 +2,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { readDaily, writeDaily } from './dailyStore.js';
+import { buildSeedData } from './excel.js';
+import { mergeSeedKpiRows, normalizeFnbKpiRows } from './schema.js';
 import { resolveNetSales } from './importPetpoojaReport.js';
 
 function num(value) {
@@ -133,7 +135,14 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
   };
 
   if (outlet === 'Pablo' || outlet === 'Dali') {
-    const rowsToUpdate = data.fnb?.[outlet] ?? [];
+    // Re-seed before writing: a date saved under an older KPI set would otherwise
+    // silently drop the covers / APC values that have no row to land on.
+    const seed = buildSeedData();
+    data.fnb = {
+      ...(data.fnb ?? {}),
+      [outlet]: mergeSeedKpiRows(seed.fnb?.[outlet], normalizeFnbKpiRows(data.fnb?.[outlet]))
+    };
+    const rowsToUpdate = data.fnb[outlet];
     const averagePerCover = successTotals.covers
       ? successTotals.dineInRevenue / successTotals.covers
       : null;
@@ -149,13 +158,9 @@ export async function importPetpoojaPaymentSummary(file, outlet, outDate) {
     const headlineRevenue = emailNetSales ?? successTotals.revenue;
 
     setKpi(rowsToUpdate, 'Gross Sales', headlineRevenue);
-    if (outlet === 'Pablo') {
-      setKpi(rowsToUpdate, 'Covers', successTotals.covers);
-      setKpi(rowsToUpdate, 'Avg Bill', averagePerCover);
-    } else {
-      setKpi(rowsToUpdate, 'Covers/day', successTotals.covers);
-      setKpi(rowsToUpdate, 'APC', averagePerCover);
-    }
+    setKpi(rowsToUpdate, 'Covers/day', successTotals.covers);
+    setKpi(rowsToUpdate, 'Total Covers', successTotals.covers);
+    setKpi(rowsToUpdate, 'APC', averagePerCover);
 
     data.pnl = (data.pnl ?? []).map((row) =>
       row.unit === outlet ? { ...row, revenueToday: round(headlineRevenue) } : row

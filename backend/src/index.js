@@ -14,7 +14,7 @@ import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
 import { buildSourceStatus } from './sources.js';
-import { normalizeRabbitCategoryBreakdown, settlementModes, UNITS } from './schema.js';
+import { canonicalUnit, mergeSeedKpiRows, normalizeFnbKpiRows, normalizeHotelKpiRows, normalizeRabbitCategoryBreakdown, settlementModes, UNITS } from './schema.js';
 import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
 import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
 import { readAopTargets, writeAopTargets, applyDailyTargetOverrides, collectKpiCatalog } from './aopTargets.js';
@@ -325,10 +325,6 @@ function numberValue(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function canonicalUnit(unit) {
-  return unit === 'Rabbit' + 's' ? 'Rabbit' : unit;
-}
-
 function firstKpiValue(rows = [], unit, names = []) {
   const match = rows.find((row) => canonicalUnit(row.unit) === unit && names.some((name) => row.name === name));
   return match?.actual;
@@ -374,40 +370,17 @@ function mergePnlRows(seedRows = [], savedRows = []) {
   });
 }
 
-function mergeSeedKpiRows(seedRows = [], savedRows = []) {
-  if (!Array.isArray(savedRows) || !savedRows.length) return seedRows;
-  const keyOf = (row) => `${canonicalUnit(row.unit) ?? ''}::${row.name ?? ''}`;
-  const savedById = new Map(savedRows.map((row) => [row.id, row]));
-  const savedByKey = new Map();
-  for (const row of savedRows) {
-    const k = keyOf(row);
-    if (!savedByKey.has(k)) savedByKey.set(k, []);
-    savedByKey.get(k).push(row);
-  }
-  const seen = new Set();
-  const mergedSeedRows = seedRows.map((seedRow) => {
-    const directMatch = savedById.get(seedRow.id);
-    const keyMatches = savedByKey.get(keyOf(seedRow)) ?? [];
-    const savedRow = directMatch ?? keyMatches[0];
-    if (directMatch?.id) seen.add(directMatch.id);
-    for (const m of keyMatches) if (m?.id) seen.add(m.id);
-    return savedRow ? { ...seedRow, ...savedRow, id: seedRow.id, unit: seedRow.unit, section: seedRow.section } : seedRow;
-  });
-  const extraRows = savedRows.filter((row) => !seen.has(row.id));
-  return [...mergedSeedRows, ...extraRows];
-}
-
 function mergeDailyData(seed, saved) {
   if (!saved) return seed;
   const merged = {
     ...seed,
     ...saved,
-    hotels: mergeSeedKpiRows(seed.hotels, saved.hotels),
+    hotels: mergeSeedKpiRows(seed.hotels, normalizeHotelKpiRows(saved.hotels)),
     rabbits: mergeSeedKpiRows(seed.rabbits, saved.rabbits),
     fnb: {
       ...(saved.fnb ?? {}),
-      Pablo: mergeSeedKpiRows(seed.fnb?.Pablo, saved.fnb?.Pablo),
-      Dali: mergeSeedKpiRows(seed.fnb?.Dali, saved.fnb?.Dali)
+      Pablo: mergeSeedKpiRows(seed.fnb?.Pablo, normalizeFnbKpiRows(saved.fnb?.Pablo)),
+      Dali: mergeSeedKpiRows(seed.fnb?.Dali, normalizeFnbKpiRows(saved.fnb?.Dali))
     },
     pnl: mergePnlRows(seed.pnl, saved.pnl)
   };

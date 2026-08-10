@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
+import { ensureHotelSectionRows, normalizeHotelKpiRows } from './schema.js';
 import { readDaily, writeDaily } from './dailyStore.js';
 
 function num(value) {
@@ -47,6 +48,8 @@ export async function importHotelReport(file, outDate) {
   // Read existing daily file so we don't overwrite data written by other importers
   // (e.g. occupancy report may have already run before this one)
   const data = (await readDaily(outDate)) ?? buildSeedData();
+  data.hotels = normalizeHotelKpiRows(data.hotels ?? []);
+  ensureHotelSectionRows(data, unit, 'Banquets');
 
   const room        = net(findRow(rows, 'Total ( A )', 'Total (A)', 'TOTAL ( A )'));
   const fnb         = net(findRow(rows, 'Total ( B )', 'Total (B)', 'TOTAL ( B )'));
@@ -67,6 +70,13 @@ export async function importHotelReport(file, outDate) {
   setKpi(data, unit, 'High Steaks Revenue', highSteak);
   setKpi(data, unit, 'In-Room Dining Revenue', roomService);
   setKpi(data, unit, 'Revenue Today',       banquet);
+
+  // Banquets APC = Revenue Today ÷ covers. Covers come from the events importer,
+  // which may run before or after this one — each recomputes when both inputs exist.
+  const banquetCovers = num(data.hotels.find((r) => r.unit === unit && r.section === 'Banquets' && r.name === 'Covers')?.actual);
+  if (banquet.actual && banquetCovers) {
+    setKpi(data, unit, 'APC', { actual: Math.round(banquet.actual / banquetCovers) });
+  }
 
   // P&L revenue = Total A + Total B + Total C (matches the night audit report totals exactly)
   const totalRevenue = room.actual + fnb.actual + otherSales.actual;
