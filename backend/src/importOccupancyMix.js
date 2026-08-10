@@ -23,6 +23,19 @@ function num(value) {
 
 const clean = (value) => String(value ?? '').trim();
 
+// D.O.A cells are "dd/mm" with no year; anchor on the business date's year.
+// A result far in the future is last year's long-stay arrival (a December
+// guest on a January report), not a late snapshot — only small forward drift
+// (a bundle generated days after its business date) is real.
+function arrivalIso(doa, outDate) {
+  const m = /^(\d{1,2})\/(\d{1,2})/.exec(clean(doa));
+  if (!m) return null;
+  const mk = (y) => `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  const iso = mk(Number(outDate.slice(0, 4)));
+  const driftDays = (Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${outDate}T00:00:00Z`)) / 86400000;
+  return driftDays > 45 ? mk(Number(outDate.slice(0, 4)) - 1) : iso;
+}
+
 // Section labels that appear in the "Status" column (col H) of the HCP_OCC report.
 const SECTION_PRESENT = 'Present Occupancy';
 const SECTIONS = new Set([
@@ -47,6 +60,7 @@ function resolveColumns(rows) {
       else if (label === 'pax') idx.pax = c;
       else if (label === 'nett') idx.nett = c;
       else if (label === 'room#') idx.room = c;
+      else if (label === 'd.o.a') idx.doa = c;
     });
     if (idx.segment != null && idx.sob != null) {
       return { headerRow: r, ...idx };
@@ -126,6 +140,7 @@ export async function importOccupancyMix(file, outDate, unit = 'CP Nagpur') {
   let totalRooms = 0;
   let totalPax = 0;
   let totalRevenue = 0;
+  let latestArrival = '';
   let section = null;
 
   for (let r = cols.headerRow + 1; r < rows.length; r += 1) {
@@ -155,9 +170,28 @@ export async function importOccupancyMix(file, outDate, unit = 'CP Nagpur') {
     totalRooms += 1;
     totalPax += pax;
     totalRevenue += nett;
+    if (cols.doa != null) {
+      const arrival = arrivalIso(row[cols.doa], outDate);
+      if (arrival && arrival > latestArrival) latestArrival = arrival;
+    }
   }
 
   if (!totalRooms) throw new Error(`No "${SECTION_PRESENT}" detail rows found in sheet "${usedSheet}".`);
+
+  // HCP_OCC is a live "who's in-house now" snapshot with no printed date. A
+  // bundle mailed days after a holiday carries a snapshot from send time; a
+  // guest who arrived AFTER the business date proves it. Filing it would copy
+  // a later day's mix onto this date (Jul 10 + 11 2026 held identical data
+  // this way), so leave the date empty and let the fetch log it as pending.
+  if (latestArrival > outDate) {
+    return {
+      ok: false,
+      pending: true,
+      date: outDate,
+      unit,
+      reason: `HCP_OCC snapshot postdates ${outDate} (guest arrived ${latestArrival}) — generated on a later day; not imported`
+    };
+  }
 
   const sbo = toSortedArray(sboMap);
   const segment = toSortedArray(segMap);
