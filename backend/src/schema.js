@@ -251,6 +251,63 @@ export function normalizeFnbKpiRows(rows) {
   }];
 }
 
+// One shared vocabulary for the occupancy-mix donuts (Source of Business / Market
+// Segment), so CP Nagpur (raw IDS codes from HCP_OCC) and CP NM (Manager Flash
+// counters) chart the SAME categories and stay directly comparable. Lookup is by
+// uppercased raw name; unknown values pass through unchanged so nothing is lost.
+// The legacy CP NM labels are included so stored history lands in the same buckets.
+const MIX_SOB_LABELS = {
+  'ONLINE TR': 'OTA (MMT/Booking.com)',
+  'WALK-IN': 'Walk-ins',
+  'SALES OFF': 'Sales Office',
+  'HOTEL WEB': 'Hotel Website',
+  'TRAV AGEN': 'Travel Agent',
+  'HOUSEGUES': 'House Guest',
+  'GSTREF': 'Guest Reference',
+  'TRAVEL AGENT / OTA': 'OTA (MMT/Booking.com)', // legacy CP NM label
+  'NO-SHOWS': 'Cancellations/No-shows'           // legacy CP NM label
+};
+
+const MIX_SEGMENT_LABELS = {
+  'CORPORATE': 'Corporate',
+  'FIT': 'FIT/Leisure',
+  'FIT/LEISURE': 'FIT/Leisure',
+  'NON-CONTRA': 'Non-Contracted',
+  'GROUP RESI': 'Group Bookings',
+  'RESIWED': 'Wedding Groups',
+  'HOSUEG': 'House Guest',
+  'BQTCOR': 'Banquet Corporate'
+};
+
+export function canonicalMixName(kind, name) {
+  const raw = String(name ?? '').trim();
+  const map = kind === 'sbo' ? MIX_SOB_LABELS : MIX_SEGMENT_LABELS;
+  return map[raw.toUpperCase()] ?? raw;
+}
+
+// Renames a stored mix's sbo/segment entries onto the shared vocabulary, merging
+// buckets that collapse into the same canonical name.
+export function canonicalizeOccupancyMix(mix) {
+  if (!mix || typeof mix !== 'object') return mix;
+  const mapList = (kind, items) => {
+    if (!Array.isArray(items)) return items;
+    const byName = new Map();
+    for (const item of items) {
+      const name = canonicalMixName(kind, item?.name) || 'Unspecified';
+      const bucket = byName.get(name);
+      if (bucket) {
+        bucket.rooms = (Number(bucket.rooms) || 0) + (Number(item?.rooms) || 0);
+        bucket.pax = (Number(bucket.pax) || 0) + (Number(item?.pax) || 0);
+        bucket.revenue = (Number(bucket.revenue) || 0) + (Number(item?.revenue) || 0);
+      } else {
+        byName.set(name, { ...item, name });
+      }
+    }
+    return [...byName.values()].sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue);
+  };
+  return { ...mix, sbo: mapList('sbo', mix.sbo), segment: mapList('segment', mix.segment) };
+}
+
 // Hotels KPI renames: map saved rows onto the current names (see the F&B note on
 // LEGACY_FNB_KPI_NAMES). "Meeting Point Avg Bill" became "Meeting Point APC" when
 // APC rows were added across the CP Nagpur outlets. The id is rebuilt so importer
