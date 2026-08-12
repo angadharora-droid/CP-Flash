@@ -276,9 +276,9 @@ const HANDLERS = [
     importSourceKey: 'occupancyMixImportedAt',
     bundled: true,
     businessDate: hcpSubjectDate,
-    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?OCC/i),
+    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[\s_-]?OCC/i),
     run: async (parsed, date) => {
-      const att = findAttachmentByName(parsed, /HCP[_-]?OCC/i);
+      const att = findAttachmentByName(parsed, /HCP[\s_-]?OCC/i);
       if (!att) { logAttachments(parsed); throw new Error('No HCP_OCC attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'hcp-occ-nagpur', date);
@@ -287,16 +287,18 @@ const HANDLERS = [
   },
   {
     // HCP_POS_SALE is the outlet-wise bill register bundled in the same "HCP REPORT"
-    // email. It feeds deduped daily covers for Meeting Point / Freakk / High Steak
+    // email. Since Aug 2026 the bundle names its files with spaces and this one plain
+    // "HCP SALE.xlsx" (no POS) — hence the SALE alternative in the pattern.
+    // It feeds deduped daily covers for Meeting Point / Freakk / High Steak
     // into the hotels "F&B Outlets" table. `bundled: true` so it runs alongside
     // HCP Occupancy Mix above (both match the one email by attachment name).
     name: 'HCP POS Sales / Covers (CP Nagpur)',
     importSourceKey: 'posSalesImportedAt',
     bundled: true,
     businessDate: hcpSubjectDate,
-    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?POS/i),
+    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[\s_-]?(POS|SALE)/i),
     run: async (parsed, date) => {
-      const att = findAttachmentByName(parsed, /HCP[_-]?POS/i);
+      const att = findAttachmentByName(parsed, /HCP[\s_-]?(POS|SALE)/i);
       if (!att) { logAttachments(parsed); throw new Error('No HCP_POS_SALE attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'hcp-pos-nagpur', date);
@@ -313,9 +315,9 @@ const HANDLERS = [
     bundled: true,
     validatesDate: true,
     businessDate: hcpSubjectDate,
-    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?FORE/i),
+    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[\s_-]?FORE/i),
     run: async (parsed, date) => {
-      const att = findAttachmentByName(parsed, /HCP[_-]?FORE/i);
+      const att = findAttachmentByName(parsed, /HCP[\s_-]?FORE/i);
       if (!att) { logAttachments(parsed); throw new Error('No HCP_FORE attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'hcp-fore-nagpur', date);
@@ -331,9 +333,9 @@ const HANDLERS = [
     bundled: true,
     validatesDate: true,
     businessDate: hcpSubjectDate,
-    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[_-]?EVENT/i),
+    matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[\s_-]?EVENT/i),
     run: async (parsed, date) => {
-      const att = findAttachmentByName(parsed, /HCP[_-]?EVENT/i);
+      const att = findAttachmentByName(parsed, /HCP[\s_-]?EVENT/i);
       if (!att) { logAttachments(parsed); throw new Error('No HCP_EVENT attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'hcp-event-nagpur', date);
