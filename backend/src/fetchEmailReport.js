@@ -36,7 +36,7 @@ import { importDaliCostHistory } from './importDaliCostHistory.js';
 import { importPabloCostHistory } from './importPabloCostHistory.js';
 import { importPurosoulSalesReport, importMickysSalesReport } from './importDailySalesReport.js';
 import { importPurosoulFlashReport } from './importPurosoulFlashReport.js';
-import { importMickysLeads } from './importMickysLeads.js';
+import { importMickysCrmReport } from './importMickysCrmReport.js';
 import { attachReportPreviews } from './attachmentPreview.js';
 import { importCpNmManagerFlash, importCpNmHistForecast, importCpNmPayType } from './importCpNmReport.js';
 
@@ -146,10 +146,28 @@ function hcpSubjectDate(parsed, runDate) {
     const clamped = clampBusinessDate(iso, runDate);
     if (clamped) return clamped;
   }
+  return sentDateMinusOne(parsed, runDate);
+}
+
+// Morning-after fallback anchor: the email's own sent date − 1 in IST. Used by
+// daily report mails whose subject carries no parseable business date.
+function sentDateMinusOne(parsed, runDate) {
   const sentMs = parsed.date instanceof Date ? parsed.date.getTime() : Date.parse(parsed.date ?? '');
   if (!Number.isFinite(sentMs)) return null;
   const sentIstDay = new Date(sentMs + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
   return clampBusinessDate(addDaysIso(sentIstDay, -1), runDate);
+}
+
+// "Micky's CRM Daily Report — 11 Aug 2026" → the covered business date.
+function mickysCrmSubjectDate(parsed, runDate) {
+  const m = /(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{4})/i.exec(parsed.subject ?? '');
+  if (m) {
+    const month = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(m[2].toLowerCase()) + 1;
+    const iso = `${m[3]}-${String(month).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    const clamped = clampBusinessDate(iso, runDate);
+    if (clamped) return clamped;
+  }
+  return sentDateMinusOne(parsed, runDate);
 }
 
 // CP NM PDFs embed exact dates in the attachment filename
@@ -562,6 +580,16 @@ const HANDLERS = [
       await saveAttachment(att, 'mickys-sales', att.filename);
       return importMickysSalesReport(att.content, att.filename, date);
     }
+  },
+  {
+    // Automated "Micky's CRM Daily Report — DD Mon YYYY" HTML mail (sales@mickys.in,
+    // no attachment): day totals for leads/visits/kits plus user-wise and city-wise
+    // breakdowns. Replaced the manual Google-Sheets leads import in Aug 2026.
+    name: "Micky's CRM Leads",
+    importSourceKey: 'mickysCrmImportedAt',
+    businessDate: mickysCrmSubjectDate,
+    matches: (s) => subjectContains(s, 'crm daily report') && /micky/i.test(s),
+    run: async (parsed, date) => importMickysCrmReport(parsed.html || '', date)
   }
 ];
 
@@ -798,19 +826,6 @@ async function run() {
         log(`Pablo cost imported: ${pabloResult.rowCount} rows, ${pabloResult.written.length} changed → ${pabloResult.written.join(', ') || 'none'}`);
       } catch (err) {
         log(`Pablo cost ERROR: ${err.message}`);
-      }
-    })(),
-    (async () => {
-      if (!shouldRefreshSheetSource(existingData?.importSource, 'mickysLeadsImportedAt')) {
-        logSheetSkip("Micky's leads", existingData.importSource.mickysLeadsImportedAt);
-        return;
-      }
-      log("Fetching Micky's leads pipeline from Google Sheets…");
-      try {
-        const leadsResult = await importMickysLeads(date);
-        log(`Micky's leads imported: ${leadsResult.total} total, ${leadsResult.active} active, ${leadsResult.converted} converted`);
-      } catch (err) {
-        log(`Micky's leads ERROR: ${err.message}`);
       }
     })(),
     (async () => {

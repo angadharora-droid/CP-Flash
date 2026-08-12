@@ -227,14 +227,17 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
-    id: 'mickys-leads',
-    label: "Micky's Leads Pipeline",
+    id: 'mickys-crm',
+    label: "Micky's CRM Daily Report",
     unit: "Micky's",
-    type: 'Google Sheet',
+    type: 'Mail / HTML',
     paths: ['mickys'],
-    meta: { file: 'mickysLeadsFile', importedAt: 'mickysLeadsImportedAt' },
-    cadence: 'Daily',
-    sheetUrl: 'https://docs.google.com/spreadsheets/d/1jvnmwP4AaNQW54E3QVlzR9ZMj589HXZugJfhBOye_gs/'
+    meta: {
+      importedAt: 'mickysCrmImportedAt',
+      notes: 'mickysCrmNotes',
+      pendingNote: 'CRM daily report mail not received.'
+    },
+    cadence: 'Daily'
   },
   {
     id: 'purosoul-production',
