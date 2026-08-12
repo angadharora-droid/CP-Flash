@@ -275,7 +275,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     return headerHeight + rowHeight * Math.min(rows.length, 1);
   }
 
-  function sectionTitle(title, followingHeight = 0) {
+  function sectionTitle(title, followingHeight = 0, rightText = '') {
     ensureSpace(28 + followingHeight);
     // Strip any old leading "1. " style labels before rendering.
     const displayTitle = String(title).replace(/^\s*\d+\.\s*/, '');
@@ -284,6 +284,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.roundedRect(36, y, width, 24, 4).fill(colors.primaryLight);
     doc.rect(36, y, 3, 24).fill(colors.primary);
     doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(10).text(safeText(displayTitle), 48, y + 8, { width: width - 28, lineBreak: false });
+    if (rightText) {
+      doc.font('Helvetica-Bold').fontSize(9);
+      const rightWidth = doc.widthOfString(safeText(rightText));
+      doc.fillColor(colors.primaryDark).text(safeText(rightText), 36 + width - 12 - rightWidth, y + 8.5, { lineBreak: false });
+    }
     doc.strokeColor(colors.line).lineWidth(0.5).moveTo(36 + width - 1, y + 4).lineTo(36 + width - 1, y + 20).stroke();
     doc.y = y + 28;
   }
@@ -955,7 +960,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
           String(row.notes ?? '-')
         ]);
         const banqOpts = { widths: [110, 40, 90, 70, 80, 133], fontSize: 7, leftColumns: [0, 2, 3, 5] };
-        sectionTitle(list.title, tablePreviewHeight(banqRows, banqOpts));
+        const totalRevenue = list.rows.reduce((sum, row) => sum + numberValue(row.revenue), 0);
+        sectionTitle(list.title, tablePreviewHeight(banqRows, banqOpts), totalRevenue > 0 ? `Total Revenue: ${money(totalRevenue)}` : '');
         if (banqRows.length) {
           table(['Party / Client', 'Pax', 'Hall/Venue', 'Session', 'Revenue', 'Notes'], banqRows, banqOpts);
         }
