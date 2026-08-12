@@ -144,7 +144,9 @@ export const pageSchemas = {
     // dynamically by the importer. (Sheet-era rows — Leads Contacted/Converted/
     // Conversion Rate/Pipeline Value — retired Aug 2026 with the Google Sheet import.)
     { title: 'Leads Pipeline', rows: [['New Leads Today', 5], ['Visits Today', 4], ['Kits Generated', 2], ['Kits Delivered', 2], ['Nagpur Leads', 4], ['Pune Leads', 3], ['Mumbai Leads', 2], ['Delhi Leads', 1]] },
-    { title: 'Orders & Revenue', rows: [['Orders Confirmed', 8], ['Order Revenue Today', 30000], ['Revenue MTD', 900000], ['Revenue YTD', 9500000]] },
+    // No separate "Revenue MTD" row (dropped Aug 2026): Order Revenue Today's MTD
+    // column already carries the Tally month-to-date figure.
+    { title: 'Orders & Revenue', rows: [['Orders Confirmed', 8], ['Order Revenue Today', 30000], ['Revenue YTD', 9500000]] },
     { title: 'SKU-wise Sales', rows: [['Makhani Gravy Units Sold', 100], ['Makhani Gravy Revenue', 12000], ['Korma Base Units Sold', 80], ['Korma Base Revenue', 10000], ['Achari Sauce Units Sold', 60], ['Achari Sauce Revenue', 8000], ['Total SKU Revenue MTD', 900000]] }
   ],
   purosoul: [

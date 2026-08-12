@@ -231,7 +231,10 @@ async function writeInvoiceReport({ byDate, fileName, sheetName, kpiBucket, kpiR
     ]);
 
     setKpi(data[kpiBucket], kpiRevenueName, round(revenue), round(mtdForDate));
-    setKpi(data[kpiBucket], 'Revenue MTD',  round(mtdForDate), '');
+    // Micky's dropped its separate "Revenue MTD" row (Aug 2026) — the revenue
+    // row's MTD column carries the same figure. The guard keeps re-imports of
+    // multi-day workbooks from resurrecting the row on already-saved dates.
+    if (kpiBucket !== 'mickys') setKpi(data[kpiBucket], 'Revenue MTD', round(mtdForDate), '');
 
     data.pnl = (data.pnl ?? []).map((r) =>
       r.unit === pnlUnit ? { ...r, revenueToday: round(revenue) } : r
