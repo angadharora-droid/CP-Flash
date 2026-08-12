@@ -866,11 +866,15 @@ export function createDailyFlashPdf(data, date, options = {}) {
   const tomorrowStr = (() => { const d = new Date(`${date}T00:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
   const dayAfterStr = (() => { const d = new Date(`${date}T00:00:00`); d.setDate(d.getDate() + 2); return d.toISOString().slice(0, 10); })();
 
-  function renderHotelSections(unit, sectionNames) {
+  function renderHotelSections(unit, sectionNames, { requireValue = [] } = {}) {
     const label = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
     const hotelRows = data.hotels ?? [];
+    const hasValue = (row) => String(row.actual ?? '').trim() !== '' || String(row.mtd ?? '').trim() !== '';
     for (const section of sectionNames) {
-      const rows = hotelRows.filter((row) => row.unit === unit && row.section === section);
+      let rows = hotelRows.filter((row) => row.unit === unit && row.section === section);
+      // Shared-schema sections list every unit's rows (CP NM has no Meeting Point /
+      // Freakk / High Steaks) — for these sections only rows with data make the cut.
+      if (requireValue.includes(section)) rows = rows.filter(hasValue);
       const title = section === 'Forecast' ? `${label} - Forecast – ${niceDate(data.forecastDate ?? dayAfterStr)}` : `${label} - ${section}`;
       if (rows.length) kpiTable(title, rows);
     }
@@ -968,10 +972,10 @@ export function createDailyFlashPdf(data, date, options = {}) {
       }
     }
 
-    // 5. CP NM: Room Revenue & Occupancy → Forecast
+    // 5. CP NM: Room Revenue & Occupancy → Forecast → F&B Outlets
     if (hasSection('hotels')) {
       renderUnitRevenueHeader('CP NM');
-      renderHotelSections('CP NM', ['Room Revenue & Occupancy', 'Forecast']);
+      renderHotelSections('CP NM', ['Room Revenue & Occupancy', 'Forecast', 'F&B Outlets'], { requireValue: ['F&B Outlets'] });
     }
 
     // 6. F&B Outlet Sales column chart
@@ -1050,7 +1054,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 5. CP NM: Room Revenue & Occupancy → SOB → MS
     if (hasSection('hotels')) {
       renderUnitRevenueHeader('CP NM');
-      renderHotelSections('CP NM', ['Room Revenue & Occupancy']);
+      renderHotelSections('CP NM', ['Room Revenue & Occupancy', 'F&B Outlets'], { requireValue: ['F&B Outlets'] });
       const cpNmMix = week?.occupancyMix?.['CP NM'];
       if (cpNmMix) {
         const sobRows = (cpNmMix.sbo ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);

@@ -584,6 +584,40 @@ function getKpiAggregationMode(name) {
   return 'sum';
 }
 
+function formatKpiAggregate(value) {
+  return String(Math.round(value * 100) / 100);
+}
+
+// Fills each KPI row's empty `mtd` with the computed month-to-date aggregate
+// (sum/avg/latest by KPI name, from aggregatePeriodForDates). A row.mtd already
+// set by a mail importer (night audit, CP NM flash, Tally, cost sheets…) is
+// authoritative and never overwritten — mirrors the dashboard's client-side
+// applyPeriodToData so the PDF shows the same MTD column.
+function applyMtdToData(data, period) {
+  const mtdSums = period?.kpis?.mtd;
+  if (!mtdSums) return data;
+  const fillRows = (rows) => {
+    if (!Array.isArray(rows)) return rows;
+    return rows.map((row) => {
+      if (!row?.id || String(row.mtd ?? '').trim() !== '' || mtdSums[row.id] === undefined) return row;
+      return { ...row, mtd: formatKpiAggregate(mtdSums[row.id]) };
+    });
+  };
+  return {
+    ...data,
+    hotels: fillRows(data.hotels),
+    rabbits: fillRows(data.rabbits),
+    mickys: fillRows(data.mickys),
+    purosoul: fillRows(data.purosoul),
+    purosoulSku: fillRows(data.purosoulSku),
+    fnb: {
+      ...(data.fnb ?? {}),
+      Pablo: fillRows(data.fnb?.Pablo),
+      Dali: fillRows(data.fnb?.Dali)
+    }
+  };
+}
+
 // mergeDailyData is deterministic for a given raw record (the seed template is
 // static content), so memoize per raw object. The WeakMap keys on the exact
 // object held in dailyDataCache — when a date is re-written or invalidated a new
@@ -1174,13 +1208,8 @@ app.get('/api/source-status', wrap(async (req, res) => {
   res.json(buildSourceStatus({ ...mergeDailyData(seed, saved), date }));
 }));
 
-app.get('/api/pnl-period', wrap(async (req, res) => {
-  const date = String(req.query.date || dateKey());
-
-  if (pnlPeriodCache.has(date)) {
-    res.json(pnlPeriodCache.get(date));
-    return;
-  }
+async function getPnlPeriod(date) {
+  if (pnlPeriodCache.has(date)) return pnlPeriodCache.get(date);
 
   if (!pnlPeriodInflight.has(date)) {
     pnlPeriodInflight.set(date, (async () => {
@@ -1234,7 +1263,12 @@ app.get('/api/pnl-period', wrap(async (req, res) => {
     }));
   }
 
-  res.json(await pnlPeriodInflight.get(date));
+  return pnlPeriodInflight.get(date);
+}
+
+app.get('/api/pnl-period', wrap(async (req, res) => {
+  const date = String(req.query.date || dateKey());
+  res.json(await getPnlPeriod(date));
 }));
 
 app.get('/api/pnl-week', wrap(async (req, res) => {
@@ -1362,7 +1396,11 @@ app.get('/api/report.pdf', wrap(async (req, res) => {
   const saved = await readDailyData(date);
   const overrides = await getAopTargets();
   const fixedCosts = await getFixedCosts();
-  const dailyData = applyFixedCostOverrides(applyDailyTargetOverrides(mergeDailyData(seed, saved), overrides.daily), fixedCosts);
+  const merged = applyFixedCostOverrides(applyDailyTargetOverrides(mergeDailyData(seed, saved), overrides.daily), fixedCosts);
+  // MTD column: mail-imported values win; KPIs the mail doesn't cover get the
+  // computed month-to-date aggregate. A period failure only costs the fill.
+  const period = await getPnlPeriod(date).catch(() => null);
+  const dailyData = applyMtdToData(merged, period);
   const weekly = reportType === 'weekly'
     ? await buildWeeklyReportData(dailyData, date, weekStart ? { weekStart } : {})
     : null;
