@@ -105,9 +105,9 @@ function salesBusinessDate(parsed, date) {
 //     exact date embedded in its PDF filename (authoritative, not a heuristic).
 //   MANUAL, may arrive late/backdated → the "HCP REPORT" bundle and the
 //     Micky's/Purosoul Tally reports. The HCP bundle anchors on its subject date
-//     ("hcp report DD.MM.YY" = business day D, proven against the night audit);
-//     the forecast file still self-dates (forecastDate − 2) and its detectedDate
-//     covers bundles whose subject fails to parse. Tally rows are invoice-dated.
+//     ("hcp report DD.MM.YY" = business day D, proven against the night audit),
+//     falling back to the email's sent date − 1 since the subject dropped its date
+//     (Aug 2026). Unanchored forecasts still self-date. Tally rows are invoice-dated.
 
 function addDaysIso(iso, days) {
   const d = new Date(`${iso}T00:00:00.000Z`);
@@ -332,7 +332,9 @@ const HANDLERS = [
       if (!att) { logAttachments(parsed); throw new Error('No HCP_FORE attachment'); }
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'hcp-fore-nagpur', date);
-      return importForecast(filePath, date, 'CP Nagpur');
+      // An anchored date (subject or sent-date − 1) wins over the file's own
+      // forecast-row self-dating, whose offset from D has drifted (D+1 vs D+2).
+      return importForecast(filePath, date, 'CP Nagpur', { anchored: hcpSubjectDate(parsed, date) != null });
     }
   },
   {
