@@ -207,7 +207,7 @@ function shouldRefreshSheetSource(importSource, key) {
 const MANUAL_SALES_SOURCES = {
   mickys: {
     kpiBucket: 'mickys',
-    kpiNames: ['Order Revenue Today', 'Revenue MTD'],
+    kpiNames: ['Order Revenue Today'],
     pnlUnit: "Micky's"
   },
   purosoul: {

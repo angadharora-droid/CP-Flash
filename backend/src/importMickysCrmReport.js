@@ -67,11 +67,10 @@ function cityLeads(sectionHtml) {
   return out;
 }
 
-/** Creates a Leads Pipeline row when absent (per-user rows are mail-driven, not seeded). */
-function ensureRow(data, name) {
-  data.mickys = data.mickys ?? [];
-  if (data.mickys.some((r) => r.section === SECTION && r.name === name)) return;
-  data.mickys.push({
+/** Existing row for `name` (values carried over), or a fresh one following schemaRowsToKpis' id convention. */
+function rowFor(data, name) {
+  const existing = (data.mickys ?? []).find((r) => r.section === SECTION && r.name === name);
+  return existing ?? {
     id: `mickys:${UNIT}:${SECTION}:${name}`.replaceAll(/\s+/g, '-').toLowerCase(),
     unit: UNIT,
     section: SECTION,
@@ -81,14 +80,7 @@ function ensureRow(data, name) {
     mtd: '',
     ytd: '',
     direction: 'min'
-  });
-}
-
-function setKpi(data, name, { actual, mtd } = {}) {
-  ensureRow(data, name);
-  const row = data.mickys.find((r) => r.section === SECTION && r.name === name);
-  if (actual !== undefined) row.actual = String(actual);
-  if (mtd !== undefined) row.mtd = String(mtd);
+  };
 }
 
 export async function importMickysCrmReport(html, outDate) {
@@ -108,18 +100,35 @@ export async function importMickysCrmReport(html, outDate) {
   await withDateLock(outDate, async () => {
     const data = (await readDaily(outDate)) ?? buildSeedData();
 
-    setKpi(data, 'New Leads Today', { actual: newLeads });
-    setKpi(data, 'Visits Today', { actual: visits });
-    setKpi(data, 'Kits Generated', { actual: kitsGenerated });
-    setKpi(data, 'Kits Delivered', { actual: kitsDelivered });
+    // The section is rebuilt in a fixed display sequence on every import (the
+    // saved array order IS the render order on the dashboard and in the PDF):
+    // total leads → user-wise leads → total visits → user-wise visits → kits →
+    // city splits. Per-user rows land right under their total.
+    const ordered = [];
+    const push = (name, { actual, mtd } = {}) => {
+      const row = rowFor(data, name);
+      if (actual !== undefined) row.actual = String(actual);
+      if (mtd !== undefined) row.mtd = String(mtd);
+      ordered.push(row);
+    };
+    push('New Leads Today', { actual: newLeads });
+    for (const { user, count } of userLeads) push(`${user} Leads`, { actual: count });
+    push('Visits Today', { actual: visits });
+    for (const { user, count } of userVisits) push(`${user} Visits`, { actual: count });
+    push('Kits Generated', { actual: kitsGenerated });
+    push('Kits Delivered', { actual: kitsDelivered });
     // City rows: actual = the day's new leads, mtd = the CRM's own running total
     // (mail-provided — the computed month-to-date fill leaves it alone).
     for (const city of ['Nagpur', 'Pune', 'Mumbai', 'Delhi']) {
       const entry = cities.get(city);
-      if (entry) setKpi(data, `${city} Leads`, { actual: entry.newLeads, mtd: entry.totalLeads });
+      push(`${city} Leads`, entry ? { actual: entry.newLeads, mtd: entry.totalLeads } : {});
     }
-    for (const { user, count } of userLeads) setKpi(data, `${user} Leads`, { actual: count });
-    for (const { user, count } of userVisits) setKpi(data, `${user} Visits`, { actual: count });
+    // Leads rows outside today's sequence (e.g. a user present in an earlier
+    // import of the same date) trail the block; other sections keep their place.
+    const orderedSet = new Set(ordered);
+    const leftovers = (data.mickys ?? []).filter((r) => r.section === SECTION && !orderedSet.has(r));
+    const otherSections = (data.mickys ?? []).filter((r) => r.section !== SECTION);
+    data.mickys = [...ordered, ...leftovers, ...otherSections];
 
     data.importSource = {
       ...(data.importSource ?? {}),
