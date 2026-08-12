@@ -75,6 +75,25 @@ function ensureForecastRows(data) {
   }
 }
 
+// Adds a CP NM-only F&B Outlets row that has no seed-schema counterpart (adding
+// it to the shared schema would surface a permanently blank row for CP Nagpur).
+// The id follows schemaRowsToKpis' convention; merge layers keep non-seed rows.
+function ensureFnbOutletRow(data, name) {
+  data.hotels = data.hotels ?? [];
+  if (data.hotels.some((r) => r.unit === UNIT && r.name === name)) return;
+  data.hotels.push({
+    id: `hotels:${UNIT}:F&B Outlets:${name}`.replaceAll(/\s+/g, '-').toLowerCase(),
+    unit: UNIT,
+    section: 'F&B Outlets',
+    name,
+    target: '',
+    actual: '',
+    mtd: '',
+    ytd: '',
+    direction: 'min'
+  });
+}
+
 // Extract all "Rs X,XXX.XX" values from a text segment.
 // Use exactly 2 decimal places so trailing integers aren't swallowed greedily.
 function extractRsValues(text) {
@@ -215,9 +234,19 @@ export async function importCpNmManagerFlash(file, outDate) {
   // Room Revenue
   const roomRevenue = firstRs(find(/^Room RevenueRs/i));
 
-  // POS (F&B) breakdown
-  const roomServiceRevenue = firstRs(find(/^Room ServiceRs/i));
-  const bougainvilleaRevenue = firstRs(find(/^BougainvilleaRs/i));
+  // POS (F&B) breakdown — each line carries This-Year Day | MTD | YTD then
+  // Last-Year Day | MTD | YTD; empty cells print "--", so tokenize both forms
+  // to keep the columns aligned when a value is missing.
+  const posRow = (pattern) => {
+    const tokens = find(pattern).match(/Rs\s*[\d,]+\.\d{2}|--/g) ?? [];
+    const vals = tokens.map((t) => (t === '--' ? 0 : num(t.replace(/^Rs\s*/, ''))));
+    return { day: vals[0] ?? 0, mtd: vals[1] ?? 0, ytd: vals[2] ?? 0 };
+  };
+  const roomService = posRow(/^Room Service(?=Rs|--)/i);
+  const bougainvillea = posRow(/^Bougainvillea(?=Rs|--)/i);
+  const laundry = posRow(/^Laundry(?=Rs|--)/i);
+  const roomServiceRevenue = roomService.day;
+  const bougainvilleaRevenue = bougainvillea.day;
   const totalFnbRevenue = firstRs(find(/^Total POS RevenueRs/i));
 
   // Total Revenue
@@ -245,8 +274,15 @@ export async function importCpNmManagerFlash(file, outDate) {
   if (arr > 0)             setKpi(data, 'ARR', { actual: arr });
   if (revpar > 0)          setKpi(data, 'RevPAR', { actual: revpar });
   if (roomRevenue > 0)     setKpi(data, 'Room Revenue', { actual: roomRevenue });
-  if (bougainvilleaRevenue > 0) setKpi(data, 'Bougainvillea Revenue', { actual: bougainvilleaRevenue });
-  if (roomServiceRevenue > 0)   setKpi(data, 'In-Room Dining Revenue', { actual: roomServiceRevenue });
+  // F&B Outlets — day value plus the flash's own MTD (authoritative over the
+  // computed month-to-date fill). Laundry has no seed row in the shared schema
+  // (it would render as a blank row for CP Nagpur), so it's created CP NM-only.
+  if (bougainvillea.day > 0 || bougainvillea.mtd > 0) setKpi(data, 'Bougainvillea Revenue', { actual: bougainvillea.day, mtd: bougainvillea.mtd });
+  if (roomService.day > 0 || roomService.mtd > 0)     setKpi(data, 'In-Room Dining Revenue', { actual: roomService.day, mtd: roomService.mtd });
+  if (laundry.day > 0 || laundry.mtd > 0) {
+    ensureFnbOutletRow(data, 'Laundry Revenue');
+    setKpi(data, 'Laundry Revenue', { actual: laundry.day, mtd: laundry.mtd });
+  }
 
   // Market Segments — best-effort from Manager Flash in-house counts
   // "Company Rooms In-House" → Corporate
@@ -312,7 +348,7 @@ export async function importCpNmManagerFlash(file, outDate) {
     mapped: {
       totalRooms, occupancyPct: occPct, roomsSold, arr, revpar,
       roomRevenue, bougainvilleaRevenue, roomServiceRevenue,
-      totalFnbRevenue, totalRevenue,
+      laundryRevenue: laundry.day, totalFnbRevenue, totalRevenue,
       segments: { corporate: segCorporate, fit: segFit, ota: segOta, group: segGroup, walkIn: segWalkIn, noShow: segNoShow }
     }
   };

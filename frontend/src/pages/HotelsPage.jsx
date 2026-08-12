@@ -21,9 +21,18 @@ function dateSuffix(iso) {
 export default function HotelsPage({ data, date }) {
   const [hotelUnit, setHotelUnit] = useState('CP Nagpur');
   const rows = (data.hotels ?? []).filter((row) => row.unit === hotelUnit);
-  const cpNmExclude = ['F&B Outlets', 'Banquets'];
+  const cpNmExclude = ['Banquets'];
+  // The shared schema seeds every unit with all F&B outlet rows, but CP NM only has
+  // Bougainvillea / In-Room Dining data — show just the rows that carry values.
+  const sectionRows = (section) => {
+    const list = rows.filter((row) => row.section === section);
+    if (hotelUnit === 'CP NM' && section === 'F&B Outlets') {
+      return list.filter((row) => [row.actual, row.mtd, row.ytd].some((v) => String(v ?? '').trim() !== ''));
+    }
+    return list;
+  };
   const sections = [...new Set(rows.map((row) => row.section))].filter(
-    (s) => hotelUnit !== 'CP NM' || !cpNmExclude.includes(s)
+    (s) => (hotelUnit !== 'CP NM' || !cpNmExclude.includes(s)) && sectionRows(s).length
   );
   const hotelLabel = hotelUnit === 'CP NM' ? 'CP Navi Mumbai' : hotelUnit;
   return (
