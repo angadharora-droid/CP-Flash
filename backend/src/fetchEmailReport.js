@@ -127,18 +127,29 @@ function clampBusinessDate(candidate, runDate) {
   return candidate;
 }
 
-// The manual "HCP REPORT" bundle's subject carries the business date it covers
+// The manual "HCP REPORT" bundle's subject used to carry the business date it covers
 // ("hcp report 12.07.26", often behind mail-filter prefixes like "[SUSPICIOUS:]").
 // Proven against the night audit's outlet revenue (2026-07-13): the subject date
 // IS the closed business day D. Anchoring the whole bundle on it keeps multiple
 // late-sent bundles (e.g. Saturday's + Sunday's both mailed on Monday) filing
 // under their own days regardless of arrival order or the events-file layout.
+// Since 2026-08-08 the subject is just "HCP REPORT" with no date, but the bundle
+// is still mailed the morning after its business day closes (proven against the
+// events files' D..D+2 window on the 2026-08-10 and 2026-08-12 bundles), so the
+// fallback anchor is the email's own sent date − 1 in IST — never the run date,
+// which misfiles older bundles when a catch-up run processes several at once.
 function hcpSubjectDate(parsed, runDate) {
   const m = /hcp[\s_-]*report[^\d]{0,10}(\d{1,2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{2,4})/i.exec(parsed.subject ?? '');
-  if (!m) return null;
-  const year = m[3].length === 2 ? `20${m[3]}` : m[3];
-  const iso = `${year}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-  return clampBusinessDate(iso, runDate);
+  if (m) {
+    const year = m[3].length === 2 ? `20${m[3]}` : m[3];
+    const iso = `${year}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    const clamped = clampBusinessDate(iso, runDate);
+    if (clamped) return clamped;
+  }
+  const sentMs = parsed.date instanceof Date ? parsed.date.getTime() : Date.parse(parsed.date ?? '');
+  if (!Number.isFinite(sentMs)) return null;
+  const sentIstDay = new Date(sentMs + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return clampBusinessDate(addDaysIso(sentIstDay, -1), runDate);
 }
 
 // CP NM PDFs embed exact dates in the attachment filename
