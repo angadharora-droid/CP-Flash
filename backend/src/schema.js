@@ -139,7 +139,11 @@ export const pageSchemas = {
     { title: 'Cost', rows: [['Purchase/RM Cost Today', 5200], ['Purchase/RM Cost MTD', 156000], ['Purchase/RM Cost YTD', 1600000]] }
   ],
   mickys: [
-    { title: 'Leads Pipeline', rows: [['New Leads Today', 5], ['Leads Contacted', 10], ['Leads Converted', 3], ['Conversion Rate %', 60], ['Pipeline Value', 150000], ['Nagpur Leads', 4], ['Pune Leads', 3], ['Mumbai Leads', 2], ['Delhi Leads', 1]] },
+    // Fed by the automated "Micky's CRM Daily Report" mail (importMickysCrmReport):
+    // day totals + city splits here; per-user "<Name> Leads/Visits" rows are added
+    // dynamically by the importer. (Sheet-era rows — Leads Contacted/Converted/
+    // Conversion Rate/Pipeline Value — retired Aug 2026 with the Google Sheet import.)
+    { title: 'Leads Pipeline', rows: [['New Leads Today', 5], ['Visits Today', 4], ['Kits Generated', 2], ['Kits Delivered', 2], ['Nagpur Leads', 4], ['Pune Leads', 3], ['Mumbai Leads', 2], ['Delhi Leads', 1]] },
     { title: 'Orders & Revenue', rows: [['Orders Confirmed', 8], ['Order Revenue Today', 30000], ['Revenue MTD', 900000], ['Revenue YTD', 9500000]] },
     { title: 'SKU-wise Sales', rows: [['Makhani Gravy Units Sold', 100], ['Makhani Gravy Revenue', 12000], ['Korma Base Units Sold', 80], ['Korma Base Revenue', 10000], ['Achari Sauce Units Sold', 60], ['Achari Sauce Revenue', 8000], ['Total SKU Revenue MTD', 900000]] }
   ],

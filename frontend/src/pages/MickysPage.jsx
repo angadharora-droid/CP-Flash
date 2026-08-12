@@ -16,7 +16,7 @@ export default function MickysPage({ data, date }) {
         data={data}
         sections={[...new Set((data.mickys ?? []).map((row) => row.section))]}
         date={date}
-        importedAt={data.importSource?.mickysLeadsImportedAt}
+        importedAt={data.importSource?.mickysCrmImportedAt}
         icon={SECTION_ICONS.restaurant}
       />
     </>
