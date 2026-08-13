@@ -9,11 +9,19 @@ import { readDaily, writeDaily, withDateLock } from './dailyStore.js';
 // CP Delivery KPI table — the Centre Point home-delivery channel, reported as
 // its own unit alongside Rabbit.
 //
-// Mail layout (fixed generator): a "Revenue Updates" table of
-//   Particulars | On <date>  rows:
-//   Sales (with indented Dine-In / Home Delivery / Take Away / Token sub-rows),
-//   then Orders, Discount, Tax. Sales is the gross figure (sub-channels sum to
-//   it); Discount is already applied within Sales.
+// Mail layout (fixed generator, ~54KB of nested layout tables):
+//   "Revenue Updates"      Particulars | On <date> rows: Sales (with indented
+//                          Dine-In / Home Delivery / Take Away / Token
+//                          sub-rows), then Orders, Discount, Tax. Sales is
+//                          gross (sub-channels sum to it); Discount is already
+//                          applied within Sales.
+//   "Customer Details"     New / Repeat / Total Customers (not imported)
+//   "Payment Mode Breakup" Card / Cash / Google Pay / Paytm / PhonePe /
+//                          Swiggy / Zomato — the Swiggy+Zomato rows are the
+//                          platform split (they sum to Sales)
+//   "Categorywise Sales"   Category | Qty | Total Sales (not imported)
+// Every Revenue Updates row also carries a commented-out MTD <td> — comments
+// must be stripped before cell-matching or that empty cell reads as the value.
 
 const UNIT = 'CP Delivery';
 
@@ -38,18 +46,21 @@ function stripTags(str) {
 }
 
 /**
- * Label → number map from the first table block. First write wins: the
- * "Revenue Updates" table leads the mail, so later blocks (payment modes,
- * item-wise tables) repeating a label can't overwrite the headline figures.
+ * Label → number map across the mail's tables. First write wins: the
+ * "Revenue Updates" table leads the mail, so a later block repeating a label
+ * can't overwrite the headline figures. The value is the first numeric cell
+ * after the label — today's only value column, and still the day column if
+ * Ciferon ever enables the (currently commented-out) MTD column.
  */
 export function parseCiferonHtml(html) {
   const map = new Map();
-  const rows = String(html ?? '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  const cleaned = String(html ?? '').replace(/<!--[\s\S]*?-->/g, '');
+  const rows = cleaned.match(/<tr[\s\S]*?<\/tr>/gi) || [];
   for (const row of rows) {
     const cells = [...row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((m) => stripTags(m[1]));
     if (cells.length < 2) continue;
     const label = cells[0].replace(/\([\s\S]*?\)/g, '').trim().toLowerCase();
-    const value = num(cells[cells.length - 1]);
+    const value = cells.slice(1).map(num).find((v) => v !== null) ?? null;
     if (label && value !== null && !map.has(label)) map.set(label, value);
   }
   return map;
@@ -67,6 +78,8 @@ export async function importCiferonReport(html, outDate) {
   const homeDelivery = values.get('home delivery');
   const dineIn = values.get('dine-in') ?? values.get('dine in');
   const takeAway = values.get('take away') ?? values.get('takeaway');
+  const swiggy = values.get('swiggy');
+  const zomato = values.get('zomato');
 
   await withDateLock(outDate, async () => {
     const data = (await readDaily(outDate)) ?? buildSeedData();
@@ -86,6 +99,8 @@ export async function importCiferonReport(html, outDate) {
     setKpi('Home Delivery Revenue', homeDelivery);
     setKpi('Dine-In Revenue', dineIn);
     setKpi('Take Away Revenue', takeAway);
+    setKpi('Swiggy Revenue', swiggy);
+    setKpi('Zomato Revenue', zomato);
 
     // Saved pnl arrays from before this unit existed have no CP Delivery row —
     // append one instead of silently dropping the revenue.
@@ -110,7 +125,7 @@ export async function importCiferonReport(html, outDate) {
     ok: true,
     date: outDate,
     unit: UNIT,
-    mapped: { sales, orders, discount, homeDelivery, dineIn, takeAway }
+    mapped: { sales, orders, discount, homeDelivery, dineIn, takeAway, swiggy, zomato }
   };
 }
 
