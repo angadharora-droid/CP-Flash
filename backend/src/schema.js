@@ -142,10 +142,11 @@ export const pageSchemas = {
   // Fed by the automated Ciferon "Summary for Hotel Centre Point" mail
   // (importCiferonReport): the CP home-delivery channel, tracked as its own unit
   // alongside Rabbit. Sales in the mail is gross (Home Delivery + Dine-In +
-  // Take Away); Discount is already applied within Sales.
+  // Take Away); Discount is already applied within Sales. Swiggy/Zomato come
+  // from the mail's Payment Mode Breakup and also sum to Sales.
   cpDelivery: [
     { title: 'Sales', rows: [['Total Revenue', 12000], ['Total Orders', 30], ['AOV', 400], ['Discount', 4500, 'max']] },
-    { title: 'Channel Split', rows: [['Home Delivery Revenue', 12000], ['Dine-In Revenue', 0], ['Take Away Revenue', 0]] }
+    { title: 'Channel Split', rows: [['Home Delivery Revenue', 12000], ['Dine-In Revenue', 0], ['Take Away Revenue', 0], ['Swiggy Revenue', 4000], ['Zomato Revenue', 8000]] }
   ],
   mickys: [
     // Fed by the automated "Micky's CRM Daily Report" mail (importMickysCrmReport):
