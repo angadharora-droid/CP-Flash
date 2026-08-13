@@ -1,4 +1,4 @@
-export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbit', "Micky's", 'Purosoul'];
+export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbit', 'CP Delivery', "Micky's", 'Purosoul'];
 
 // Defaults may be zero, but every unit can carry an editable daily fixed cost.
 export const UNITS_WITHOUT_FIXED_COST = [];
@@ -102,6 +102,7 @@ export function flattenKpis(data) {
     ...(data.hotels ?? []),
     ...Object.values(data.fnb ?? {}).flat(),
     ...(data.rabbits ?? []),
+    ...(data.cpDelivery ?? []),
     ...(data.mickys ?? []),
     ...(data.purosoul ?? [])
   ];

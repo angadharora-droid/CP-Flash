@@ -344,6 +344,7 @@ function derivePnlRows(data) {
     Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Gross Sales']),
     Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Gross Sales']),
     Rabbit: () => firstKpiValue(data.rabbits, 'Rabbit', ['Total Revenue']),
+    'CP Delivery': () => firstKpiValue(data.cpDelivery, 'CP Delivery', ['Total Revenue']),
     "Micky's": () => firstKpiValue(data.mickys, "Micky's", ['Order Revenue Today']),
     Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['Total Revenue Today'])
   };
@@ -379,6 +380,7 @@ function mergeDailyData(seed, saved) {
     ...(saved.occupancyMix ? { occupancyMix: canonicalizeOccupancyMix(saved.occupancyMix) } : {}),
     hotels: mergeSeedKpiRows(seed.hotels, normalizeHotelKpiRows(saved.hotels)),
     rabbits: mergeSeedKpiRows(seed.rabbits, saved.rabbits),
+    cpDelivery: mergeSeedKpiRows(seed.cpDelivery, saved.cpDelivery),
     fnb: {
       ...(saved.fnb ?? {}),
       Pablo: mergeSeedKpiRows(seed.fnb?.Pablo, normalizeFnbKpiRows(saved.fnb?.Pablo)),
@@ -557,6 +559,7 @@ function collectKpiRows(data) {
     ...(data.fnb?.Pablo ?? []),
     ...(data.fnb?.Dali ?? []),
     ...(data.rabbits ?? []),
+    ...(data.cpDelivery ?? []),
     ...(data.mickys ?? []),
     ...(data.purosoul ?? []),
     ...(data.purosoulSku ?? [])
@@ -607,6 +610,7 @@ function applyMtdToData(data, period) {
     ...data,
     hotels: fillRows(data.hotels),
     rabbits: fillRows(data.rabbits),
+    cpDelivery: fillRows(data.cpDelivery),
     mickys: fillRows(data.mickys),
     purosoul: fillRows(data.purosoul),
     purosoulSku: fillRows(data.purosoulSku),
@@ -986,6 +990,7 @@ function applyKpiAggregatesToActuals(data, aggregate, options = {}) {
     ...data,
     hotels: mergeRows(data.hotels).filter((row) => row.section !== 'Forecast'),
     rabbits: mergeRows(data.rabbits),
+    cpDelivery: mergeRows(data.cpDelivery),
     mickys: mergeRows(data.mickys),
     purosoul: mergeRows(data.purosoul),
     purosoulSku: mergeRows(data.purosoulSku),
@@ -1149,7 +1154,7 @@ app.get('/api/seed', wrap(async (req, res) => {
   res.json({ seed: seedWithOverrides, saved, date });
 }));
 
-for (const route of ['bank-position', 'pnl', 'hotels', 'fnb', 'rabbits', 'mickys', 'purosoul', 'settlement']) {
+for (const route of ['bank-position', 'pnl', 'hotels', 'fnb', 'rabbits', 'cp-delivery', 'mickys', 'purosoul', 'settlement']) {
   app.get(`/api/${route}`, wrap(async (req, res) => {
     const key = route.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
     const seed = buildSeedData();

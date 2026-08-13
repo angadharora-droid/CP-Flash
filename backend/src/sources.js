@@ -211,6 +211,19 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
+    id: 'cp-delivery-sales',
+    label: 'Ciferon Delivery Summary',
+    unit: 'CP Delivery',
+    type: 'Mail / HTML',
+    paths: ['cpDelivery'],
+    meta: {
+      importedAt: 'cpDeliveryImportedAt',
+      notes: 'cpDeliveryNotes',
+      pendingNote: 'Ciferon summary mail not received.'
+    },
+    cadence: 'Daily'
+  },
+  {
     id: 'mickys-orders',
     label: "Micky's Orders",
     unit: "Micky's",

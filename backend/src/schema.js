@@ -1,4 +1,4 @@
-export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbit', "Micky's", 'Purosoul'];
+export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbit', 'CP Delivery', "Micky's", 'Purosoul'];
 
 export const UNITS_WITHOUT_FIXED_COST = [];
 
@@ -8,6 +8,7 @@ export const fixedCostDefaults = {
   Pablo: 0,
   Dali: 0,
   Rabbit: 0,
+  'CP Delivery': 0,
   "Micky's": 12000,
   Purosoul: 8000
 };
@@ -137,6 +138,14 @@ export const pageSchemas = {
     { title: 'Platform Split', rows: [['Swiggy Revenue', 7500], ['Swiggy Orders', 38], ['Zomato Revenue', 6000], ['Zomato Orders', 32], ['Direct Revenue', 1500], ['Direct Orders', 10], ['Swiggy MTD', 225000], ['Zomato MTD', 180000]] },
     { title: 'Category Breakdown', rows: rabbitsCategoryRows },
     { title: 'Cost', rows: [['Purchase/RM Cost Today', 5200], ['Purchase/RM Cost MTD', 156000], ['Purchase/RM Cost YTD', 1600000]] }
+  ],
+  // Fed by the automated Ciferon "Summary for Hotel Centre Point" mail
+  // (importCiferonReport): the CP home-delivery channel, tracked as its own unit
+  // alongside Rabbit. Sales in the mail is gross (Home Delivery + Dine-In +
+  // Take Away); Discount is already applied within Sales.
+  cpDelivery: [
+    { title: 'Sales', rows: [['Total Revenue', 12000], ['Total Orders', 30], ['AOV', 400], ['Discount', 4500, 'max']] },
+    { title: 'Channel Split', rows: [['Home Delivery Revenue', 12000], ['Dine-In Revenue', 0], ['Take Away Revenue', 0]] }
   ],
   mickys: [
     // Fed by the automated "Micky's CRM Daily Report" mail (importMickysCrmReport):

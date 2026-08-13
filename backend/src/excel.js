@@ -43,6 +43,7 @@ export function buildSeedData() {
     hotels,
     fnb,
     rabbits: schemaRowsToKpis('Rabbit', 'rabbits', pageSchemas.rabbits),
+    cpDelivery: schemaRowsToKpis('CP Delivery', 'cpDelivery', pageSchemas.cpDelivery),
     mickys: schemaRowsToKpis("Micky's", 'mickys', pageSchemas.mickys),
     purosoul: schemaRowsToKpis('Purosoul', 'purosoul', pageSchemas.purosoul),
     settlement: {},

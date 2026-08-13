@@ -55,6 +55,7 @@ export function applyDailyTargetOverrides(data, overrides) {
     ...data,
     hotels: overrideRows(data.hotels),
     rabbits: overrideRows(data.rabbits),
+    cpDelivery: overrideRows(data.cpDelivery),
     mickys: overrideRows(data.mickys),
     purosoul: overrideRows(data.purosoul),
     purosoulSku: overrideRows(data.purosoulSku),
@@ -72,6 +73,7 @@ export function collectKpiCatalog(data) {
     { key: 'fnb.Pablo', rows: data.fnb?.Pablo },
     { key: 'fnb.Dali', rows: data.fnb?.Dali },
     { key: 'rabbits', rows: data.rabbits },
+    { key: 'cpDelivery', rows: data.cpDelivery },
     { key: 'mickys', rows: data.mickys },
     { key: 'purosoul', rows: data.purosoul }
   ];

@@ -13,6 +13,7 @@ const UNIT_REVENUE_META = {
   Pablo: { title: 'Pablo', source: 'Petpooja (Pablo)' },
   Dali: { title: 'Dali', source: 'Petpooja (Dali)' },
   Rabbit: { title: 'Rabbit', source: 'Petpooja (Rabbit)' },
+  'CP Delivery': { title: 'CP Delivery', source: 'Ciferon (Hotel Centre Point)' },
   "Micky's": { title: "Micky's", source: "Micky's Sales Report" },
   Purosoul: { title: 'Purosoul', source: 'Purosoul Sales Report' }
 };
@@ -80,8 +81,9 @@ function isPercentKpi(name) {
 
 function isMoneyKpi(name) {
   if (isPercentKpi(name)) return false;
-  // APC (average per cover) and AOV (average order value) are rupee amounts too.
-  return /revenue|sales|purchase|cost|profit|pipeline|balance|cheque|revpar|bill|\bapc\b|\baov\b/i.test(name);
+  // APC (average per cover) and AOV (average order value) are rupee amounts too,
+  // as is the Ciferon Discount figure on CP Delivery.
+  return /revenue|sales|purchase|cost|profit|pipeline|balance|cheque|revpar|bill|discount|\bapc\b|\baov\b/i.test(name);
 }
 
 // Strict parse: returns null for anything that isn't a plain number, so text
@@ -150,6 +152,7 @@ function collectPdfKpis(data) {
     ...(data.hotels ?? []),
     ...Object.values(data.fnb ?? {}).flat(),
     ...(data.rabbits ?? []),
+    ...(data.cpDelivery ?? []),
     ...(data.mickys ?? []),
     ...(data.purosoul ?? [])
   ];
@@ -194,7 +197,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
   const reportType = options.reportType === 'weekly' ? 'weekly' : 'daily';
   const isWeekly = reportType === 'weekly';
   const week = options.week ?? null;
-  const enabledSections = new Set(['bank', 'pnl', 'flags', 'hotels', 'fnb', 'rabbits', 'mickys', 'purosoul', 'settlement']);
+  const enabledSections = new Set(['bank', 'pnl', 'flags', 'hotels', 'fnb', 'rabbits', 'cpDelivery', 'mickys', 'purosoul', 'settlement']);
   if (isWeekly) enabledSections.delete('bank');
   if (!isWeekly) enabledSections.delete('settlement');
 
@@ -908,7 +911,7 @@ export function createDailyFlashPdf(data, date, options = {}) {
       [{ text: 'Unit Total', bold: true }, ...UNITS.map((unit) => ({ text: money(settlement.unitTotals[unit]), bold: true })), { text: money(settlement.groupTotal), bold: true }],
       [{ text: 'Revenue Actual', color: colors.muted }, ...UNITS.map((unit) => ({ text: money(unitRevenue[unit] ?? 0), color: colors.muted })), { text: money(groupRevenue(data)), color: colors.muted }],
     ];
-    const settlementOptions = { widths: [95, 50, 50, 50, 50, 50, 50, 50, 78], fontSize: 6.3, leftColumns: [0] };
+    const settlementOptions = { widths: [88, 45, 45, 45, 45, 45, 45, 45, 45, 75], fontSize: 6.3, leftColumns: [0] };
     sectionTitle('Settlement Summary', tablePreviewHeight(settlementRows, settlementOptions));
     table(['Mode', ...UNITS, 'Group Total'], settlementRows, settlementOptions);
     ensureSpace(62);
@@ -1093,6 +1096,19 @@ export function createDailyFlashPdf(data, date, options = {}) {
       renderUnitRevenueHeader('Rabbit');
       for (const section of [...new Set(rabbitRows.map((row) => row.section))]) {
         kpiTable(`Rabbit - ${section}`, rabbitRows.filter((row) => row.section === section));
+      }
+    }
+
+    // 9b. CP Delivery sections (Ciferon home-delivery summary) — rendered like
+    // Rabbit; skipped entirely for weeks with no CP Delivery data (the unit was
+    // added Aug 2026, so earlier weeks would only show blank tables).
+    if (hasSection('cpDelivery')) {
+      const cpDeliveryRows = data.cpDelivery ?? [];
+      if (cpDeliveryRows.some((row) => String(row.actual ?? '').trim() !== '')) {
+        renderUnitRevenueHeader('CP Delivery');
+        for (const section of [...new Set(cpDeliveryRows.map((row) => row.section))]) {
+          kpiTable(`CP Delivery - ${section}`, cpDeliveryRows.filter((row) => row.section === section));
+        }
       }
     }
 

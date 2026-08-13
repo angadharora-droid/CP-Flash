@@ -62,6 +62,7 @@ const UNIT_REVENUE_META = {
   Pablo: { title: 'Pablo', source: 'Petpooja (Pablo)' },
   Dali: { title: 'Dali', source: 'Petpooja (Dali)' },
   Rabbit: { title: 'Rabbit', source: 'Petpooja (Rabbit)' },
+  'CP Delivery': { title: 'CP Delivery', source: 'Ciferon (Hotel Centre Point)' },
   "Micky's": { title: "Micky's", source: "Micky's Sales Report" },
   Purosoul: { title: 'Purosoul', source: 'Purosoul Sales Report' }
 };
@@ -321,6 +322,7 @@ function collectWeeklyFlagKpis(data) {
     ...(data?.fnb?.Pablo ?? []),
     ...(data?.fnb?.Dali ?? []),
     ...(data?.rabbits ?? []).filter((row) => row.section !== 'Cost'),
+    ...(data?.cpDelivery ?? []),
     ...(data?.mickys ?? []),
     ...(data?.purosoul ?? [])
   ];
@@ -443,11 +445,17 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
   const pabloRows = data?.fnb?.Pablo ?? [];
   const daliRows = data?.fnb?.Dali ?? [];
   const rabbitRows = (data?.rabbits ?? []).filter((row) => row.section !== 'Cost');
+  // CP Delivery arrived Aug 2026 — weeks with no data at all skip the section
+  // instead of showing blank tables.
+  const cpDeliveryRows = (data?.cpDelivery ?? []).some((row) => String(row.actual ?? '').trim() !== '')
+    ? data.cpDelivery
+    : [];
   const mickysRows = data?.mickys ?? [];
   const purosoulRows = data?.purosoul ?? [];
   const pabloSections = [...new Set(pabloRows.map((row) => row.section))];
   const daliSections = [...new Set(daliRows.map((row) => row.section))];
   const rabbitSections = [...new Set(rabbitRows.map((row) => row.section))];
+  const cpDeliverySections = [...new Set(cpDeliveryRows.map((row) => row.section))];
   const mickysSections = [...new Set(mickysRows.map((row) => row.section))];
   const purosoulSections = [...new Set(purosoulRows.map((row) => row.section))];
   const weekPurosoulSkuRows = activeWeekPeriod?.purosoulSku ?? purosoulSkuRows;
@@ -890,6 +898,24 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
                 subtitle={`${rows.length} weekly KPI${rows.length === 1 ? '' : 's'}`}
                 icon={SECTION_ICONS.restaurant}
                 tone={index % 2 === 0 ? 'indigo' : 'amber'}
+                defaultOpen
+              >
+                <WeeklyKpiTable rows={rows} />
+              </SectionCard>
+            );
+          })}
+          {cpDeliverySections.length > 0 && (
+            <UnitRevenueHeader unit="CP Delivery" rows={weeklyPnlRows} scope="week to date" />
+          )}
+          {cpDeliverySections.map((section, index) => {
+            const rows = buildWeeklyRowsFrom(cpDeliveryRows, section);
+            return (
+              <SectionCard
+                key={`week-cpdelivery-${section}`}
+                title={`CP Delivery: ${section}`}
+                subtitle={`${rows.length} weekly KPI${rows.length === 1 ? '' : 's'}`}
+                icon={SECTION_ICONS.restaurant}
+                tone={index % 2 === 0 ? 'amber' : 'indigo'}
                 defaultOpen
               >
                 <WeeklyKpiTable rows={rows} />

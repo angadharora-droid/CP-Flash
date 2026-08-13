@@ -18,6 +18,7 @@ const SourceControlPage = React.lazy(() => import('./pages/SourceControlPage'));
 const HotelsPage = React.lazy(() => import('./pages/HotelsPage'));
 const FnbPage = React.lazy(() => import('./pages/FnbPage'));
 const RabbitPage = React.lazy(() => import('./pages/RabbitPage'));
+const CpDeliveryPage = React.lazy(() => import('./pages/CpDeliveryPage'));
 const MickysPage = React.lazy(() => import('./pages/MickysPage'));
 const PurosoulPage = React.lazy(() => import('./pages/PurosoulPage'));
 const SettlementPage = React.lazy(() => import('./pages/SettlementPage'));
@@ -49,7 +50,7 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const SEED_FALLBACK_KEYS = ['pnl', 'bankPosition', 'hotels', 'rabbits', 'mickys', 'purosoul', 'purosoulSku', 'fixedCosts'];
+const SEED_FALLBACK_KEYS = ['pnl', 'bankPosition', 'hotels', 'rabbits', 'cpDelivery', 'mickys', 'purosoul', 'purosoulSku', 'fixedCosts'];
 
 const PNL_VALUE_KEYS = ['revenueToday', 'purchasesToday', 'mtdNetProfit', 'ytdNetProfit', 'fixedCost'];
 
@@ -84,6 +85,7 @@ function derivePnlRows(data) {
     Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Gross Sales']),
     Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Gross Sales']),
     Rabbit: () => firstKpiValue(data.rabbits, 'Rabbit', ['Total Revenue']),
+    'CP Delivery': () => firstKpiValue(data.cpDelivery, 'CP Delivery', ['Total Revenue']),
     "Micky's": () => firstKpiValue(data.mickys, "Micky's", ['Order Revenue Today']),
     Purosoul: () => firstKpiValue(data.purosoul, 'Purosoul', ['Total Revenue Today'])
   };
@@ -246,6 +248,7 @@ function mergeWithSeed(seed, saved, previous = null) {
   merged.hotels = mergeSeedKpiRows(seed.hotels, merged.hotels);
   merged.rabbits = normalizeRabbitCategoryBreakdown(seed.rabbits, merged.rabbits);
   merged.rabbits = (merged.rabbits ?? []).map((row) => ({ ...row, unit: canonicalUnit(row.unit) }));
+  merged.cpDelivery = mergeSeedKpiRows(seed.cpDelivery, merged.cpDelivery);
   merged.pnl = mergePnlRows(seed.pnl, saved.pnl, previous?.pnl);
   merged.pnl = derivePnlRows(merged);
   return normalizeRabbitData(merged);
@@ -492,6 +495,7 @@ export default function App() {
     if (activeKey === 'hotels') return <HotelsPage {...common} />;
     if (activeKey === 'fnb') return <FnbPage {...common} />;
     if (activeKey === 'rabbit') return <RabbitPage data={enrichedData} date={date} />;
+    if (activeKey === 'cpdelivery') return <CpDeliveryPage data={enrichedData} date={date} />;
     if (activeKey === 'mickys') return <MickysPage data={enrichedData} date={date} />;
     if (activeKey === 'purosoul') return <PurosoulPage {...common} />;
     if (activeKey === 'settlement') return <SettlementPage {...common} />;
