@@ -37,6 +37,7 @@ import { importPabloCostHistory } from './importPabloCostHistory.js';
 import { importPurosoulSalesReport, importMickysSalesReport } from './importDailySalesReport.js';
 import { importPurosoulFlashReport } from './importPurosoulFlashReport.js';
 import { importMickysCrmReport } from './importMickysCrmReport.js';
+import { importCiferonReport } from './importCiferonReport.js';
 import { attachReportPreviews } from './attachmentPreview.js';
 import { importCpNmManagerFlash, importCpNmHistForecast, importCpNmPayType } from './importCpNmReport.js';
 
@@ -164,6 +165,20 @@ function mickysCrmSubjectDate(parsed, runDate) {
   if (m) {
     const month = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(m[2].toLowerCase()) + 1;
     const iso = `${m[3]}-${String(month).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    const clamped = clampBusinessDate(iso, runDate);
+    if (clamped) return clamped;
+  }
+  return sentDateMinusOne(parsed, runDate);
+}
+
+// Ciferon mails "Summary for Hotel Centre Point : Wednesday, August 12, 2026"
+// the next morning; the subject's own "<Month> <D>, <YYYY>" is the business day
+// it covers (the body repeats the same date). Fall back to sent date − 1.
+function ciferonSubjectDate(parsed, runDate) {
+  const m = /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})/i.exec(parsed.subject ?? '');
+  if (m) {
+    const month = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(m[1].toLowerCase()) + 1;
+    const iso = `${m[3]}-${String(month).padStart(2, '0')}-${m[2].padStart(2, '0')}`;
     const clamped = clampBusinessDate(iso, runDate);
     if (clamped) return clamped;
   }
@@ -470,6 +485,18 @@ const HANDLERS = [
       const filePath = await saveAttachment(att, 'petpooja-rabbits-time-sales', date);
       return importPetpoojaTimeSalesReport(filePath, 'Rabbit', date);
     }
+  },
+  {
+    // Ciferon POS daily transaction summary (alerts@ciferon.com, HTML body, no
+    // attachment) — Centre Point's home-delivery channel, filed as CP Delivery.
+    // Distinct from the CP NM "Hotel Centre Point … Vijan Motors" bundle, which
+    // always carries PDF attachments and never this subject.
+    name: 'Ciferon Delivery Summary (CP Delivery)',
+    importSourceKey: 'cpDeliveryImportedAt',
+    businessDate: ciferonSubjectDate,
+    matches: (s, parsed) => subjectContains(s, 'summary for hotel centre point')
+      || (/@ciferon\.com/i.test(messageText(parsed)) && subjectContains(s, 'summary')),
+    run: async (parsed, date) => importCiferonReport(parsed.html || '', date)
   },
   // ── CP NM (Centre Point, Vashi — Unit of Vijan Motors) ──────────────────────
   // All 6 attachments in the IDS Next email are PDFs (not XLS).  Three handlers
@@ -1015,7 +1042,7 @@ function mergeReportData(existingData = {}, localData = {}) {
     }
   };
 
-  for (const key of ['hotels', 'rabbits', 'mickys', 'purosoul']) {
+  for (const key of ['hotels', 'rabbits', 'cpDelivery', 'mickys', 'purosoul']) {
     merged[key] = mergeKpiRows(existingData[key], localData[key]);
   }
 

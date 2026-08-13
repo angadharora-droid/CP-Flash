@@ -16,12 +16,13 @@ export const pages = [
   ['hotels', '04', 'Hotels'],
   ['fnb', '05', 'F&B Outlets'],
   ['rabbit', '06', 'Rabbit'],
-  ['mickys', '07', "Micky's"],
-  ['purosoul', '08', 'Purosoul'],
-  ['settlement', '09', 'Settlement'],
-  ['ai', '10', 'AI Notes'],
-  ['pdf', '11', 'PDF Preview'],
-  ['aop', '12', 'AOP Targets']
+  ['cpdelivery', '07', 'CP Delivery'],
+  ['mickys', '08', "Micky's"],
+  ['purosoul', '09', 'Purosoul'],
+  ['settlement', '10', 'Settlement'],
+  ['ai', '11', 'AI Notes'],
+  ['pdf', '12', 'PDF Preview'],
+  ['aop', '13', 'AOP Targets']
 ];
 
 // `icon` is a Material Symbol name (rendered via `<span class="material-symbols-outlined">{icon}</span>`).
@@ -43,6 +44,7 @@ export const NAV_GROUPS = [
       { key: 'hotels',   label: 'Hotels',      icon: 'hotel' },
       { key: 'fnb',      label: 'F&B Outlets', icon: 'restaurant' },
       { key: 'rabbit',   label: 'Rabbit',      icon: 'delivery_dining' },
+      { key: 'cpdelivery', label: 'CP Delivery', icon: 'takeout_dining' },
       { key: 'mickys',   label: "Micky's",     icon: 'inventory_2' },
       { key: 'purosoul', label: 'Purosoul',    icon: 'factory' }
     ]

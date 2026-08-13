@@ -13,11 +13,12 @@ const PAGE_META = {
   'fnb.Pablo': { label: 'Pablo',    icon: 'restaurant',      tone: 'teal'   },
   'fnb.Dali':  { label: 'Dali',     icon: 'restaurant',      tone: 'teal'   },
   rabbits:     { label: 'Rabbit',   icon: 'delivery_dining', tone: 'amber'  },
+  cpDelivery:  { label: 'CP Delivery', icon: 'takeout_dining', tone: 'amber' },
   mickys:      { label: "Micky's",  icon: 'inventory_2',     tone: 'rose'   },
   purosoul:    { label: 'Purosoul', icon: 'factory',         tone: 'slate'  }
 };
 
-const PAGE_ORDER = ['hotels', 'fnb.Pablo', 'fnb.Dali', 'rabbits', 'mickys', 'purosoul'];
+const PAGE_ORDER = ['hotels', 'fnb.Pablo', 'fnb.Dali', 'rabbits', 'cpDelivery', 'mickys', 'purosoul'];
 
 function groupKpisByPageUnit(kpis) {
   const map = new Map();

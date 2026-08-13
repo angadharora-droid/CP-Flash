@@ -15,7 +15,7 @@ export function calculateFlag(actual, target, direction = 'min') {
 }
 
 export function collectFlags(data) {
-  const kpis = ['hotels', 'rabbits', 'mickys', 'purosoul'].flatMap((key) => data[key] ?? []);
+  const kpis = ['hotels', 'rabbits', 'cpDelivery', 'mickys', 'purosoul'].flatMap((key) => data[key] ?? []);
   const fnb = Object.values(data.fnb ?? {}).flat();
   return [...kpis, ...fnb].map((kpi) => {
     const flag = calculateFlag(kpi.actual, kpi.target, kpi.direction);
