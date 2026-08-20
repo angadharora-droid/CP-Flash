@@ -84,7 +84,7 @@ export default function OccupancyMixCard({ data, unit = 'CP Nagpur' }) {
             <StatTile label="Rooms Occupied" value={totalRooms} hint={`${totalPax} pax`} />
             <StatTile label="Room Revenue" value={money(totalRevenue)} />
             <StatTile
-              label={view === 'sbo' ? 'Top Channel' : 'Top Segment'}
+              label={effectiveView === 'sbo' ? 'Top Channel' : 'Top Segment'}
               value={top ? top.name : '—'}
               hint={top ? `${top.rooms} rooms · ${moneyCompact(top.revenue)}` : null}
             />

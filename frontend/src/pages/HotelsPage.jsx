@@ -61,7 +61,7 @@ export default function HotelsPage({ data, date }) {
           <KpiTable rows={rows.filter((row) => row.section === section)} />
         </SectionCard>
       ))}
-      {hotelUnit === 'CP Nagpur' && <OccupancyMixCard data={data} />}
+      {(hotelUnit === 'CP Nagpur' || hotelUnit === 'CP NM') && <OccupancyMixCard data={data} unit={hotelUnit} />}
       {hotelUnit === 'CP Nagpur' && ['banquetToday', 'banquetTomorrow'].map((key) => (
         <SectionCard
           key={key}
