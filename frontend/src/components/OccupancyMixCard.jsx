@@ -41,11 +41,16 @@ function StatTile({ label, value, hint }) {
   );
 }
 
-export default function OccupancyMixCard({ data }) {
+// CP Nagpur's HCP_OCC report carries both Source of Business and Market Segment,
+// so it gets the toggle. CP NM's Market Segment Report has no Source of Business
+// breakdown at all (mix.sbo is always empty) — it always shows Market Segment only.
+export default function OccupancyMixCard({ data, unit = 'CP Nagpur' }) {
+  const mix = unit === 'CP Nagpur' ? data?.occupancyMix : data?.occupancyMixByUnit?.[unit];
+  const hasSbo = (mix?.sbo ?? []).length > 0;
   const [view, setView] = useState('sbo');
-  const mix = data?.occupancyMix;
+  const effectiveView = hasSbo ? view : 'segment';
 
-  const entries = (view === 'sbo' ? mix?.sbo : mix?.segment) ?? [];
+  const entries = (effectiveView === 'sbo' ? mix?.sbo : mix?.segment) ?? [];
   const hasData = entries.length > 0;
 
   const totalRooms = mix?.totalRooms ?? 0;
@@ -53,21 +58,24 @@ export default function OccupancyMixCard({ data }) {
   const totalRevenue = mix?.totalRevenue ?? 0;
   const donutData = entries.map((e) => ({ name: e.name, value: e.revenue }));
   const top = entries[0] ?? null;
-  const dimLabel = view === 'sbo' ? 'source' : 'segment';
+  const dimLabel = effectiveView === 'sbo' ? 'source' : 'segment';
+  const hotelLabel = unit === 'CP NM' ? 'CP Navi Mumbai' : unit;
 
   return (
     <SectionCard
-      title="CP Nagpur: In-House Occupancy Mix"
-      subtitle="Where occupied rooms & room revenue come from (Present Occupancy)"
+      title={hasSbo ? `${hotelLabel}: In-House Occupancy Mix` : `${hotelLabel}: Market Segment Mix`}
+      subtitle={hasSbo ? 'Where occupied rooms & room revenue come from (Present Occupancy)' : 'Room nights & revenue by market segment (Market Analysis Comparison Report)'}
       icon={SECTION_ICONS.hotel}
       tone="amber"
-      actions={hasData ? <ViewToggle value={view} onChange={setView} /> : null}
+      actions={hasData && hasSbo ? <ViewToggle value={view} onChange={setView} /> : null}
     >
       {!hasData ? (
         <div className="grid place-items-center py-10 text-center text-on-surface-variant/50">
           <span className="material-symbols-outlined mb-2 text-[32px]">donut_small</span>
           <p className="max-w-[260px] text-[12.5px] font-medium leading-relaxed">
-            No occupancy mix imported for this date yet (HCP_OCC report).
+            {hasSbo
+              ? 'No occupancy mix imported for this date yet (HCP_OCC report).'
+              : 'No market segment report imported for this date yet.'}
           </p>
         </div>
       ) : (

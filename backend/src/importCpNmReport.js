@@ -2,8 +2,9 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'module';
+import XLSX from 'xlsx';
 import { buildSeedData } from './excel.js';
-import { pageSchemas, schemaRowsToKpis } from './schema.js';
+import { canonicalMixName, pageSchemas, schemaRowsToKpis } from './schema.js';
 import { readDaily, writeDaily } from './dailyStore.js';
 
 // CP NM (Vashi) IDS Next reports arrive as PDFs, not XLS files.
@@ -12,6 +13,8 @@ import { readDaily, writeDaily } from './dailyStore.js';
 //   History_and_Forecast_Report_*       ← tomorrow's occupancy forecast %
 //   Pay_Type_Report_*                   ← settlement modes (Cash / Card / UPI / City Ledger)
 //   Arrival_Report_*, Departure_Report_*, Guest_In_House_Report_* ← not imported
+// A separate "Market Segment Report" email (account.navimumbai@cpgh.in) attaches the
+// "Market Analysis Comparison Report Between …" XLSX → importCpNmMarketSegment.
 
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
@@ -45,24 +48,6 @@ function setKpi(data, name, values) {
 function setForecast(data, name, value) {
   const row = data.hotels.find((r) => r.unit === UNIT && r.section === 'Forecast' && r.name === name);
   if (row && value > 0) row.actual = String(value);
-}
-
-// Apportions the day's room revenue across ONE breakdown's buckets by room share,
-// nudging the largest bucket so the entries sum exactly to Math.round(revenue).
-// Each donut (S.O.B / Market Segment) is a complete view of the same room revenue,
-// so each must be apportioned over its OWN room total — dividing by a combined
-// cross-dimension total made every donut sum to only a fraction of room revenue.
-function apportionMixEntries(buckets, totalRevenue) {
-  const entries = buckets
-    .map(([name, rooms]) => ({ name, rooms: Math.max(0, num(rooms)) }))
-    .filter((entry) => entry.rooms > 0)
-    .map((entry) => ({ ...entry, pax: entry.rooms }));
-  const totalRooms = entries.reduce((sum, entry) => sum + entry.rooms, 0);
-  if (!totalRooms) return [];
-  for (const entry of entries) entry.revenue = Math.round((totalRevenue * entry.rooms) / totalRooms);
-  entries.sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue);
-  entries[0].revenue += Math.round(totalRevenue) - entries.reduce((sum, entry) => sum + entry.revenue, 0);
-  return entries;
 }
 
 function ensureForecastRows(data) {
@@ -309,36 +294,15 @@ export async function importCpNmManagerFlash(file, outDate) {
     );
   }
 
-  const occupancyMix = {
-    unit: UNIT,
-    asOf: outDate,
-    totalRooms: roomsSold || segCorporate + segFit + segOta + segGroup,
-    totalPax: roomsSold || segCorporate + segFit + segOta + segGroup,
-    totalRevenue: Math.round(roomRevenue),
-    // Labels follow the shared canonical mix vocabulary (canonicalMixName in
-    // schema.js) so the CP NM donuts chart the same categories as CP Nagpur's.
-    sbo: apportionMixEntries([
-      ['OTA (MMT/Booking.com)', segOta], // TA + OTA combined in the Manager Flash
-      ['Walk-ins', segWalkIn],
-      ['Group Bookings', segGroup],
-      ['Cancellations/No-shows', segNoShow]
-    ], roomRevenue),
-    segment: apportionMixEntries([
-      ['Corporate', segCorporate],
-      ['FIT/Leisure', segFit],
-      ['Group Bookings', segGroup]
-    ], roomRevenue)
-  };
-
+  // The CP NM occupancy-mix donut is fed by importCpNmMarketSegment (real
+  // segment-wise revenue from the Market Analysis Comparison report), not from
+  // these in-house counters. Days without that report fall back to a
+  // segment-only mix synthesized from cpNmNotes (mixEntryFromNotes in index.js).
   data.importSource = {
     ...(data.importSource ?? {}),
     cpNmFile: path.basename(file),
     cpNmImportedAt: new Date().toISOString(),
     cpNmNotes: `occ=${occPct}%, rooms=${roomsSold}, arr=${arr}, revpar=${revpar}, roomRev=${roomRevenue}, fnb=${totalFnbRevenue}, total=${totalRevenue}, corp=${segCorporate}, fit=${segFit}, ota=${segOta}, grp=${segGroup}, walkin=${segWalkIn}, noshow=${segNoShow}`
-  };
-  data.occupancyMixByUnit = {
-    ...(data.occupancyMixByUnit ?? {}),
-    [UNIT]: occupancyMix
   };
 
   await writeDaily(outDate, data);
@@ -350,6 +314,128 @@ export async function importCpNmManagerFlash(file, outDate) {
       roomRevenue, bougainvilleaRevenue, roomServiceRevenue,
       laundryRevenue: laundry.day, totalFnbRevenue, totalRevenue,
       segments: { corporate: segCorporate, fit: segFit, ota: segOta, group: segGroup, walkIn: segWalkIn, noShow: segNoShow }
+    }
+  };
+}
+
+// ─── Market Segment Report ────────────────────────────────────────────────────
+// Source: "Market Analysis Comparison Report Between <Mon> <D>, <YYYY> and ….xlsx"
+// attached to the separate "Market Segment Report" email (account.navimumbai@cpgh.in).
+// Sheet layout: a title row, then a two-block header row —
+//   # | Market Segment | Nights | Occupancy% | Pax | Room Revenue | Revenue% | ARR/AGR | ARP | <last-year repeat>
+// — then detail rows grouped under "History" / "Forecast" section labels (printed in
+// the "#" column), each section closed by a SubTotal row and the sheet by a Total row.
+// Detail rows across both sections sum to the Total row, so all are tallied and the
+// SubTotal/Total rows are skipped (Total is kept as a reconciliation guard).
+// Feeds the CP NM occupancy-mix donut with REAL segment-wise nights/pax/revenue.
+// CP NM tracks no Source of Business breakdown, so sbo is written empty on purpose.
+export async function importCpNmMarketSegment(file, outDate) {
+  const wb = XLSX.readFile(file, { cellDates: true });
+
+  let rows = null;
+  let cols = null;
+  for (const sheetName of wb.SheetNames) {
+    const r = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, blankrows: false, defval: '' });
+    for (let i = 0; i < r.length && !cols; i += 1) {
+      const label = (c) => String(r[i][c] ?? '').trim().toLowerCase();
+      const nameCol = r[i].findIndex((_, c) => label(c) === 'market segment');
+      if (nameCol === -1) continue;
+      // The current-year block comes first, so take the FIRST Nights/Pax/Room
+      // Revenue after the segment-name column (the last-year block repeats them).
+      const firstAfterName = (want) => {
+        for (let c = nameCol + 1; c < r[i].length; c += 1) if (label(c) === want) return c;
+        return -1;
+      };
+      cols = {
+        headerRow: i,
+        name: nameCol,
+        nights: firstAfterName('nights'),
+        pax: firstAfterName('pax'),
+        revenue: firstAfterName('room revenue')
+      };
+      rows = r;
+    }
+    if (cols) break;
+  }
+  if (!cols || cols.nights === -1 || cols.revenue === -1) {
+    throw new Error(`No "Market Segment" header found. Sheets: ${wb.SheetNames.join(', ')}`);
+  }
+
+  const segMap = new Map();
+  let footer = null;
+  for (let r = cols.headerRow + 1; r < rows.length; r += 1) {
+    const row = rows[r];
+    const name = String(row[cols.name] ?? '').trim();
+    if (!name) continue; // "History" / "Forecast" section labels sit in the "#" column
+    if (/^sub\s*total$/i.test(name)) continue;
+    if (/^total$/i.test(name)) {
+      footer = {
+        rooms: Math.round(num(row[cols.nights])),
+        pax: cols.pax !== -1 ? Math.round(num(row[cols.pax])) : 0,
+        revenue: num(row[cols.revenue])
+      };
+      continue;
+    }
+    const rooms = Math.round(num(row[cols.nights]));
+    const revenue = num(row[cols.revenue]);
+    if (!rooms && !revenue) continue; // segments with last-year activity only
+    // Shared canonical vocabulary (canonicalMixName in schema.js) so CP NM
+    // charts the same category names as CP Nagpur's donuts.
+    const canonical = canonicalMixName('segment', name) || 'Unspecified';
+    const entry = segMap.get(canonical) ?? { name: canonical, rooms: 0, revenue: 0, pax: 0 };
+    entry.rooms += rooms;
+    entry.revenue += revenue;
+    entry.pax += cols.pax !== -1 ? Math.round(num(row[cols.pax])) : 0;
+    segMap.set(canonical, entry);
+  }
+
+  const segment = [...segMap.values()]
+    .map((entry) => ({ ...entry, revenue: Math.round(entry.revenue) }))
+    .sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue);
+  if (!segment.length) throw new Error('No market-segment detail rows found.');
+
+  const parsedRooms = [...segMap.values()].reduce((sum, entry) => sum + entry.rooms, 0);
+  const parsedRevenue = [...segMap.values()].reduce((sum, entry) => sum + entry.revenue, 0);
+  if (footer && footer.rooms !== parsedRooms) {
+    console.warn(`[importCpNmMarketSegment] Parsed ${parsedRooms} nights but the Total row says ${footer.rooms} — possible layout shift.`);
+  }
+  if (footer && Math.round(footer.revenue) !== Math.round(parsedRevenue)) {
+    console.warn(`[importCpNmMarketSegment] Parsed revenue ${Math.round(parsedRevenue)} but the Total row says ${Math.round(footer.revenue)}.`);
+  }
+
+  const totalRooms = footer?.rooms ?? parsedRooms;
+  const totalPax = footer?.pax || segment.reduce((sum, entry) => sum + entry.pax, 0);
+  const totalRevenue = Math.round(footer?.revenue ?? parsedRevenue);
+
+  const data = (await readDaily(outDate)) ?? buildSeedData();
+
+  data.occupancyMixByUnit = {
+    ...(data.occupancyMixByUnit ?? {}),
+    [UNIT]: {
+      unit: UNIT,
+      asOf: outDate,
+      totalRooms,
+      totalPax,
+      totalRevenue,
+      // CP NM has no Source of Business breakdown — Market Segment only.
+      sbo: [],
+      segment
+    }
+  };
+
+  data.importSource = {
+    ...(data.importSource ?? {}),
+    cpNmMarketSegmentFile: path.basename(file),
+    cpNmMarketSegmentImportedAt: new Date().toISOString()
+  };
+
+  await writeDaily(outDate, data);
+
+  return {
+    ok: true, date: outDate, unit: UNIT,
+    mapped: {
+      totalRooms, totalPax, totalRevenue,
+      segments: segment.map((entry) => `${entry.name}: ${entry.rooms} nights / ${entry.revenue}`)
     }
   };
 }
@@ -526,12 +612,13 @@ const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   const [, , mode = 'flash', file, outDate = new Date().toISOString().slice(0, 10)] = process.argv;
   if (!file) {
-    console.error('Usage: node importCpNmReport.js <flash|forecast|paytype> <file.pdf> [YYYY-MM-DD]');
+    console.error('Usage: node importCpNmReport.js <flash|forecast|paytype|segment> <file> [YYYY-MM-DD]');
     process.exit(1);
   }
   const { closeDailyStore } = await import('./dailyStore.js');
   const fn = mode === 'forecast' ? importCpNmHistForecast
     : mode === 'paytype' ? importCpNmPayType
+    : mode === 'segment' ? importCpNmMarketSegment
     : importCpNmManagerFlash;
   fn(file, outDate)
     .then((r) => console.log(JSON.stringify(r, null, 2)))

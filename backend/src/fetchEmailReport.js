@@ -12,6 +12,7 @@
  *   "Payment Wise Summary : DALI …"              → importPetpoojaPaymentSummary (XLS attachment)
  *   "Hotel Centre Point … Vijan Motors …"        → importCpNmManagerFlash  (Manager_Flash_Report_* XLS)
  *     (same email, bundled)                      → importCpNmHistForecast  (History_and_Forecast_* XLS)
+ *   "Market Segment Report" (account.navimumbai@cpgh.in) → importCpNmMarketSegment (Market Analysis Comparison XLSX)
  *
  * After email processing, fetches bank positions from Google Sheets.
  */
@@ -39,7 +40,7 @@ import { importPurosoulFlashReport } from './importPurosoulFlashReport.js';
 import { importMickysCrmReport } from './importMickysCrmReport.js';
 import { importCiferonReport } from './importCiferonReport.js';
 import { attachReportPreviews } from './attachmentPreview.js';
-import { importCpNmManagerFlash, importCpNmHistForecast, importCpNmPayType } from './importCpNmReport.js';
+import { importCpNmManagerFlash, importCpNmHistForecast, importCpNmPayType, importCpNmMarketSegment } from './importCpNmReport.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
@@ -176,6 +177,21 @@ function mickysCrmSubjectDate(parsed, runDate) {
 // it covers (the body repeats the same date). Fall back to sent date − 1.
 function ciferonSubjectDate(parsed, runDate) {
   const m = /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})/i.exec(parsed.subject ?? '');
+  if (m) {
+    const month = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(m[1].toLowerCase()) + 1;
+    const iso = `${m[3]}-${String(month).padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+    const clamped = clampBusinessDate(iso, runDate);
+    if (clamped) return clamped;
+  }
+  return sentDateMinusOne(parsed, runDate);
+}
+
+// The Market Segment Report email's attachment embeds the exact business date in its
+// filename: "Market Analysis Comparison Report Between Aug 17, 2026 and Aug 17, 2026.xlsx"
+// (a daily report — the "Between X and Y" range is always the same single day).
+function marketSegmentFileDate(parsed, runDate) {
+  const att = findAttachmentByName(parsed, /Market Analysis Comparison/i);
+  const m = /Between\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})/i.exec(att?.filename ?? '');
   if (m) {
     const month = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(m[1].toLowerCase()) + 1;
     const iso = `${m[3]}-${String(month).padStart(2, '0')}-${m[2].padStart(2, '0')}`;
@@ -576,6 +592,22 @@ const HANDLERS = [
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'cpnm-pay-type', date);
       return importCpNmPayType(filePath, date);
+    }
+  },
+  {
+    // Market Segment Report (separate email, account.navimumbai@cpgh.in) → real
+    // segment-wise nights/pax/revenue for the CP NM occupancy-mix donut. CP NM has
+    // no Source of Business breakdown, so this feeds Market Segment only.
+    name: 'CP NM Market Segment Report',
+    importSourceKey: 'cpNmMarketSegmentImportedAt',
+    businessDate: marketSegmentFileDate,
+    matches: (s, parsed) => subjectContains(s, 'market segment report') || !!findAttachmentByName(parsed, /Market Analysis Comparison/i),
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /Market Analysis Comparison/i);
+      if (!att) { logAttachments(parsed); throw new Error('No Market Analysis Comparison attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'cpnm-market-segment', date);
+      return importCpNmMarketSegment(filePath, date);
     }
   },
   {

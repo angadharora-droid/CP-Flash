@@ -132,6 +132,19 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
+    id: 'cpnm-market-segment',
+    label: 'CP NM Market Segment',
+    unit: 'CP NM',
+    type: 'Mail / Excel',
+    paths: ['occupancyMixByUnit'],
+    meta: {
+      file: 'cpNmMarketSegmentFile',
+      importedAt: 'cpNmMarketSegmentImportedAt',
+      reportLabels: { cpNmMarketSegmentFile: 'Market Analysis Comparison Report' }
+    },
+    cadence: 'Daily'
+  },
+  {
     id: 'pablo-cost',
     label: 'Pablo Cost Sheet',
     unit: 'Pablo',

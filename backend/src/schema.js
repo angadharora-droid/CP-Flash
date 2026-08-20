@@ -292,7 +292,9 @@ const MIX_SEGMENT_LABELS = {
   'GROUP RESI': 'Group Bookings',
   'RESIWED': 'Wedding Groups',
   'HOSUEG': 'House Guest',
-  'BQTCOR': 'Banquet Corporate'
+  'BQTCOR': 'Banquet Corporate',
+  'ONLINE PORTAL': 'OTA (MMT/Booking.com)', // CP NM Market Analysis Comparison label
+  'NOT SPECIFIED': 'Unspecified'            // CP NM Market Analysis Comparison label
 };
 
 export function canonicalMixName(kind, name) {

@@ -779,6 +779,11 @@ async function aggregateOccupancyMixForDates(dates, rawByDate = null) {
   const periodRawByDate = await getRawByDate(dates, rawByDate);
   const byUnit = {};
 
+  // Fallback for days with a Manager Flash import but no real Market Segment
+  // Report: a rough segment-only estimate from the Flash's in-house counters.
+  // CP NM has no Source of Business breakdown at all (see importCpNmMarketSegment),
+  // so this never fabricates an sbo — only Market Segment, and only as an estimate
+  // until the real report's numbers are available for that day.
   function mixEntryFromNotes(raw) {
     const notes = raw?.importSource?.cpNmNotes;
     if (!notes) return null;
@@ -791,40 +796,31 @@ async function aggregateOccupancyMixForDates(dates, rawByDate = null) {
       corporate: get('corp'),
       fit: get('fit'),
       ota: get('ota'),
-      group: get('grp'),
-      walkin: get('walkin'),
-      noshow: get('noshow')
+      group: get('grp')
     };
     const totalRooms = get('rooms') || segments.corporate + segments.fit + segments.ota + segments.group;
     if (!Object.values(segments).some(Boolean)) return null;
-    // Same apportionment as importCpNmReport: each breakdown is a complete view of
-    // the day's room revenue, so divide by that breakdown's OWN room total — the
-    // entries then sum to Math.round(roomRevenue), matching the Room Revenue KPI.
-    const apportion = (buckets) => {
-      const entries = buckets.filter(([, rooms]) => rooms > 0).map(([name, rooms]) => ({ name, rooms, pax: rooms }));
-      const bucketRooms = entries.reduce((sum, item) => sum + item.rooms, 0);
-      if (!bucketRooms) return [];
-      for (const item of entries) item.revenue = Math.round((roomRevenue * item.rooms) / bucketRooms);
-      entries.sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue);
-      entries[0].revenue += Math.round(roomRevenue) - entries.reduce((sum, item) => sum + item.revenue, 0);
-      return entries;
-    };
+    // Same apportionment as importCpNmMarketSegment: the breakdown is a complete
+    // view of the day's room revenue, apportioned by its own room total so the
+    // entries sum to Math.round(roomRevenue), matching the Room Revenue KPI.
+    const buckets = [
+      ['Corporate', segments.corporate],
+      ['FIT/Leisure', segments.fit],
+      ['OTA (MMT/Booking.com)', segments.ota],
+      ['Group Bookings', segments.group]
+    ].filter(([, rooms]) => rooms > 0).map(([name, rooms]) => ({ name, rooms, pax: rooms }));
+    const bucketRooms = buckets.reduce((sum, item) => sum + item.rooms, 0);
+    if (!bucketRooms) return null;
+    for (const item of buckets) item.revenue = Math.round((roomRevenue * item.rooms) / bucketRooms);
+    buckets.sort((a, b) => b.rooms - a.rooms || b.revenue - a.revenue);
+    buckets[0].revenue += Math.round(roomRevenue) - buckets.reduce((sum, item) => sum + item.revenue, 0);
     return {
       unit: 'CP NM',
       totalRooms,
       totalPax: totalRooms,
       totalRevenue: Math.round(roomRevenue),
-      sbo: apportion([
-        ['OTA (MMT/Booking.com)', segments.ota],
-        ['Walk-ins', segments.walkin],
-        ['Group Bookings', segments.group],
-        ['Cancellations/No-shows', segments.noshow]
-      ]),
-      segment: apportion([
-        ['Corporate', segments.corporate],
-        ['FIT/Leisure', segments.fit],
-        ['Group Bookings', segments.group]
-      ])
+      sbo: [],
+      segment: buckets
     };
   }
 
