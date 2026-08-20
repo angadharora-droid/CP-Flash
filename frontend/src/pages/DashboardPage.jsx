@@ -837,22 +837,16 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
           <SectionCard title="CP NM: Room Revenue & Occupancy" subtitle="Week-to-date hotel KPIs" icon={SECTION_ICONS.hotel} tone="teal" defaultOpen>
             <WeeklyKpiTable rows={weekCpNmRoomRows} />
           </SectionCard>
-          <div className="grid gap-5 xl:grid-cols-2">
-            <WeeklyMixCard
-              title="CP NM: Source of Business"
-              subtitle="Week-to-date room source mix"
-              mix={weekCpNmMix}
-              kind="source"
-              totalDays={activeWeekPeriod?.weekDates?.length ?? 0}
-            />
-            <WeeklyMixCard
-              title="CP NM: Market Segment"
-              subtitle="Week-to-date room segment mix"
-              mix={weekCpNmMix}
-              kind="segment"
-              totalDays={activeWeekPeriod?.weekDates?.length ?? 0}
-            />
-          </div>
+          {/* CP NM has no Source of Business breakdown (Market Analysis Comparison
+              Report carries Market Segment only) — unlike CP Nagpur above, just the
+              one card. */}
+          <WeeklyMixCard
+            title="CP NM: Market Segment"
+            subtitle="Week-to-date room segment mix"
+            mix={weekCpNmMix}
+            kind="segment"
+            totalDays={activeWeekPeriod?.weekDates?.length ?? 0}
+          />
           <div id="weekly-fnb" className="scroll-mt-24">
             <FnbOutletSalesChart data={data} period={activeWeekPeriod} mode="week" />
           </div>

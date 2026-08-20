@@ -1053,19 +1053,16 @@ export function createDailyFlashPdf(data, date, options = {}) {
       }
     }
 
-    // 5. CP NM: Room Revenue & Occupancy → SOB → MS
+    // 5. CP NM: Room Revenue & Occupancy → Market Segment (no Source of Business —
+    //    the Market Analysis Comparison Report carries Market Segment only)
     if (hasSection('hotels')) {
       renderUnitRevenueHeader('CP NM');
       renderHotelSections('CP NM', ['Room Revenue & Occupancy', 'F&B Outlets'], { requireValue: ['F&B Outlets'] });
       const cpNmMix = week?.occupancyMix?.['CP NM'];
       if (cpNmMix) {
-        const sobRows = (cpNmMix.sbo ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
-        const msRows  = (cpNmMix.segment ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
+        const msRows = (cpNmMix.segment ?? []).map((r) => ({ name: r.name, value: r.revenue })).filter((r) => r.value > 0);
         const cpNmCoverage = mixCoverageNote(cpNmMix, week);
-        donutChartPair(
-          { title: 'CP NM: Source of Business', subtitle: `Week-to-date room source mix${cpNmCoverage}`, entries: sobRows },
-          { title: 'CP NM: Market Segment', subtitle: `Week-to-date room segment mix${cpNmCoverage}`, entries: msRows }
-        );
+        donutChart('CP NM: Market Segment', `Week-to-date room segment mix${cpNmCoverage}`, msRows);
       }
     }
 
