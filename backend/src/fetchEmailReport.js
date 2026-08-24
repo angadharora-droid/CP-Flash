@@ -144,11 +144,26 @@ function clampBusinessDate(candidate, runDate) {
 // events files' D..D+2 window on the 2026-08-10 and 2026-08-12 bundles), so the
 // fallback anchor is the email's own sent date − 1 in IST — never the run date,
 // which misfiles older bundles when a catch-up run processes several at once.
+// The subject also turns up yearless as "hcp report 21.08" (DD.MM). That still pins
+// the business day exactly, so infer the year from the send date instead of dropping
+// to the fallback — the fallback misfiles the bundle whenever the sender is a day or
+// more late, which this hand-sent bundle regularly is.
+function subjectYearIso(day, month, parsed) {
+  const sentIso = emailIstDate(parsed) ?? istIso(0);
+  const iso = (y) => `${y}-${month}-${day}`;
+  const year = Number(sentIso.slice(0, 4));
+  // A bundle for late December mailed in early January belongs to the previous year.
+  return iso(year) > sentIso ? iso(year - 1) : iso(year);
+}
+
 function hcpSubjectDate(parsed, runDate) {
-  const m = /hcp[\s_-]*report[^\d]{0,10}(\d{1,2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{2,4})/i.exec(parsed.subject ?? '');
+  const m = /hcp[\s_-]*report[^\d]{0,10}(\d{1,2})\s*[.\-/]\s*(\d{1,2})(?:\s*[.\-/]\s*(\d{2,4}))?/i.exec(parsed.subject ?? '');
   if (m) {
-    const year = m[3].length === 2 ? `20${m[3]}` : m[3];
-    const iso = `${year}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    const day = m[1].padStart(2, '0');
+    const month = m[2].padStart(2, '0');
+    const iso = m[3]
+      ? `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${month}-${day}`
+      : subjectYearIso(day, month, parsed);
     const clamped = clampBusinessDate(iso, runDate);
     if (clamped) return clamped;
   }
