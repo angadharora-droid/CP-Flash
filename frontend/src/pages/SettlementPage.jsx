@@ -2,32 +2,41 @@ import React from 'react';
 import DataTable from '../components/DataTable';
 import StatStrip from '../components/StatStrip';
 import { ReportValue } from '../components/DashboardUi';
-import { groupRevenue, money, moneyCompact, numberValue, pnlRows, settlementModes, settlementTotals, UNITS } from '../lib/calculations';
+import { isSettlementTracked, money, moneyCompact, settlementBasisRevenue, settlementModes, settlementTotals, UNITS } from '../lib/calculations';
 
 export default function SettlementPage({ data, date }) {
   const totals = settlementTotals(data);
-  const revenue = groupRevenue(data);
-  const diff = revenue - totals.groupTotal;
-  const unitRevenue = Object.fromEntries(pnlRows(data).map((r) => [r.unit, numberValue(r.revenueToday)]));
+  // Only units that settle every rupee over a till are balanced. Hotels collect at
+  // checkout and Micky's/Purosoul invoice, so including them made the check read
+  // "mismatch" every single day by hundreds of thousands.
+  const revenue = totals.trackedRevenue;
+  const diff = revenue - totals.trackedSettled;
+  // Paisa rounding across four units shouldn't read as a discrepancy.
+  const balanced = Math.abs(diff) < 1;
+  const untracked = UNITS.filter((unit) => !isSettlementTracked(unit));
+  const unitRevenue = Object.fromEntries(UNITS.map((unit) => [unit, settlementBasisRevenue(data, unit)]));
   return (
     <>
-      <div className={`relative mb-5 overflow-hidden rounded-2xl border ${diff === 0 ? 'border-emerald-200 bg-emerald-50/70' : 'border-rose-200 bg-rose-50/70'} px-4 py-3.5 shadow-card backdrop-blur-xl sm:px-5 sm:py-4`}>
+      <div className={`relative mb-5 overflow-hidden rounded-2xl border ${balanced ? 'border-emerald-200 bg-emerald-50/70' : 'border-rose-200 bg-rose-50/70'} px-4 py-3.5 shadow-card backdrop-blur-xl sm:px-5 sm:py-4`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ${diff === 0 ? 'bg-white text-emerald-600 ring-emerald-100' : 'bg-white text-rose-600 ring-rose-100'}`}>
+            <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ${balanced ? 'bg-white text-emerald-600 ring-emerald-100' : 'bg-white text-rose-600 ring-rose-100'}`}>
               <svg className="size-5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
-                {diff === 0
+                {balanced
                   ? <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   : <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />}
               </svg>
             </div>
             <div className="min-w-0">
-              <div className={`text-sm font-bold ${diff === 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                {diff === 0 ? 'Revenue and settlements match' : 'Revenue and settlements mismatch'}
+              <div className={`text-sm font-bold ${balanced ? 'text-emerald-700' : 'text-rose-700'}`}>
+                {balanced ? 'Revenue and settlements match' : 'Revenue and settlements mismatch'}
               </div>
               <div className="num mt-0.5 text-xs font-medium text-app-muted">
-                Revenue {money(revenue)} · Settled {money(totals.groupTotal)} · Difference{' '}
-                <span className={`font-bold ${diff === 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(diff)}</span>
+                Revenue {money(revenue)} · Settled {money(totals.trackedSettled)} · Difference{' '}
+                <span className={`font-bold ${balanced ? 'text-emerald-700' : 'text-rose-700'}`}>{money(diff)}</span>
+              </div>
+              <div className="mt-1 text-[11px] font-medium text-app-muted/80">
+                Across {totals.trackedUnits.join(', ')} — the units that settle in full each day.
               </div>
             </div>
           </div>
@@ -35,28 +44,30 @@ export default function SettlementPage({ data, date }) {
       </div>
       <StatStrip items={[
         {
-          label: 'Total Revenue',
+          label: 'Settled Revenue',
           value: moneyCompact(revenue),
+          caption: 'Cash-settled units',
           tone: 'text-teal-700',
           icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
         },
         {
           label: 'Total Settled',
-          value: moneyCompact(totals.groupTotal),
+          value: moneyCompact(totals.trackedSettled),
+          caption: `Group ${moneyCompact(totals.groupTotal)}`,
           tone: 'text-emerald-700',
           icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9V6.75A2.25 2.25 0 014.5 4.5h15a2.25 2.25 0 012.25 2.25V9m-19.5 0v8.25A2.25 2.25 0 004.5 19.5h15a2.25 2.25 0 002.25-2.25V9" />
         },
         {
           label: 'Difference',
           value: moneyCompact(diff),
-          tone: diff === 0 ? 'text-emerald-700' : 'text-rose-700',
+          tone: balanced ? 'text-emerald-700' : 'text-rose-700',
           icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
         },
         {
           label: 'Status',
-          value: diff === 0 ? 'MATCHED' : 'MISMATCH',
-          tone: diff === 0 ? 'text-emerald-700' : 'text-rose-700',
-          caption: diff === 0 ? 'Balanced for the day' : 'Investigate discrepancy',
+          value: balanced ? 'MATCHED' : 'MISMATCH',
+          tone: balanced ? 'text-emerald-700' : 'text-rose-700',
+          caption: balanced ? 'Balanced for the day' : 'Investigate discrepancy',
           icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         }
       ]} />
@@ -92,6 +103,13 @@ export default function SettlementPage({ data, date }) {
           </>
         }
       />
+      <p className="mt-2 px-1 text-[11px] leading-relaxed text-on-surface-variant/70">
+        Balance check covers {totals.trackedUnits.join(', ')}. {untracked.join(', ')} are shown for
+        reference but excluded — the hotels bill to folios and collect at checkout, and Micky's and
+        Purosoul invoice rather than settle over a till, so their collections never equal a single
+        day's revenue. Pablo and Dali are compared on their tax-inclusive total, since the settlement
+        columns record what was collected while their P&amp;L revenue is pre-tax net sales.
+      </p>
     </>
   );
 }
