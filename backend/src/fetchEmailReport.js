@@ -63,6 +63,10 @@ const IMAP_PORT = Number(process.env.REPORT_IMAP_PORT) || 993;
 const EMAIL_USER = process.env.REPORT_EMAIL || 'report@cpgh.in';
 const EMAIL_PASS = process.env.REPORT_EMAIL_PASSWORD;
 const IMAP_SECURE = IMAP_PORT === 993;
+// How far back the INBOX search reaches. Machine-generated reports land the morning
+// after their business day, but the hand-sent ones (CP NM Market Segment, the HCP
+// bundle, the Tally sales reports) arrive days late or as a backlog.
+const MAIL_LOOKBACK_DAYS = Number(process.env.MAIL_LOOKBACK_DAYS) || 7;
 
 function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -600,6 +604,10 @@ const HANDLERS = [
     // no Source of Business breakdown, so this feeds Market Segment only.
     name: 'CP NM Market Segment Report',
     importSourceKey: 'cpNmMarketSegmentImportedAt',
+    // Sent by hand, so it sometimes rides along with the CP NM PDF bundle instead of
+    // arriving alone. Without this the earlier Manager Flash handler wins the match
+    // and the attached Market Analysis file is silently never read.
+    bundled: true,
     businessDate: marketSegmentFileDate,
     matches: (s, parsed) => subjectContains(s, 'market segment report') || !!findAttachmentByName(parsed, /Market Analysis Comparison/i),
     run: async (parsed, date) => {
@@ -652,7 +660,7 @@ const HANDLERS = [
   }
 ];
 
-async function processMessage(parsed, date, existingData, touchedDates) {
+async function processMessage(parsed, date, existingData, touchedDates, reprocess = false) {
   const subject = parsed.subject || '';
   log(`Processing: "${subject}"`);
 
@@ -672,7 +680,7 @@ async function processMessage(parsed, date, existingData, touchedDates) {
   handlers.sort((a, b) => (b.validatesDate ? 1 : 0) - (a.validatesDate ? 1 : 0));
   let effectiveDate = date;
   for (const handler of handlers) {
-    const result = await runHandler(handler, parsed, effectiveDate, existingData, touchedDates, date);
+    const result = await runHandler(handler, parsed, effectiveDate, existingData, touchedDates, date, reprocess);
     // If a handler detected a different business date (backdated report), use it for the
     // remaining bundled handlers so occ-mix / pos-sales file under the same correct date.
     if (result?.detectedDate && result.detectedDate !== effectiveDate) {
@@ -682,7 +690,7 @@ async function processMessage(parsed, date, existingData, touchedDates) {
   }
 }
 
-async function runHandler(handler, parsed, date, existingData, touchedDates, runDate = date) {
+async function runHandler(handler, parsed, date, existingData, touchedDates, runDate = date, reprocess = false) {
   log(`  → Handler: ${handler.name}`);
 
   // `date` is the bundle's effective business date (possibly detected by an
@@ -722,8 +730,8 @@ async function runHandler(handler, parsed, date, existingData, touchedDates, run
 
   // Backdated email (e.g. occ-mix/pos-sales following a backdated bundle date):
   // dedupe against the target date's own saved record, not the run-date record
-  // (FORCE_IMPORT reprocesses regardless — imports are idempotent).
-  if (handler.importSourceKey && !handler.validatesDate && targetDate !== runDate && process.env.FORCE_IMPORT !== 'true') {
+  // (a FORCE_IMPORT of recent mail reprocesses regardless — imports are idempotent).
+  if (handler.importSourceKey && !handler.validatesDate && targetDate !== runDate && !reprocess) {
     const targetData = await readDaily(targetDate);
     // A date carrying only the auto "no sale done" marker must not block a
     // covering email — reprocessing is idempotent and lets real (or corrected)
@@ -799,12 +807,14 @@ async function run() {
       const lock = await client.getMailboxLock('INBOX');
 
       try {
-    // Start of the mailbox window in IST. A forced source refresh should reprocess
-    // today's received emails only; those emails may still contain report rows for
-    // older business dates, and the importers file those rows by their content date.
-    const sinceDate = forceImport
-      ? (process.env.FULL_IMPORT_HISTORY === 'true' ? '1970-01-01' : istIso(0))
-      : istIso(-1);
+    // Start of the mailbox window in IST. IMAP SINCE filters on arrival time, so a
+    // window of today/yesterday dropped every hand-sent report that ran late — once
+    // past the edge it was never searched again. Reach back MAIL_LOOKBACK_DAYS
+    // instead; the per-date dedupe in runHandler stops a date re-importing what it
+    // already has, so the extra reach costs fetch time rather than duplicate data.
+    const sinceDate = process.env.FULL_IMPORT_HISTORY === 'true'
+      ? '1970-01-01'
+      : istIso(-MAIL_LOOKBACK_DAYS);
     const since = new Date(`${sinceDate}T00:00:00+05:30`);
 
     const seqs = await client.search({ since });
@@ -823,7 +833,12 @@ async function run() {
       // Handlers stay sequential: they share the daily JSON / Mongo doc; parallelising them
       // would race on read-modify-write of the same record.
       for (const parsed of parsedAll.reverse()) {
-        await processMessage(parsed, date, existingData, touchedDates);
+        // FORCE_IMPORT (the 30-min scheduler and the "Refresh Sources" button) rebuilds
+        // a mail from scratch rather than deduping against what its date already holds.
+        // Keep that to the window it covered before the lookback widened, so a routine
+        // refresh doesn't re-run every handler over a week of mail on each pass.
+        const reprocess = forceImport && (emailIstDate(parsed) ?? '') >= istIso(0);
+        await processMessage(parsed, date, existingData, touchedDates, reprocess);
       }
     }
 
