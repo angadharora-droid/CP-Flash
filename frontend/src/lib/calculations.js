@@ -152,6 +152,39 @@ export function groupRevenue(data) {
   return pnlRows(data).reduce((sum, row) => sum + numberValue(row.revenueToday), 0);
 }
 
+// Units whose settlement matrix is a complete record of the day's collections, so
+// settled and revenue can legitimately be expected to agree. The others still show
+// their columns for reference but sit outside the balance check:
+//   CP Nagpur / CP NM  — hotels accrue room revenue nightly but collect at checkout,
+//                        so open folios keep a day's collections below its revenue.
+//   Micky's / Purosoul — invoiced (Tally / B2B dispatch), never settled over a till.
+export const SETTLEMENT_TRACKED_UNITS = ['Pablo', 'Dali', 'Rabbit', 'CP Delivery'];
+
+export function isSettlementTracked(unit) {
+  return SETTLEMENT_TRACKED_UNITS.includes(canonicalUnit(unit));
+}
+
+// The settlement matrix records collections, tax and service charge included, while
+// pnl revenueToday for Pablo/Dali is Net Sales (Core Amount − Discount, pre-tax).
+// Comparing those directly always shows a gap the size of the day's tax. The
+// Petpooja mail's own tax-inclusive total is already saved alongside it, so the
+// balance check uses that and falls back to the P&L figure when the mail is missing.
+const PETPOOJA_GROSS_KEYS = ['total sales', 'grand total'];
+
+export function settlementBasisRevenue(data, unit) {
+  const booked = numberValue(pnlRows(data).find((row) => row.unit === unit)?.revenueToday);
+  if (unit !== 'Pablo' && unit !== 'Dali') return booked;
+  const values = data?.importSource?.[`${unit.toLowerCase()}PetpoojaValues`];
+  for (const key of PETPOOJA_GROSS_KEYS) {
+    const collected = numberValue(values?.[key]);
+    // Tax can only add to net sales, so a figure below the booked revenue isn't the
+    // same period — importSource holds one day's mail even when the P&L row has been
+    // aggregated over a week. Fall back rather than report a day against a week.
+    if (collected && collected >= booked) return collected;
+  }
+  return booked;
+}
+
 export function settlementTotals(data) {
   const matrix = data.settlement ?? {};
   const valueForUnit = (mode, unit) => {
@@ -166,5 +199,9 @@ export function settlementTotals(data) {
     UNITS.map((unit) => [unit, settlementModes.reduce((sum, mode) => sum + valueForUnit(mode, unit), 0)])
   );
   const groupTotal = Object.values(rowTotals).reduce((sum, value) => sum + value, 0);
-  return { rowTotals, unitTotals, groupTotal };
+
+  const trackedUnits = UNITS.filter(isSettlementTracked);
+  const trackedSettled = trackedUnits.reduce((sum, unit) => sum + unitTotals[unit], 0);
+  const trackedRevenue = trackedUnits.reduce((sum, unit) => sum + settlementBasisRevenue(data, unit), 0);
+  return { rowTotals, unitTotals, groupTotal, trackedUnits, trackedSettled, trackedRevenue };
 }

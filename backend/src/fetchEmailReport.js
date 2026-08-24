@@ -170,6 +170,17 @@ function hcpSubjectDate(parsed, runDate) {
   return sentDateMinusOne(parsed, runDate);
 }
 
+// Default anchor for handlers with no date rule of their own (Petpooja, night audit,
+// occupancy analysis). Mail that arrived on schedule keeps the run date, exactly as
+// before. The widened lookback also surfaces older mail, and filing a five-day-old
+// report under the run date would overwrite a good day with a stale one — so anchor
+// anything sent before the run date on its own send date instead.
+function runDateOrSentAnchor(parsed, runDate) {
+  const sentIst = emailIstDate(parsed);
+  if (!sentIst || sentIst >= runDate) return runDate;
+  return sentDateMinusOne(parsed, runDate) ?? runDate;
+}
+
 // Morning-after fallback anchor: the email's own sent date − 1 in IST. Used by
 // daily report mails whose subject carries no parseable business date.
 function sentDateMinusOne(parsed, runDate) {
@@ -713,7 +724,7 @@ async function runHandler(handler, parsed, date, existingData, touchedDates, run
   // default. Handlers with a businessDate rule (CP NM filename dates) override.
   const targetDate = handler.businessDate
     ? (handler.businessDate(parsed, date) ?? date)
-    : date;
+    : runDateOrSentAnchor(parsed, date);
   if (targetDate !== runDate) {
     log(`  Business date: ${targetDate} (run date ${runDate}).`);
   }
