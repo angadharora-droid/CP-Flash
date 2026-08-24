@@ -102,6 +102,21 @@ export async function importCiferonReport(html, outDate) {
     setKpi('Swiggy Revenue', swiggy);
     setKpi('Zomato Revenue', zomato);
 
+    // Payment Mode Breakup → the settlement matrix. The modes sum to Sales exactly,
+    // so the whole day is accounted for and nothing double-counts. In practice CP
+    // Delivery is entirely Swiggy/Zomato (the aggregator collects from the customer,
+    // so the direct modes read 0), but all four are written unconditionally: a direct
+    // order must land somewhere, and a re-import has to be able to correct a mode
+    // back down to zero rather than leave a stale figure standing.
+    data.settlement = data.settlement ?? {};
+    const setMode = (mode, amount) => {
+      data.settlement[mode] = { ...(data.settlement[mode] ?? {}), [UNIT]: round(amount) };
+    };
+    setMode('Cash', values.get('cash') ?? 0);
+    setMode('Credit Card', values.get('card') ?? 0);
+    setMode('UPI', (values.get('google pay') ?? 0) + (values.get('paytm') ?? 0) + (values.get('phonepe') ?? 0));
+    setMode('Zomato/Swiggy', (swiggy ?? 0) + (zomato ?? 0));
+
     // Saved pnl arrays from before this unit existed have no CP Delivery row —
     // append one instead of silently dropping the revenue.
     const pnlRows = data.pnl ?? [];
