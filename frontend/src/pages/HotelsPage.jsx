@@ -18,33 +18,43 @@ function dateSuffix(iso) {
   return f ? ` — ${f}` : '';
 }
 
+const HOTEL_UNITS = ['CP Nagpur', 'CP NM', 'CP Amravati'];
+const HOTEL_LABELS = { 'CP NM': 'CP Navi Mumbai' };
+const IMPORTED_AT_KEY = { 'CP Nagpur': 'importedAt', 'CP NM': 'cpNmImportedAt', 'CP Amravati': 'cpAmravatiImportedAt' };
+// The shared schema seeds every unit with every section; hide the ones a unit's
+// feed never fills (CP NM has no banquets; StayLink at CP Amravati reports no
+// forecast, banquets or market segments).
+const HIDDEN_SECTIONS = { 'CP NM': ['Banquets'], 'CP Amravati': ['Forecast', 'Banquets', 'Market Segments'] };
+// Units whose F&B rows come from a feed with its own outlet names (CP NM's
+// Bougainvillea / In-Room Dining / Laundry, CP Amravati's POS / Services) — show
+// just the rows that carry values, not CP Nagpur's outlet list.
+const VALUE_ONLY_FNB_UNITS = ['CP NM', 'CP Amravati'];
+
 export default function HotelsPage({ data, date }) {
   const [hotelUnit, setHotelUnit] = useState('CP Nagpur');
   const rows = (data.hotels ?? []).filter((row) => row.unit === hotelUnit);
-  const cpNmExclude = ['Banquets'];
-  // The shared schema seeds every unit with all F&B outlet rows, but CP NM only has
-  // Bougainvillea / In-Room Dining data — show just the rows that carry values.
+  const hidden = HIDDEN_SECTIONS[hotelUnit] ?? [];
   const sectionRows = (section) => {
     const list = rows.filter((row) => row.section === section);
-    if (hotelUnit === 'CP NM' && section === 'F&B Outlets') {
+    if (VALUE_ONLY_FNB_UNITS.includes(hotelUnit) && section === 'F&B Outlets') {
       return list.filter((row) => [row.actual, row.mtd, row.ytd].some((v) => String(v ?? '').trim() !== ''));
     }
     return list;
   };
   const sections = [...new Set(rows.map((row) => row.section))].filter(
-    (s) => (hotelUnit !== 'CP NM' || !cpNmExclude.includes(s)) && sectionRows(s).length
+    (s) => !hidden.includes(s) && sectionRows(s).length
   );
-  const hotelLabel = hotelUnit === 'CP NM' ? 'CP Navi Mumbai' : hotelUnit;
+  const hotelLabel = HOTEL_LABELS[hotelUnit] ?? hotelUnit;
   return (
     <>
       <SegmentedControl
         value={hotelUnit}
         onChange={setHotelUnit}
-        items={['CP Nagpur', 'CP NM'].map((unit) => ({
+        items={HOTEL_UNITS.map((unit) => ({
           key: unit,
-          label: unit === 'CP NM' ? 'CP Navi Mumbai' : unit,
+          label: HOTEL_LABELS[unit] ?? unit,
           badge: getFreshness(
-            unit === 'CP Nagpur' ? data.importSource?.importedAt : data.importSource?.cpNmImportedAt,
+            data.importSource?.[IMPORTED_AT_KEY[unit]],
             hasKpiData((data.hotels ?? []).filter((r) => r.unit === unit)),
             date
           )
@@ -54,11 +64,11 @@ export default function HotelsPage({ data, date }) {
         <SectionCard
           key={section}
           title={`${hotelLabel}: ${section}${section === 'Forecast' ? dateSuffix(data.forecastDate) : ''}`}
-          subtitle={`${rows.filter((row) => row.section === section).length} KPI${rows.filter((row) => row.section === section).length === 1 ? '' : 's'}`}
+          subtitle={`${sectionRows(section).length} KPI${sectionRows(section).length === 1 ? '' : 's'}`}
           icon={SECTION_ICONS.hotel}
           tone="indigo"
         >
-          <KpiTable rows={rows.filter((row) => row.section === section)} />
+          <KpiTable rows={sectionRows(section)} />
         </SectionCard>
       ))}
       {(hotelUnit === 'CP Nagpur' || hotelUnit === 'CP NM') && <OccupancyMixCard data={data} unit={hotelUnit} />}

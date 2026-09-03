@@ -13,6 +13,7 @@
  *   "Hotel Centre Point … Vijan Motors …"        → importCpNmManagerFlash  (Manager_Flash_Report_* XLS)
  *     (same email, bundled)                      → importCpNmHistForecast  (History_and_Forecast_* XLS)
  *   "Market Segment Report" (account.navimumbai@cpgh.in) → importCpNmMarketSegment (Market Analysis Comparison XLSX)
+ *   "Report E-Mail Service : …" (foodpos@staylink.in)  → importCpAmravatiNightAudit (Room Revenue_CENTRE POINT AMRAVATI_* PDF)
  *
  * After email processing, fetches bank positions from Google Sheets.
  */
@@ -41,6 +42,7 @@ import { importMickysCrmReport } from './importMickysCrmReport.js';
 import { importCiferonReport } from './importCiferonReport.js';
 import { attachReportPreviews } from './attachmentPreview.js';
 import { importCpNmManagerFlash, importCpNmHistForecast, importCpNmPayType, importCpNmMarketSegment } from './importCpNmReport.js';
+import { importCpAmravatiNightAudit } from './importCpAmravatiReport.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
@@ -642,6 +644,40 @@ const HANDLERS = [
       log(`  File: "${att.filename}" (${att.size}B)`);
       const filePath = await saveAttachment(att, 'cpnm-market-segment', date);
       return importCpNmMarketSegment(filePath, date);
+    }
+  },
+  // ── CP Amravati (Centre Point Amravati — StayLink PMS) ─────────────────────
+  {
+    // StayLink's scheduled "Report E-Mail Service : M/D/YYYY hh:mm AM/PM ( Report )"
+    // mail from foodpos@staylink.in attaches three PDFs named
+    // "<Report>_CENTRE POINT AMRAVATI_<yyyymmdd>_<hhmmss>.pdf". Only "Room Revenue_…"
+    // (the Night Audit Report) carries figures; "House report_…" and "Monthly Room
+    // Occupancy Report_…" are saved alongside it for preview.
+    // The window the report covers ends at the print time (e.g. Wed 01:00 PM → Thu
+    // 01:12 PM), so a mail sent on day R reports the night of R−1: anchor on the
+    // sent date − 1 like the other morning-after feeds. Several mails for one day
+    // (the PMS re-sends on schedule edits) file under the same date; the newest is
+    // processed first and the older ones are deduped away.
+    name: 'CP Amravati Night Audit (StayLink)',
+    importSourceKey: 'cpAmravatiImportedAt',
+    businessDate: (parsed, runDate) => sentDateMinusOne(parsed, runDate) ?? runDate,
+    matches: (s, parsed) => /amravati/i.test(messageText(parsed))
+      && (/staylink\.in/i.test(messageText(parsed)) || subjectContains(s, 'report e-mail service'))
+      && !!findAttachmentByName(parsed, /Room[\s_-]?Revenue/i),
+    run: async (parsed, date) => {
+      const att = findAttachmentByName(parsed, /Room[\s_-]?Revenue/i);
+      if (!att) { logAttachments(parsed); throw new Error('No Room Revenue (Night Audit) attachment'); }
+      log(`  File: "${att.filename}" (${att.size}B)`);
+      const filePath = await saveAttachment(att, 'cpamravati-night-audit', date);
+      const extraFiles = {};
+      for (const [key, pattern] of [
+        ['cpAmravatiHouseFile', /House[\s_-]?report/i],
+        ['cpAmravatiOccupancyFile', /Monthly[\s_-]?Room[\s_-]?Occupancy/i]
+      ]) {
+        const extra = findAttachmentByName(parsed, pattern);
+        if (extra) extraFiles[key] = path.basename(await saveAttachment(extra, key, date));
+      }
+      return importCpAmravatiNightAudit(filePath, date, { extraFiles });
     }
   },
   {

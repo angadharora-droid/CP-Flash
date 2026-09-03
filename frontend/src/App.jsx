@@ -82,6 +82,7 @@ function derivePnlRows(data) {
   const revenueByUnit = {
     'CP Nagpur': () => sumKpiValues(data.hotels, 'CP Nagpur', ['Room Revenue', 'Meeting Point Revenue', 'Freakk Revenue', 'Bougainvillea Revenue', 'High Steaks Revenue', 'In-Room Dining Revenue', 'Revenue Today']),
     'CP NM': () => sumKpiValues(data.hotels, 'CP NM', ['Room Revenue', 'Meeting Point Revenue', 'Freakk Revenue', 'Bougainvillea Revenue', 'High Steaks Revenue', 'In-Room Dining Revenue', 'Revenue Today']),
+    'CP Amravati': () => sumKpiValues(data.hotels, 'CP Amravati', ['Room Revenue', 'POS Revenue', 'Services Revenue']),
     Pablo: () => firstKpiValue(data.fnb?.Pablo, 'Pablo', ['Gross Sales']),
     Dali: () => firstKpiValue(data.fnb?.Dali, 'Dali', ['Gross Sales']),
     Rabbit: () => firstKpiValue(data.rabbits, 'Rabbit', ['Total Revenue']),

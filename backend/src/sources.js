@@ -145,6 +145,29 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
+    // StayLink PMS "Report E-Mail Service" mail (foodpos@staylink.in): the Night
+    // Audit PDF ("Room Revenue_CENTRE POINT AMRAVATI_*") is parsed; the House
+    // report and Monthly Room Occupancy PDFs from the same mail are kept for preview.
+    id: 'cpamravati-night-audit',
+    label: 'CP Amravati Night Audit',
+    unit: 'CP Amravati',
+    type: 'Mail / PDF',
+    paths: ['hotels', 'pnl', 'settlement'],
+    meta: {
+      file: 'cpAmravatiFile',
+      files: ['cpAmravatiHouseFile', 'cpAmravatiOccupancyFile'],
+      importedAt: 'cpAmravatiImportedAt',
+      notes: 'cpAmravatiNotes',
+      pendingNote: 'StayLink report mail not received.',
+      reportLabels: {
+        cpAmravatiFile: 'Night Audit Report',
+        cpAmravatiHouseFile: 'House Report',
+        cpAmravatiOccupancyFile: 'Monthly Room Occupancy Report'
+      }
+    },
+    cadence: 'Daily'
+  },
+  {
     id: 'pablo-cost',
     label: 'Pablo Cost Sheet',
     unit: 'Pablo',

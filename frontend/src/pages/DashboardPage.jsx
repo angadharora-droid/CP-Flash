@@ -59,6 +59,7 @@ const EMPTY_WEEK_ENTRY = { revenue: 0, purchases: 0, gp: 0, netProfit: 0, days: 
 const UNIT_REVENUE_META = {
   'CP Nagpur': { title: 'Centre Point Nagpur', source: 'IDS (CP Nagpur)' },
   'CP NM': { title: 'Centre Point Navi Mumbai', source: 'Hotelogix (CP Navi Mumbai)' },
+  'CP Amravati': { title: 'Centre Point Amravati', source: 'StayLink (CP Amravati)' },
   Pablo: { title: 'Pablo', source: 'Petpooja (Pablo)' },
   Dali: { title: 'Dali', source: 'Petpooja (Dali)' },
   Rabbit: { title: 'Rabbit', source: 'Petpooja (Rabbit)' },
@@ -345,6 +346,9 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
   const cpNmForecastRows = (data?.hotels ?? []).filter(
     (row) => row.unit === 'CP NM' && row.section === 'Forecast'
   );
+  const cpAmravatiRoomRevenueRows = (data?.hotels ?? []).filter(
+    (row) => row.unit === 'CP Amravati' && row.section === 'Room Revenue & Occupancy'
+  );
   const mickysLeadRows = (data?.mickys ?? []).filter((row) => row.section === 'Leads Pipeline');
   const mickysOrderRevenueRows = (data?.mickys ?? []).filter((row) => row.section === 'Orders & Revenue');
   const purosoulRevenueRows = (data?.purosoul ?? []).filter((row) => (
@@ -413,6 +417,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
   const weekCpnFnbRows = buildWeeklyRows('CP Nagpur', 'F&B Outlets');
   const weekCpnBanquetRows = buildWeeklyRows('CP Nagpur', 'Banquets');
   const weekCpNmRoomRows = buildWeeklyRows('CP NM', 'Room Revenue & Occupancy');
+  const weekCpAmravatiRoomRows = buildWeeklyRows('CP Amravati', 'Room Revenue & Occupancy');
   const weekCpnMix = activeWeekPeriod?.occupancyMix?.['CP Nagpur'];
   const weekCpNmMix = activeWeekPeriod?.occupancyMix?.['CP NM'];
   const weeklyPnlData = useMemo(() => buildWeeklyPnlData(data, activeWeekPeriod), [activeWeekPeriod, data]);
@@ -592,6 +597,17 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             defaultOpen
           >
             <KpiTable rows={cpNmForecastRows} />
+          </SectionCard>
+          <GroupDivider label="CP Amravati" />
+          <UnitRevenueHeader unit="CP Amravati" rows={dailyPnlRows} />
+          <SectionCard
+            title="CP Amravati: Room Revenue & Occupancy"
+            subtitle={`${cpAmravatiRoomRevenueRows.length} KPI${cpAmravatiRoomRevenueRows.length === 1 ? '' : 's'}`}
+            icon={SECTION_ICONS.hotel}
+            tone="teal"
+            defaultOpen
+          >
+            <KpiTable rows={cpAmravatiRoomRevenueRows} />
           </SectionCard>
           <div id="daily-fnb" className="scroll-mt-24">
             <FnbOutletSalesChart data={data} />
@@ -847,6 +863,10 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             kind="segment"
             totalDays={activeWeekPeriod?.weekDates?.length ?? 0}
           />
+          <UnitRevenueHeader unit="CP Amravati" rows={weeklyPnlRows} scope="week to date" />
+          <SectionCard title="CP Amravati: Room Revenue & Occupancy" subtitle="Week-to-date hotel KPIs" icon={SECTION_ICONS.hotel} tone="teal" defaultOpen>
+            <WeeklyKpiTable rows={weekCpAmravatiRoomRows} />
+          </SectionCard>
           <div id="weekly-fnb" className="scroll-mt-24">
             <FnbOutletSalesChart data={data} period={activeWeekPeriod} mode="week" />
           </div>
