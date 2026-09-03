@@ -10,6 +10,7 @@ const SHEET_URLS = {
 const UNIT_REVENUE_META = {
   'CP Nagpur': { title: 'Centre Point Nagpur', source: 'IDS (CP Nagpur)' },
   'CP NM': { title: 'Centre Point Navi Mumbai', source: 'Hotelogix (CP Navi Mumbai)' },
+  'CP Amravati': { title: 'Centre Point Amravati', source: 'StayLink (CP Amravati)' },
   Pablo: { title: 'Pablo', source: 'Petpooja (Pablo)' },
   Dali: { title: 'Dali', source: 'Petpooja (Dali)' },
   Rabbit: { title: 'Rabbit', source: 'Petpooja (Rabbit)' },
@@ -882,6 +883,12 @@ export function createDailyFlashPdf(data, date, options = {}) {
     }
   }
 
+  // A hotel whose feed hasn't delivered for the day (CP Amravati went live Sep
+  // 2026) renders nothing rather than a block of blank rows.
+  function hotelHasData(unit) {
+    return (data.hotels ?? []).some((row) => row.unit === unit && row.section === 'Room Revenue & Occupancy' && String(row.actual ?? '').trim() !== '');
+  }
+
   // ── Helper: render F&B outlet column chart ───────────────────────────────────
   function renderFnbOutletChart() {
     const outletRows = fnbOutletRows(data);
@@ -911,7 +918,10 @@ export function createDailyFlashPdf(data, date, options = {}) {
       [{ text: 'Unit Total', bold: true }, ...UNITS.map((unit) => ({ text: money(settlement.unitTotals[unit]), bold: true })), { text: money(settlement.groupTotal), bold: true }],
       [{ text: 'Revenue Actual', color: colors.muted }, ...UNITS.map((unit) => ({ text: money(unitRevenue[unit] ?? 0), color: colors.muted })), { text: money(groupRevenue(data)), color: colors.muted }],
     ];
-    const settlementOptions = { widths: [88, 45, 45, 45, 45, 45, 45, 45, 45, 75], fontSize: 6.3, leftColumns: [0] };
+    // Unit columns share the width left after the Mode and Group Total columns, so
+    // adding a unit to UNITS reflows the table instead of pushing it off the page.
+    const unitColumnWidth = Math.floor((width - 84 - 70) / UNITS.length);
+    const settlementOptions = { widths: [84, ...UNITS.map(() => unitColumnWidth), 70], fontSize: 6.3, leftColumns: [0] };
     sectionTitle('Settlement Summary', tablePreviewHeight(settlementRows, settlementOptions));
     table(['Mode', ...UNITS, 'Group Total'], settlementRows, settlementOptions);
     ensureSpace(62);
@@ -978,6 +988,12 @@ export function createDailyFlashPdf(data, date, options = {}) {
     if (hasSection('hotels')) {
       renderUnitRevenueHeader('CP NM');
       renderHotelSections('CP NM', ['Room Revenue & Occupancy', 'Forecast', 'F&B Outlets'], { requireValue: ['F&B Outlets'] });
+    }
+
+    // 5b. CP Amravati (StayLink night audit): Room Revenue & Occupancy → F&B Outlets
+    if (hasSection('hotels') && hotelHasData('CP Amravati')) {
+      renderUnitRevenueHeader('CP Amravati');
+      renderHotelSections('CP Amravati', ['Room Revenue & Occupancy', 'F&B Outlets'], { requireValue: ['F&B Outlets'] });
     }
 
     // 6. F&B Outlet Sales column chart
@@ -1064,6 +1080,12 @@ export function createDailyFlashPdf(data, date, options = {}) {
         const cpNmCoverage = mixCoverageNote(cpNmMix, week);
         donutChart('CP NM: Market Segment', `Week-to-date room segment mix${cpNmCoverage}`, msRows);
       }
+    }
+
+    // 5b. CP Amravati: Room Revenue & Occupancy → F&B Outlets (no occupancy-mix feed)
+    if (hasSection('hotels') && hotelHasData('CP Amravati')) {
+      renderUnitRevenueHeader('CP Amravati');
+      renderHotelSections('CP Amravati', ['Room Revenue & Occupancy', 'F&B Outlets'], { requireValue: ['F&B Outlets'] });
     }
 
     // 6. F&B Outlet Sales column chart

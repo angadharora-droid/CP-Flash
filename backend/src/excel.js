@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import XLSX from 'xlsx';
-import { fixedCostDefaults, pageSchemas, schemaRowsToKpis, UNITS } from './schema.js';
+import { fixedCostDefaults, HOTEL_UNITS, pageSchemas, schemaRowsToKpis, UNITS } from './schema.js';
 
 const workbookPath = path.resolve(process.cwd(), '..', 'reference', 'cp-flash-kpi-framework.xlsx');
 
@@ -28,7 +28,7 @@ export function invalidateSeedCache() { _seedCache = null; }
 // date's import bleed into every other date that fell back to the seed.
 export function buildSeedData() {
   if (_seedCache) return structuredClone(_seedCache);
-  const hotels = ['CP Nagpur', 'CP NM'].flatMap((unit) => schemaRowsToKpis(unit, 'hotels', pageSchemas.hotels));
+  const hotels = HOTEL_UNITS.flatMap((unit) => schemaRowsToKpis(unit, 'hotels', pageSchemas.hotels));
   const fnb = {
     Pablo: schemaRowsToKpis('Pablo', 'fnb', pageSchemas.fnb.Pablo),
     Dali: schemaRowsToKpis('Dali', 'fnb', pageSchemas.fnb.Dali)

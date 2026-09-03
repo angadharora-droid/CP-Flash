@@ -1,10 +1,14 @@
-export const UNITS = ['CP Nagpur', 'CP NM', 'Pablo', 'Dali', 'Rabbit', 'CP Delivery', "Micky's", 'Purosoul'];
+export const UNITS = ['CP Nagpur', 'CP NM', 'CP Amravati', 'Pablo', 'Dali', 'Rabbit', 'CP Delivery', "Micky's", 'Purosoul'];
+
+// Units that carry the shared `hotels` KPI schema (one row set per hotel).
+export const HOTEL_UNITS = ['CP Nagpur', 'CP NM', 'CP Amravati'];
 
 export const UNITS_WITHOUT_FIXED_COST = [];
 
 export const fixedCostDefaults = {
   'CP Nagpur': 185000,
   'CP NM': 135000,
+  'CP Amravati': 0,
   Pablo: 0,
   Dali: 0,
   Rabbit: 0,
@@ -359,6 +363,11 @@ export function ensureHotelSectionRows(data, unit, sectionTitle) {
   for (const row of schemaRowsToKpis(unit, 'hotels', [section])) {
     if (!existingIds.has(row.id)) data.hotels.push(row);
   }
+}
+
+/** Appends every schema hotels row for a unit (days saved before the unit existed have none). */
+export function ensureHotelUnitRows(data, unit) {
+  for (const section of pageSchemas.hotels) ensureHotelSectionRows(data, unit, section.title);
 }
 
 export function normalizeRabbitCategoryBreakdown(data) {
