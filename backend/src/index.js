@@ -19,6 +19,7 @@ import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
 import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
 import { readAopTargets, writeAopTargets, applyDailyTargetOverrides, collectKpiCatalog } from './aopTargets.js';
 import { readFixedCosts, writeFixedCosts, applyFixedCostOverrides, effectiveFixedCosts } from './fixedCosts.js';
+import { verifySsoToken, directoryGuard } from './ssoClient.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -1129,6 +1130,32 @@ app.post('/api/login', loginIpRateLimit, wrap(async (req, res) => {
   auditLog('login.ok', { ip: clientIp(req) });
   res.json({ ok: true, token: createSession() });
 }));
+
+// Central sign-on from the CPG portal. The browser brings a hand-off token; when the auth
+// service confirms it is valid for this app and linked to someone, open the same shared
+// session a correct PIN would (there are no per-user accounts here). Registered ahead of
+// the session guard below so it stays reachable without a token. Always 401 while
+// AUTH_SERVICE_URL is not set; the PIN login above is untouched.
+app.post('/api/sso', loginIpRateLimit, wrap(async (req, res) => {
+  const verified = await verifySsoToken(String(req.body?.token ?? ''));
+  if (!verified) {
+    auditLog('sso.fail', { ip: clientIp(req) });
+    res.status(401).json({ error: 'SSO sign-in failed' });
+    return;
+  }
+  if (!verified.localUserId) {
+    res.status(404).json({ error: 'No account linked' });
+    return;
+  }
+  auditLog('sso.ok', { ip: clientIp(req), user: String(verified.localUserId) });
+  res.json({ ok: true, token: createSession() });
+}));
+
+// User directory for the portal's admin screen: DailyFlash has one shared PIN and no user
+// table, so there is nothing to list and the admin types link IDs by hand.
+app.get('/api/sso/users', directoryGuard, (_req, res) => {
+  res.json([]);
+});
 
 app.use('/api', (req, res, next) => {
   if (req.path === '/login') return next();

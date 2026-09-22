@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getEmailImportStatus, getPnlPeriod, getPnlWeek, getSeed, getSourceReportPreview, runEmailImport, saveData, saveFixedCosts } from './lib/api';
+import { getEmailImportStatus, getPnlPeriod, getPnlWeek, getSeed, getSourceReportPreview, loginWithSso, runEmailImport, saveData, saveFixedCosts } from './lib/api';
+import { resolveSsoToken, ssoEnabled, ssoLogout } from './lib/sso';
 import { numberValue, withFlags } from './lib/calculations';
 import AppHeader from './components/AppHeader';
 import { BrandLoader, googleSheetPreviewUrl } from './components/DashboardUi';
@@ -276,6 +277,9 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoaderVisible, setInitialLoaderVisible] = useState(false);
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('dailyflashToken') || '');
+  // True while the CPG portal is asked whether this visitor is already signed in there
+  // (only when there is no session yet and VITE_AUTH_URL is set).
+  const [ssoChecking, setSsoChecking] = useState(() => !authToken && ssoEnabled());
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
   const [sourceRefreshRunning, setSourceRefreshRunning] = useState(false);
@@ -291,6 +295,32 @@ export default function App() {
 
   React.useEffect(() => {
     localStorage.removeItem('dailyflashToken');
+  }, []);
+
+  // Central sign-on: with the portal cookie present, skip the PIN screen. The PIN
+  // stays available when this finds nothing. Stores the token exactly as PinPage does.
+  React.useEffect(() => {
+    if (!ssoChecking) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const ssoToken = await resolveSsoToken();
+        if (ssoToken && !cancelled) {
+          const token = await loginWithSso(ssoToken);
+          if (token && !cancelled) {
+            sessionStorage.setItem('dailyflashToken', token);
+            setAuthToken(token);
+          }
+        }
+      } catch {
+        /* not signed in to the portal, or nothing linked: show the PIN page */
+      }
+      if (!cancelled) setSsoChecking(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   React.useEffect(() => {
@@ -505,6 +535,7 @@ export default function App() {
   }, [renderedActive, enrichedData, data, date, authToken, period, openSourceReportPreview, handleRefresh, handleRefreshSources, sourceRefreshRunning, sourceRefreshError, onSaveFixedCosts]);
 
   const lockApp = React.useCallback(() => {
+    ssoLogout(); // ends the portal session too; no-op unless VITE_AUTH_URL is set
     localStorage.removeItem('dailyflashToken');
     sessionStorage.removeItem('dailyflashToken');
     setAuthToken('');
@@ -543,7 +574,11 @@ export default function App() {
   const activePage = pages.find(([key]) => key === canonicalPageKey(active)) ?? pages[0];
   const activeNavItem = NAV_ITEM_BY_KEY[canonicalPageKey(active)];
 
-  if (!authToken) return <PinPage onUnlock={setAuthToken} />;
+  if (!authToken) {
+    // Hold the PIN screen back for a moment while the portal session is checked.
+    if (ssoChecking) return <main className="min-h-screen" aria-busy="true" />;
+    return <PinPage onUnlock={setAuthToken} />;
+  }
 
   if (sourceReportPreview || sourceReportPreviewLoading || sourceReportPreviewError) {
     return (

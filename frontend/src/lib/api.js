@@ -92,6 +92,16 @@ export async function loginWithPin(pin) {
   return json.token;
 }
 
+// Central sign-on: exchange the portal hand-off token for the same session a PIN login opens.
+export async function loginWithSso(token) {
+  const json = await apiFetch('/api/sso', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token })
+  }, 'SSO sign-in failed');
+  return json.token;
+}
+
 export async function getSeed(date, token, options = {}) {
   return apiFetch(`/api/seed?date=${encodeURIComponent(date)}`, {
     ...options,
