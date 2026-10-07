@@ -3,6 +3,7 @@ import BankPositionTable from '../components/BankPositionTable';
 import DataTable from '../components/DataTable';
 import FnbOutletSalesChart from '../components/FnbOutletSalesChart';
 import FlagBadge from '../components/FlagBadge';
+import MickysDayEnd from '../components/MickysDayEnd';
 import { DonutChart } from '../components/DashboardCharts';
 import RevenueShareDonut from '../components/RevenueShareDonut';
 import SectionCard from '../components/SectionCard';
@@ -615,17 +616,28 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
           <GroupDivider label="Cloud Kitchen & Specialty" />
           <div id="daily-specialty" className="scroll-mt-24" />
           <UnitRevenueHeader unit="Micky's" rows={dailyPnlRows} />
-          {data?.importSource?.mickysSalesImportedAt ? (
+          {data?.mickysDayEnd ? (
+            // Day End Report mail (Oct 2026 on). Revenue still comes from the Tally
+            // sales mail, so flag it when that one hasn't landed yet.
+            <MickysDayEnd
+              report={data.mickysDayEnd}
+              titlePrefix="Micky's: "
+              notice={data?.importSource?.mickysSalesImportedAt ? '' : "Tally daily sales mail not received — Micky's P&L revenue is pending."}
+            />
+          ) : data?.importSource?.mickysSalesImportedAt ? (
             <>
-              <SectionCard
-                title="Micky's: Leads Pipeline"
-                subtitle={`${mickysLeadRows.length} KPI${mickysLeadRows.length === 1 ? '' : 's'}`}
-                icon={SECTION_ICONS.restaurant}
-                tone="rose"
-                defaultOpen
-              >
-                <KpiTable rows={mickysLeadRows} />
-              </SectionCard>
+              {/* Leads Pipeline came from the CRM Daily Report mail, retired Oct 2026. */}
+              {mickysLeadRows.length ? (
+                <SectionCard
+                  title="Micky's: Leads Pipeline"
+                  subtitle={`${mickysLeadRows.length} KPI${mickysLeadRows.length === 1 ? '' : 's'}`}
+                  icon={SECTION_ICONS.restaurant}
+                  tone="rose"
+                  defaultOpen
+                >
+                  <KpiTable rows={mickysLeadRows} />
+                </SectionCard>
+              ) : null}
               {numberValue(mickysOrderRevenueRows.find(r => /order revenue/i.test(r.name))?.actual) > 0 ? (
                 <SectionCard
                   title="Micky's: Orders & Revenue"

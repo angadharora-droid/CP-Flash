@@ -265,6 +265,14 @@ export function createDailyFlashPdf(data, date, options = {}) {
     doc.y = pageNo === 1 ? FIRST_PAGE_TOP : SUBSEQUENT_PAGE_TOP;
   }
 
+  // Clips text to `maxWidth` at the current font/size, ending in "...".
+  function fitText(text, maxWidth) {
+    let out = String(text ?? '');
+    if (doc.widthOfString(out) <= maxWidth) return out;
+    while (out.length > 1 && doc.widthOfString(`${out}...`) > maxWidth) out = out.slice(0, -1);
+    return `${out.trimEnd()}...`;
+  }
+
   function ensureSpace(height) {
     if (doc.y + height > contentBottom) {
       doc.addPage();
@@ -379,7 +387,8 @@ export function createDailyFlashPdf(data, date, options = {}) {
       doc.fillColor(colors.navy).font('Helvetica-Bold').fontSize(6.5);
       let cursor = x;
       columns.forEach((column, index) => {
-        doc.text(safeText(column), cursor + 7, y + 7, { width: colWidths[index] - 12, align: index === 0 ? 'left' : 'right', characterSpacing: 0.5 });
+        const headerAlign = index === 0 || options.leftColumns?.includes(index) ? 'left' : 'right';
+        doc.text(safeText(column), cursor + 7, y + 7, { width: colWidths[index] - 12, align: headerAlign, characterSpacing: 0.5 });
         cursor += colWidths[index];
       });
       doc.strokeColor(colors.line).lineWidth(1).moveTo(x, y + headerHeight).lineTo(x + width, y + headerHeight).stroke();
@@ -399,7 +408,11 @@ export function createDailyFlashPdf(data, date, options = {}) {
         firstRowOnPage = true;
       }
 
-      const isFooterRow = row.some((cell) => typeof cell === 'object' && /group total|total/i.test(String(cell.text ?? '')));
+      // `footerRows` marks totals explicitly for tables whose ordinary rows can
+      // contain the word (Micky's "Total Sales" is a line item, not a total).
+      const isFooterRow = options.footerRows
+        ? options.footerRows.includes(rowIndex)
+        : row.some((cell) => typeof cell === 'object' && /group total|total/i.test(String(cell.text ?? '')));
       doc.rect(x, y, width, rowHeight).fill(isFooterRow ? colors.panelDeep : (rowIndex % 2 ? colors.panel : colors.page));
       if (isFooterRow) {
         doc.strokeColor(colors.lineDark).lineWidth(1).moveTo(x, y).lineTo(x + width, y).stroke();
@@ -418,7 +431,18 @@ export function createDailyFlashPdf(data, date, options = {}) {
           font = value === 0 ? font : 'Helvetica-Bold';
         }
         if (isFooterRow) font = 'Helvetica-Bold';
-        doc.fillColor(fill).font(font).text(safeText(text), cursor + 7, y + 7, { width: colWidths[index] - 12, align, lineBreak: false });
+        // Two-line cells (`options.subLines`): the figure, then a muted caption
+        // under it, both clipped to the column so long captions can't overrun.
+        const sub = options.subLines && typeof cell === 'object' ? cell.sub : '';
+        const cellWidth = colWidths[index] - 12;
+        doc.fillColor(fill).font(font);
+        const mainText = options.subLines ? fitText(safeText(text), cellWidth) : safeText(text);
+        doc.text(mainText, cursor + 7, y + (options.subLines ? 5 : 7), { width: cellWidth, align, lineBreak: false });
+        if (sub) {
+          doc.fillColor(cell.subColor ?? colors.muted).font('Helvetica').fontSize(fontSize - 1.4);
+          doc.text(fitText(safeText(sub), cellWidth), cursor + 7, y + 15, { width: cellWidth, align, lineBreak: false });
+          doc.fontSize(fontSize);
+        }
         cursor += colWidths[index];
       });
       if (!firstRowOnPage && !isFooterRow) {
@@ -910,6 +934,81 @@ export function createDailyFlashPdf(data, date, options = {}) {
     table(['SKU', 'Produced', 'Dispatched', 'Closing Stock', 'MTD Dispatched'], skuTableRows, skuOpts);
   }
 
+  // ── Helper: render Micky's Day End Report (data.mickysDayEnd) ────────────────
+  // Mirrors the mail: headline tiles, then each section's notes and tables in
+  // order. The standard PDF fonts have no ✓ / ✗ / ● glyphs, so the importer's
+  // tone (from those marks) is shown as colour instead.
+  function renderMickysDayEnd(report) {
+    const plain = (s) => String(s ?? '')
+      .replace(/✓/g, 'OK')
+      .replace(/✗/g, 'X')
+      .replace(/●/g, '')
+      .replace(/₹\s*/g, 'Rs. ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const toneColor = { good: colors.green, bad: colors.red, critical: colors.red };
+    const tiles = report.tiles ?? [];
+    if (tiles.length) {
+      summaryCards(tiles.map((tile) => ({ label: tile.label, value: money(tile.value) })));
+      if (report.tallyNote) sourceNotice(plain(report.tallyNote));
+    }
+
+    for (const section of report.sections ?? []) {
+      const blocks = section.blocks ?? [];
+      const tables = blocks.filter((block) => block.type === 'table');
+      const firstTable = tables[0];
+      sectionTitle(`Micky's - ${plain(section.title)}`, firstTable ? 22 + 26 : 22);
+      if (!tables.length) {
+        for (const block of blocks) sourceNotice(plain(block.text));
+        continue;
+      }
+      for (const block of blocks) {
+        if (block.type === 'note') {
+          sourceNotice(plain(block.text));
+          continue;
+        }
+        const allRows = [...block.rows, ...(block.total ? [block.total] : [])];
+        const numeric = (index) => index > 0 && allRows.some((row) => row[index]?.right);
+        // First column (names) gets the most room; other columns grow with their
+        // header ("New leads made / assigned (target 3)") so it fits on one line.
+        const weights = block.columns.map((column, index) => (index === 0 ? 2.3 : Math.min(2.2, Math.max(1, column.length / 16))));
+        const weightSum = weights.reduce((sum, w) => sum + w, 0);
+        const widths = weights.map((w) => Math.floor((width * w) / weightSum));
+        const fontSize = 7.2;
+        doc.font('Helvetica').fontSize(fontSize);
+        const pdfRows = allRows.map((row) => block.columns.map((_, index) => {
+          const cell = row[index] ?? {};
+          let text = plain(cell.text) || '-';
+          let sub = plain(cell.sub);
+          // A long remark ("₹37,99,593.00 past due date · advances …") splits at
+          // its separators onto the caption line instead of overrunning the column.
+          if (!sub && text.includes(' · ') && doc.widthOfString(safeText(text)) > widths[index] - 12) {
+            const [head, ...rest] = text.split(' · ');
+            text = head;
+            sub = rest.join(' · ');
+          }
+          const color = cell.tone === 'critical' && !/critical/i.test(text) ? undefined : toneColor[cell.tone];
+          return {
+            text,
+            sub,
+            color,
+            bold: Boolean(color) || (index > 0 && numeric(index)),
+            subColor: cell.tone === 'critical' && !color ? colors.red : undefined
+          };
+        }));
+        const subLines = pdfRows.some((row) => row.some((cell) => cell.sub));
+        table(block.columns.map(plain), pdfRows, {
+          widths,
+          fontSize,
+          subLines,
+          rowHeight: subLines ? 25 : 20,
+          leftColumns: block.columns.map((_, index) => index).filter((index) => !numeric(index)),
+          footerRows: block.total ? [pdfRows.length - 1] : []
+        });
+      }
+    }
+  }
+
   // ── Helper: render settlement ────────────────────────────────────────────────
   function renderSettlement() {
     const unitRevenue = Object.fromEntries(pnl.map((r) => [r.unit, numberValue(r.revenueToday)]));
@@ -999,12 +1098,16 @@ export function createDailyFlashPdf(data, date, options = {}) {
     // 6. F&B Outlet Sales column chart
     if (hasSection('fnb')) renderFnbOutletChart();
 
-    // 7. Micky's: Leads Pipeline always shows when mail received; amber notice on Orders & Revenue if no sales
+    // 7. Micky's: the Day End Report mail (Oct 2026 on) when it's in; otherwise the
+    //    legacy Leads Pipeline + Orders & Revenue tables, amber notice if no sales.
     if (hasSection('mickys')) {
       renderUnitRevenueHeader("Micky's");
       const mickysRows = data.mickys ?? [];
       const mickysImportedAt = data.importSource?.mickysSalesImportedAt;
-      if (!mickysImportedAt) {
+      if (data.mickysDayEnd?.sections?.length) {
+        if (!mickysImportedAt) sourceNotice("Tally daily sales mail not received - Micky's P&L revenue is pending.");
+        renderMickysDayEnd(data.mickysDayEnd);
+      } else if (!mickysImportedAt) {
         mailStatusCard("Micky's by CP Foods", null, 0);
       } else {
         const leadsRows = mickysRows.filter((row) => row.section === 'Leads Pipeline');
