@@ -276,15 +276,16 @@ export const dailySources = [
     cadence: 'Daily'
   },
   {
-    id: 'mickys-crm',
-    label: "Micky's CRM Daily Report",
+    // Replaced the "Micky's CRM Daily Report" leads mail (mickysCrm*) in Oct 2026.
+    id: 'mickys-day-end',
+    label: "Micky's Day End Report",
     unit: "Micky's",
     type: 'Mail / HTML',
-    paths: ['mickys'],
+    paths: ['mickysDayEnd'],
     meta: {
-      importedAt: 'mickysCrmImportedAt',
-      notes: 'mickysCrmNotes',
-      pendingNote: 'CRM daily report mail not received.'
+      importedAt: 'mickysDayEndImportedAt',
+      notes: 'mickysDayEndNotes',
+      pendingNote: 'Day End Report mail not received.'
     },
     cadence: 'Daily'
   },

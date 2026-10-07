@@ -1,7 +1,9 @@
 import React from 'react';
 
-export default function DataTable({ columns, rows, footer, numericFrom, className = '' }) {
-  const isNumeric = (i) => typeof numericFrom === 'number' && i >= numericFrom;
+export default function DataTable({ columns, rows, footer, numericFrom, numericColumns, className = '' }) {
+  const isNumeric = (i) => (numericColumns
+    ? numericColumns.includes(i)
+    : typeof numericFrom === 'number' && i >= numericFrom);
 
   return (
     <div className={`scroll-touch w-full overflow-x-auto rounded-xl border border-outline-variant/40 ${className}`}>

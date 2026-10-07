@@ -572,6 +572,8 @@ function collectKpiRows(data) {
 function getKpiAggregationMode(name) {
   const label = String(name ?? '').toLowerCase();
   if (isCumulativeKpiName(label)) return 'latest';
+  // Point-in-time balances (Micky's Day End Report) — a week of them must not sum.
+  if (label.includes('receivable') || label.includes('closing stock')) return 'latest';
   if (
     label.includes('%')
     || label.includes('avg')

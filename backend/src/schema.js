@@ -153,15 +153,28 @@ export const pageSchemas = {
     { title: 'Channel Split', rows: [['Home Delivery Revenue', 12000], ['Dine-In Revenue', 0], ['Take Away Revenue', 0], ['Swiggy Revenue', 4000], ['Zomato Revenue', 8000]] }
   ],
   mickys: [
-    // Fed by the automated "Micky's CRM Daily Report" mail (importMickysCrmReport):
-    // day totals + city splits here; per-user "<Name> Leads/Visits" rows are added
-    // dynamically by the importer. (Sheet-era rows — Leads Contacted/Converted/
-    // Conversion Rate/Pipeline Value — retired Aug 2026 with the Google Sheet import.)
-    { title: 'Leads Pipeline', rows: [['New Leads Today', 5], ['Visits Today', 4], ['Kits Generated', 2], ['Kits Delivered', 2], ['Nagpur Leads', 4], ['Pune Leads', 3], ['Mumbai Leads', 2], ['Delhi Leads', 1]] },
-    // No separate "Revenue MTD" row (dropped Aug 2026): Order Revenue Today's MTD
-    // column already carries the Tally month-to-date figure.
-    { title: 'Orders & Revenue', rows: [['Orders Confirmed', 8], ['Order Revenue Today', 30000], ['Revenue YTD', 9500000]] },
-    { title: 'SKU-wise Sales', rows: [['Makhani Gravy Units Sold', 100], ['Makhani Gravy Revenue', 12000], ['Korma Base Units Sold', 80], ['Korma Base Revenue', 10000], ['Achari Sauce Units Sold', 60], ['Achari Sauce Revenue', 8000], ['Total SKU Revenue MTD', 900000]] }
+    // Order Revenue Today (and its MTD) is the Tally "Daily Sales Report" mail —
+    // the P&L revenue source. Every other row is fed by the automated "Micky’s Day
+    // End Report" mail (importMickysDayEndReport), which also stores its full
+    // tables (due customers, production, closing stock…) under data.mickysDayEnd.
+    // Retired Oct 2026 with the CRM Daily Report mail: the "Leads Pipeline" section
+    // (kits, city-wise leads) and the never-filled Orders Confirmed / Revenue YTD /
+    // "SKU-wise Sales" placeholders. Receivables and closing stock are balances
+    // (aggregated as latest-of-period), the rest are day flows.
+    {
+      title: 'Orders & Revenue',
+      rows: [
+        ['Order Revenue Today', 30000],
+        ['Orders Received', ''],
+        ['Orders Dispatched', ''],
+        ['Collection Received', ''],
+        ['Outstanding Receivables', '', 'max']
+      ]
+    },
+    // Team targets = the mail's per-executive targets (2 visits, 5 calls, 3 leads)
+    // × executives listed; the importer restates them from each day's mail.
+    { title: 'Sales Executive KPI', rows: [['Visits Today', 12], ['Calls Today', 30], ['New Leads Today', 18], ['Leads Assigned Today', '']] },
+    { title: 'Closing Stock', rows: [['Closing Stock Value', '', 'max']] }
   ],
   purosoul: [
     { title: 'Revenue & Cost', rows: [['Total Revenue Today', 25000], ['RM Cost Today', 9000], ['RM Cost %', 38, 'max'], ['Revenue MTD', 750000], ['Purchase MTD', 270000]] },

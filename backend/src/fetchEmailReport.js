@@ -14,6 +14,7 @@
  *     (same email, bundled)                      → importCpNmHistForecast  (History_and_Forecast_* XLS)
  *   "Market Segment Report" (account.navimumbai@cpgh.in) → importCpNmMarketSegment (Market Analysis Comparison XLSX)
  *   "Report E-Mail Service : …" (foodpos@staylink.in)  → importCpAmravatiNightAudit (Room Revenue_CENTRE POINT AMRAVATI_* PDF)
+ *   "Micky’s Day End Report — DD Mon YYYY" (sales@mickys.in) → importMickysDayEndReport (HTML body, no attachment)
  *
  * After email processing, fetches bank positions from Google Sheets.
  */
@@ -38,7 +39,7 @@ import { importDaliCostHistory } from './importDaliCostHistory.js';
 import { importPabloCostHistory } from './importPabloCostHistory.js';
 import { importPurosoulSalesReport, importMickysSalesReport } from './importDailySalesReport.js';
 import { importPurosoulFlashReport } from './importPurosoulFlashReport.js';
-import { importMickysCrmReport } from './importMickysCrmReport.js';
+import { importMickysDayEndReport } from './importMickysDayEndReport.js';
 import { importCiferonReport } from './importCiferonReport.js';
 import { attachReportPreviews } from './attachmentPreview.js';
 import { importCpNmManagerFlash, importCpNmHistForecast, importCpNmPayType, importCpNmMarketSegment } from './importCpNmReport.js';
@@ -192,8 +193,8 @@ function sentDateMinusOne(parsed, runDate) {
   return clampBusinessDate(addDaysIso(sentIstDay, -1), runDate);
 }
 
-// "Micky's CRM Daily Report — 11 Aug 2026" → the covered business date.
-function mickysCrmSubjectDate(parsed, runDate) {
+// "Micky’s Day End Report — 06 Oct 2026" → the covered business date.
+function mickysSubjectDate(parsed, runDate) {
   const m = /(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{4})/i.exec(parsed.subject ?? '');
   if (m) {
     const month = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(m[2].toLowerCase()) + 1;
@@ -711,14 +712,15 @@ const HANDLERS = [
     }
   },
   {
-    // Automated "Micky's CRM Daily Report — DD Mon YYYY" HTML mail (sales@mickys.in,
-    // no attachment): day totals for leads/visits/kits plus user-wise and city-wise
-    // breakdowns. Replaced the manual Google-Sheets leads import in Aug 2026.
-    name: "Micky's CRM Leads",
-    importSourceKey: 'mickysCrmImportedAt',
-    businessDate: mickysCrmSubjectDate,
-    matches: (s) => subjectContains(s, 'crm daily report') && /micky/i.test(s),
-    run: async (parsed, date) => importMickysCrmReport(parsed.html || '', date)
+    // Automated "Micky’s Day End Report — DD Mon YYYY" HTML mail (sales@mickys.in,
+    // no attachment, ~1 PM the day after): sales/collections/receivables, sales-
+    // executive KPIs, due customers, production, production cost and closing stock.
+    // Replaced the "Micky's CRM Daily Report" leads mail in Oct 2026.
+    name: "Micky's Day End Report",
+    importSourceKey: 'mickysDayEndImportedAt',
+    businessDate: mickysSubjectDate,
+    matches: (s) => subjectContains(s, 'day end report') && /micky/i.test(s),
+    run: async (parsed, date) => importMickysDayEndReport(parsed.html || '', date)
   }
 ];
 
