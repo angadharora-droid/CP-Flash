@@ -151,6 +151,8 @@ function clampBusinessDate(candidate, runDate) {
 // the business day exactly, so infer the year from the send date instead of dropping
 // to the fallback — the fallback misfiles the bundle whenever the sender is a day or
 // more late, which this hand-sent bundle regularly is.
+// The word itself is hand-typed too ("HCP REPPORT - 17.10", "hcp rep" seen
+// 2026-10-19), so match any "rep…" spelling rather than exactly "report".
 function subjectYearIso(day, month, parsed) {
   const sentIso = emailIstDate(parsed) ?? istIso(0);
   const iso = (y) => `${y}-${month}-${day}`;
@@ -160,7 +162,7 @@ function subjectYearIso(day, month, parsed) {
 }
 
 function hcpSubjectDate(parsed, runDate) {
-  const m = /hcp[\s_-]*report[^\d]{0,10}(\d{1,2})\s*[.\-/]\s*(\d{1,2})(?:\s*[.\-/]\s*(\d{2,4}))?/i.exec(parsed.subject ?? '');
+  const m = /hcp[\s_-]*rep[a-z]*[^\d]{0,10}(\d{1,2})\s*[.\-/]\s*(\d{1,2})(?:\s*[.\-/]\s*(\d{2,4}))?/i.exec(parsed.subject ?? '');
   if (m) {
     const day = m[1].padStart(2, '0');
     const month = m[2].padStart(2, '0');
@@ -754,6 +756,13 @@ async function processMessage(parsed, date, existingData, touchedDates, reproces
   }
 }
 
+// The hand-sent HCP bundle is often re-sent with corrected files (2026-10-19: a
+// full bundle, then an EVENT-only and three OCC-only resends). Mail is processed
+// newest-first, but content-dated handlers (and backdated ones on a reprocess) never
+// dedupe, so the OLDEST copy for a date used to overwrite the correction. Within one
+// run, the newest HCP mail for a given handler + business date wins.
+const hcpFiledThisRun = new Set();
+
 async function runHandler(handler, parsed, date, existingData, touchedDates, runDate = date, reprocess = false) {
   log(`  → Handler: ${handler.name}`);
 
@@ -765,6 +774,12 @@ async function runHandler(handler, parsed, date, existingData, touchedDates, run
     : runDateOrSentAnchor(parsed, date);
   if (targetDate !== runDate) {
     log(`  Business date: ${targetDate} (run date ${runDate}).`);
+  }
+
+  const isHcpBundle = handler.businessDate === hcpSubjectDate;
+  if (isHcpBundle && hcpFiledThisRun.has(`${handler.name}|${targetDate}`)) {
+    log(`  A newer mail already filed this for ${targetDate} — skipping the older copy.`);
+    return;
   }
 
   // Content-dated handlers (validatesDate: forecast/events) must NOT be
@@ -819,6 +834,10 @@ async function runHandler(handler, parsed, date, existingData, touchedDates, run
       const filedDate = result?.date ?? targetDate;
       touchedDates?.add(targetDate);
       touchedDates?.add(filedDate);
+      if (isHcpBundle) {
+        hcpFiledThisRun.add(`${handler.name}|${targetDate}`);
+        hcpFiledThisRun.add(`${handler.name}|${filedDate}`);
+      }
       // Multi-day reports (monthly Tally invoices) return every date they wrote;
       // sync those as well, not just the focus date.
       for (const entry of result?.dates ?? []) {
