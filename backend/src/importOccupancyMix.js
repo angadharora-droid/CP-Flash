@@ -292,6 +292,20 @@ export async function importOccupancyMix(file, outDate, unit = 'CP Nagpur') {
   };
 }
 
+/**
+ * Grand-total Nett of an HCP_OCC workbook (Buffer), or null when it isn't the
+ * guest-level report. Parse-only — used to date undated resends by matching
+ * the night audit's Room Revenue.
+ */
+export function readOccupancyMixNett(content) {
+  const wb = XLSX.read(content, { cellDates: true });
+  for (const sheetName of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, blankrows: false, defval: '' });
+    if (resolveColumns(rows)) return findFooterGrandTotals(rows)?.revenue ?? null;
+  }
+  return null;
+}
+
 /** Reads "Total Rooms : N" from the Summary footer's Present Occupancy line, if present. */
 function findFooterPresentRooms(rows, cols) {
   for (const row of rows) {

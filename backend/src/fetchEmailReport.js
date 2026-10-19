@@ -27,8 +27,8 @@ import { simpleParser } from 'mailparser';
 import { readDaily, writeDaily, readDailyJson, closeDailyStore } from './dailyStore.js';
 import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
-import { importOccupancyMix } from './importOccupancyMix.js';
-import { importPosSales } from './importPosSales.js';
+import { importOccupancyMix, readOccupancyMixNett } from './importOccupancyMix.js';
+import { importPosSales, readPosSalesRevenue } from './importPosSales.js';
 import { importForecast, FORECAST_IMPORT_VERSION } from './importForecast.js';
 import { importEvents, EVENTS_IMPORT_VERSION } from './importEvents.js';
 import { importPetpoojaReport } from './importPetpoojaReport.js';
@@ -161,18 +161,101 @@ function subjectYearIso(day, month, parsed) {
   return iso(year) > sentIso ? iso(year - 1) : iso(year);
 }
 
-function hcpSubjectDate(parsed, runDate) {
+function hcpExplicitSubjectDate(parsed, runDate) {
   const m = /hcp[\s_-]*rep[a-z]*[^\d]{0,10}(\d{1,2})\s*[.\-/]\s*(\d{1,2})(?:\s*[.\-/]\s*(\d{2,4}))?/i.exec(parsed.subject ?? '');
-  if (m) {
-    const day = m[1].padStart(2, '0');
-    const month = m[2].padStart(2, '0');
-    const iso = m[3]
-      ? `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${month}-${day}`
-      : subjectYearIso(day, month, parsed);
-    const clamped = clampBusinessDate(iso, runDate);
-    if (clamped) return clamped;
+  if (!m) return null;
+  const day = m[1].padStart(2, '0');
+  const month = m[2].padStart(2, '0');
+  const iso = m[3]
+    ? `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${month}-${day}`
+    : subjectYearIso(day, month, parsed);
+  return clampBusinessDate(iso, runDate);
+}
+
+function hcpSubjectDate(parsed, runDate) {
+  return hcpExplicitSubjectDate(parsed, runDate) ?? sentDateMinusOne(parsed, runDate);
+}
+
+// Undated HCP mails — resends especially — are dated by content the night audit can
+// confirm, and that date applies to every file in the mail. On 2026-10-19 the sender
+// mailed seven plain "HCP REPORT"/"hcp rep" resends carrying the 14th's to 18th's
+// files, and the sent − 1 fallback filed every one under the 18th:
+//   HCP_OCC — grand-total Nett equals that day's night-audit Room Revenue to the paisa.
+//   HCP_POS_SALE — food+liquor per outlet tracks the night audit's outlet revenue: the
+//     true day had ≥1 outlet within ₹1 and ≤1.4% total drift, every other day ≥3.3%
+//     drift with no exact outlet (and part-day exports match no day at all).
+// A mail with neither (e.g. an EVENT-only resend) keeps the sent − 1 fallback.
+const HCP_CONTENT_LOOKBACK_DAYS = 14;
+const POS_MATCH_MAX_DRIFT = 0.02;
+const NIGHT_AUDIT_OUTLET_ROWS = {
+  'MEETING POINT': 'Meeting Point Revenue',
+  'HIGH STEAK': 'High Steaks Revenue',
+  FREAKK: 'Freakk Revenue'
+};
+
+const nightAuditReads = new Map();
+async function nightAuditValue(date, name) {
+  if (!nightAuditReads.has(date)) nightAuditReads.set(date, readDaily(date));
+  const data = await nightAuditReads.get(date);
+  const row = (data?.hotels ?? []).find((r) => r.unit === 'CP Nagpur' && r.name === name);
+  const value = Number(String(row?.actual ?? '').replace(/,/g, ''));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function hcpContentChecks(parsed) {
+  const checks = [];
+  const occ = findAttachmentByName(parsed, /HCP[\s_-]?OCC/i);
+  let nett = null;
+  try { nett = occ ? readOccupancyMixNett(occ.content) : null; } catch { /* not the guest-level report */ }
+  if (nett) {
+    checks.push(['HCP_OCC', async (date) => {
+      const roomRevenue = await nightAuditValue(date, 'Room Revenue');
+      return roomRevenue != null && Math.abs(roomRevenue - nett) < 1;
+    }]);
   }
-  return sentDateMinusOne(parsed, runDate);
+  const pos = findAttachmentByName(parsed, /HCP[\s_-]?(POS|SALE)/i);
+  let revenue = null;
+  try { revenue = pos ? readPosSalesRevenue(pos.content) : null; } catch { /* not the bill register */ }
+  if (revenue) {
+    checks.push(['HCP_POS_SALE', async (date) => {
+      let exact = 0;
+      let drift = 0;
+      let total = 0;
+      for (const [outlet, rowName] of Object.entries(NIGHT_AUDIT_OUTLET_ROWS)) {
+        const audited = (await nightAuditValue(date, rowName)) ?? 0;
+        const diff = Math.abs((revenue[outlet] ?? 0) - audited);
+        if (audited && diff < 1) exact += 1;
+        drift += diff;
+        total += audited;
+      }
+      return total > 0 && exact > 0 && drift / total <= POS_MATCH_MAX_DRIFT;
+    }]);
+  }
+  return checks;
+}
+
+async function resolveHcpMailDate(parsed, runDate) {
+  const explicit = hcpExplicitSubjectDate(parsed, runDate);
+  if (explicit) return explicit;
+  const fallback = sentDateMinusOne(parsed, runDate);
+  const checks = fallback ? hcpContentChecks(parsed) : [];
+  for (let back = 0; back <= HCP_CONTENT_LOOKBACK_DAYS && checks.length; back += 1) {
+    const candidate = addDaysIso(fallback, -back);
+    for (const [label, matches] of checks) {
+      if (await matches(candidate)) {
+        if (candidate !== fallback) log(`  Undated HCP mail: ${label} matches the ${candidate} night audit — filing the mail under ${candidate}.`);
+        return candidate;
+      }
+    }
+  }
+  return fallback;
+}
+
+// Every HCP handler in one mail asks for its date — resolve (and log) it once.
+const hcpMailDates = new WeakMap();
+function hcpMailDate(parsed, runDate) {
+  if (!hcpMailDates.has(parsed)) hcpMailDates.set(parsed, resolveHcpMailDate(parsed, runDate));
+  return hcpMailDates.get(parsed);
 }
 
 // Default anchor for handlers with no date rule of their own (Petpooja, night audit,
@@ -370,7 +453,8 @@ const HANDLERS = [
     name: 'HCP Occupancy Mix (CP Nagpur)',
     importSourceKey: 'occupancyMixImportedAt',
     bundled: true,
-    businessDate: hcpSubjectDate,
+    hcpBundle: true,
+    businessDate: hcpMailDate,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[\s_-]?OCC/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[\s_-]?OCC/i);
@@ -390,7 +474,8 @@ const HANDLERS = [
     name: 'HCP POS Sales / Covers (CP Nagpur)',
     importSourceKey: 'posSalesImportedAt',
     bundled: true,
-    businessDate: hcpSubjectDate,
+    hcpBundle: true,
+    businessDate: hcpMailDate,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[\s_-]?(POS|SALE)/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[\s_-]?(POS|SALE)/i);
@@ -408,8 +493,9 @@ const HANDLERS = [
     importSourceKey: 'forecastImportedAt',
     importVersion: FORECAST_IMPORT_VERSION,
     bundled: true,
+    hcpBundle: true,
     validatesDate: true,
-    businessDate: hcpSubjectDate,
+    businessDate: hcpMailDate,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[\s_-]?FORE/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[\s_-]?FORE/i);
@@ -428,8 +514,9 @@ const HANDLERS = [
     importSourceKey: 'eventsImportedAt',
     importVersion: EVENTS_IMPORT_VERSION,
     bundled: true,
+    hcpBundle: true,
     validatesDate: true,
-    businessDate: hcpSubjectDate,
+    businessDate: hcpMailDate,
     matches: (s, parsed) => !!findAttachmentByName(parsed, /HCP[\s_-]?EVENT/i),
     run: async (parsed, date) => {
       const att = findAttachmentByName(parsed, /HCP[\s_-]?EVENT/i);
@@ -770,13 +857,13 @@ async function runHandler(handler, parsed, date, existingData, touchedDates, run
   // earlier content-dated handler in the same email); `runDate` is the run's
   // default. Handlers with a businessDate rule (CP NM filename dates) override.
   const targetDate = handler.businessDate
-    ? (handler.businessDate(parsed, date) ?? date)
+    ? ((await handler.businessDate(parsed, date)) ?? date)
     : runDateOrSentAnchor(parsed, date);
   if (targetDate !== runDate) {
     log(`  Business date: ${targetDate} (run date ${runDate}).`);
   }
 
-  const isHcpBundle = handler.businessDate === hcpSubjectDate;
+  const isHcpBundle = Boolean(handler.hcpBundle);
   if (isHcpBundle && hcpFiledThisRun.has(`${handler.name}|${targetDate}`)) {
     log(`  A newer mail already filed this for ${targetDate} — skipping the older copy.`);
     return;

@@ -101,25 +101,8 @@ function dedupParties(billList) {
   return { covers, bills };
 }
 
-/**
- * Parses the HCP_POS_SALE outlet-wise bill report and writes deduped daily covers
- * for Meeting Point, Freakk and High Steak into the hotels "F&B Outlets" KPI table,
- * plus each outlet's APC (food+liquor sale ÷ deduped covers).
- */
-export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
-  const wb = XLSX.readFile(file, { cellDates: true });
-
-  let rows = null;
-  let cols = null;
-  let usedSheet = '';
-  for (const sheetName of wb.SheetNames) {
-    const r = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, blankrows: false, defval: '' });
-    const resolved = resolveColumns(r);
-    if (resolved) { rows = r; cols = resolved; usedSheet = sheetName; break; }
-  }
-  if (!cols) throw new Error(`No "Bill#"/"COVFX" header found. Sheets: ${wb.SheetNames.join(', ')}`);
-
-  // Collect bill rows grouped by outlet section.
+/** Collect bill rows grouped by outlet section. */
+function collectBillsByOutlet(rows, cols) {
   const billsByOutlet = new Map();
   let outlet = null;
   for (let r = cols.headerRow + 1; r < rows.length; r += 1) {
@@ -140,6 +123,49 @@ export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
     });
     billsByOutlet.set(outlet, list);
   }
+  return billsByOutlet;
+}
+
+/**
+ * Food + liquor sale per tracked outlet of an HCP_POS_SALE workbook (Buffer), or
+ * null when it isn't the bill register. Parse-only — used to date undated resends
+ * against the night audit's outlet revenue.
+ */
+export function readPosSalesRevenue(content) {
+  const wb = XLSX.read(content, { cellDates: true });
+  for (const sheetName of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, blankrows: false, defval: '' });
+    const cols = resolveColumns(rows);
+    if (!cols) continue;
+    const billsByOutlet = collectBillsByOutlet(rows, cols);
+    if (!billsByOutlet.size) return null;
+    return Object.fromEntries(Object.keys(OUTLET_COVER_ROW).map((outletName) => [
+      outletName,
+      (billsByOutlet.get(outletName) ?? []).reduce((sum, b) => sum + b.fod + b.liq, 0)
+    ]));
+  }
+  return null;
+}
+
+/**
+ * Parses the HCP_POS_SALE outlet-wise bill report and writes deduped daily covers
+ * for Meeting Point, Freakk and High Steak into the hotels "F&B Outlets" KPI table,
+ * plus each outlet's APC (food+liquor sale ÷ deduped covers).
+ */
+export async function importPosSales(file, outDate, unit = 'CP Nagpur') {
+  const wb = XLSX.readFile(file, { cellDates: true });
+
+  let rows = null;
+  let cols = null;
+  let usedSheet = '';
+  for (const sheetName of wb.SheetNames) {
+    const r = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, blankrows: false, defval: '' });
+    const resolved = resolveColumns(r);
+    if (resolved) { rows = r; cols = resolved; usedSheet = sheetName; break; }
+  }
+  if (!cols) throw new Error(`No "Bill#"/"COVFX" header found. Sheets: ${wb.SheetNames.join(', ')}`);
+
+  const billsByOutlet = collectBillsByOutlet(rows, cols);
 
   if (!billsByOutlet.size) throw new Error(`No outlet bill rows found in sheet "${usedSheet}".`);
 
