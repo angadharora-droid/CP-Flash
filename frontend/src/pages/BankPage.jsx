@@ -32,7 +32,7 @@ export default function BankPage({ data, date }) {
           icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9V6.75A2.25 2.25 0 014.5 4.5h15a2.25 2.25 0 012.25 2.25V9m-19.5 0v8.25A2.25 2.25 0 004.5 19.5h15a2.25 2.25 0 002.25-2.25V9m-19.5 0h19.5" />
         },
         {
-          label: 'FD Total',
+          label: 'FD / OD Limit',
           value: moneyCompact(totals.fd),
           tone: 'text-emerald-700',
           icon: <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25zm0 2.25h.008v.008H12V10.5zm0 2.25h.008v.008H12V12.75z" />
@@ -52,7 +52,7 @@ export default function BankPage({ data, date }) {
         }
       ]} />
       <DataTable
-        columns={['Unit', 'Actual Balance', 'FD Total', 'Cheques Issued', 'Cheques in Hand', 'Net Balance Available']}
+        columns={['Unit', 'Actual Balance', 'FD / OD Limit', 'Cheques Issued', 'Cheques in Hand', 'Net Balance Available']}
         numericFrom={1}
         rows={(() => {
           const built = [];

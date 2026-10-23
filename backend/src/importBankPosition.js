@@ -9,7 +9,7 @@ const SHEET_ID = '1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf';
 // Each field spec: { match: RegExp, col: 'F' } — finds the first row whose
 // cols A/B/C contain the label text, then reads value from `col`.
 // For rows with no label text (rare), use { row: N, col: 'F' } as a fixed fallback.
-const OUTLET_ACCOUNTS = [
+export const OUTLET_ACCOUNTS = [
   {
     unit: 'CP Nagpur', account: 'HDFC Wardha', gid: 1969859912,
     labels: {
@@ -23,11 +23,14 @@ const OUTLET_ACCOUNTS = [
   {
     unit: 'CP Nagpur', account: 'HDFC Dhantoli', gid: 556642800,
     labels: {
-      actualBalance:     { match: /available as per bank/i,         col: 'E' },
+      actualBalance:     { match: /available as per bank/i,         col: 'F' },
       chequeTotalAmount: { match: /cheques issued/i,                col: 'E' },
-      chequesIssued:     { match: /cheques issued/i,                col: 'F' },
-      fdTotal:           { match: /cheques issued/i,                col: 'J' },
-      netBalance:        { match: /effective available balance/i,   col: 'F' },
+      chequesIssued:     { match: /cheques issued/i,                col: 'G' },
+      fdTotal: [
+        { match: /cheques in hand/i, col: 'J' },
+        { match: /od\s*limit/i, col: 'E', labelCols: ['D'] },
+      ],
+      netBalance:        { match: /effective available balance/i,   col: 'G' },
     },
   },
   {
@@ -54,7 +57,7 @@ const OUTLET_ACCOUNTS = [
       actualBalance:     { match: /balance as per bank/i,           col: 'C' },
       chequeTotalAmount: { match: /cheques issued/i,                col: 'C' },
       chequesIssued:     { match: /cheques issued/i,                col: 'D' },
-      netBalance:        { match: /effective balance/i,             col: 'D' },
+      netBalance:        { match: /(?:effective|net)\s+balance/i,    col: 'D' },
     },
   },
   {
@@ -139,10 +142,10 @@ async function fetchSheetRows(gid) {
   return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', blankrows: true });
 }
 
-// Scan cols A, B, C of each row for the label; return the row index or -1.
-function findRowByLabel(rows, labelMatch) {
+// Default to A/B/C; some summaries (Dhantoli's OD limit) label column D.
+function findRowByLabel(rows, labelMatch, labelCols = ['A', 'B', 'C']) {
   for (let i = 0; i < rows.length; i++) {
-    const text = [0, 1, 2].map((c) => String(rows[i][c] ?? '').trim()).join('\n');
+    const text = labelCols.map((c) => String(rows[i][colToIndex(c)] ?? '').trim()).join('\n');
     if (labelMatch instanceof RegExp ? labelMatch.test(text) : text.toLowerCase().includes(labelMatch.toLowerCase())) {
       return i;
     }
@@ -151,15 +154,17 @@ function findRowByLabel(rows, labelMatch) {
 }
 
 function fieldValue(rows, spec) {
+  // FD and OD are separate source amounts but share the report's FD / OD column.
+  if (Array.isArray(spec)) return spec.reduce((total, part) => total + fieldValue(rows, part), 0);
   const colIdx = colToIndex(spec.col);
   if (spec.row != null) {
     return num(rows[spec.row - 1]?.[colIdx]) ?? 0;
   }
-  const rowIdx = findRowByLabel(rows, spec.match);
+  const rowIdx = findRowByLabel(rows, spec.match, spec.labelCols);
   return rowIdx === -1 ? 0 : (num(rows[rowIdx][colIdx]) ?? 0);
 }
 
-function extractAccount(rows, acct) {
+export function extractAccount(rows, acct) {
   const L = acct.labels;
   const actualBalance     = fieldValue(rows, L.actualBalance);
   const fdTotal           = L.fdTotal ? fieldValue(rows, L.fdTotal) : 0;
