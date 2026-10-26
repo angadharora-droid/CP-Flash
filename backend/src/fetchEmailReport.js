@@ -53,7 +53,7 @@ const ATTACH_DIR = path.resolve(__dirname, '..', 'data', 'attachments');
 // this, every handler's read-modify-write hits remote MongoDB directly (many
 // seconds each), which made scheduled imports far slower than the manual
 // "Refresh Sources" button (which already stripped MONGODB_URI when spawning).
-if (process.env.CLOUD_API_URL && process.env.DAILYFLASH_PIN && process.env.MONGODB_URI) {
+if (process.env.CLOUD_API_URL && (process.env.DAILYFLASH_PIN || process.env.DAILYFLASH_SYNC_TOKEN) && process.env.MONGODB_URI) {
   process.env.MONGODB_URI = '';
   console.log(`[${new Date().toISOString()}] Cloud sync configured — using fast local-JSON mode (skipping direct MongoDB writes).`);
 }
@@ -1092,8 +1092,8 @@ async function run() {
   // (forward-looking reports and multi-day sheets may touch dates other than the
   // run date). Login once, then sync in small batches so a backfill of many dates
   // doesn't open dozens of simultaneous requests against the cloud API.
-  if (!process.env.CLOUD_API_URL || !process.env.DAILYFLASH_PIN) {
-    log('Cloud sync skipped — CLOUD_API_URL or DAILYFLASH_PIN not set.');
+  if (!process.env.CLOUD_API_URL || !(process.env.DAILYFLASH_PIN || process.env.DAILYFLASH_SYNC_TOKEN)) {
+    log('Cloud sync skipped — CLOUD_API_URL not set, or neither DAILYFLASH_PIN nor a backend session is available.');
     return;
   }
   const syncDates = [...touchedDates].sort();
@@ -1152,8 +1152,24 @@ async function clearManualSalesSourcesNotImported(date, runData) {
 // trips and burned the login rate limit when many dates needed syncing.
 async function getCloudToken() {
   const cloudUrl = process.env.CLOUD_API_URL;
+  if (!cloudUrl) return null;
+  // A backend that spawns this run hands over a session it signed itself. That only
+  // works when CLOUD_API_URL is the same backend (the hosted scheduler), so check it
+  // before falling back to a PIN login — a stale PIN would count toward the lockout.
+  const handedToken = process.env.DAILYFLASH_SYNC_TOKEN;
+  if (handedToken) {
+    try {
+      const probe = await fetch(`${cloudUrl}/api/session`, { headers: { authorization: `Bearer ${handedToken}` } });
+      if (probe.ok) return handedToken;
+    } catch (err) {
+      log(`Cloud session check ERROR: ${err.message}`);
+    }
+  }
   const pin = process.env.DAILYFLASH_PIN;
-  if (!cloudUrl || !pin) return null;
+  if (!pin) {
+    log('Cloud login skipped — the backend session is not valid there and DAILYFLASH_PIN is not set.');
+    return null;
+  }
   try {
     const loginRes = await fetch(`${cloudUrl}/api/login`, {
       method: 'POST',
@@ -1171,9 +1187,8 @@ async function getCloudToken() {
 
 async function syncToCloud(date, token) {
   const cloudUrl = process.env.CLOUD_API_URL;
-  const pin = process.env.DAILYFLASH_PIN;
-  if (!cloudUrl || !pin) {
-    log('Cloud sync skipped — CLOUD_API_URL or DAILYFLASH_PIN not set.');
+  if (!cloudUrl) {
+    log('Cloud sync skipped — CLOUD_API_URL not set.');
     return;
   }
   if (!token) {

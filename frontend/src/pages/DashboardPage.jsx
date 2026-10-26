@@ -5,6 +5,7 @@ import FnbOutletSalesChart from '../components/FnbOutletSalesChart';
 import FlagBadge from '../components/FlagBadge';
 import MickysDayEnd from '../components/MickysDayEnd';
 import { DonutChart } from '../components/DashboardCharts';
+import ReportArrivalsCard from '../components/ReportArrivalsCard';
 import RevenueShareDonut from '../components/RevenueShareDonut';
 import SectionCard from '../components/SectionCard';
 import StatStrip from '../components/StatStrip';
@@ -523,6 +524,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
 
       {viewMode === 'day' ? (
         <section className="space-y-5">
+          <ReportArrivalsCard date={date} authToken={authToken} importSource={data?.importSource} />
           <div id="daily-bank" className="scroll-mt-24">
             <BankPositionTable rows={data?.bankPosition ?? []} />
           </div>

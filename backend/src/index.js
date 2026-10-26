@@ -20,12 +20,12 @@ import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from
 import { readAopTargets, writeAopTargets, applyDailyTargetOverrides, collectKpiCatalog } from './aopTargets.js';
 import { readFixedCosts, writeFixedCosts, applyFixedCostOverrides, effectiveFixedCosts } from './fixedCosts.js';
 import { verifySsoToken, directoryGuard } from './ssoClient.js';
+import { loadPinVerifier } from './accessPin.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
 const dataDir = path.resolve(process.cwd(), 'data');
 const attachmentsDir = path.resolve(__dirname, '..', 'data', 'attachments');
-const accessPin = process.env.DAILYFLASH_PIN || process.env.ACCESS_PIN;
 const tokenSecret = process.env.JWT_SECRET || process.env.DAILYFLASH_PIN || 'change-me';
 const isProd = process.env.NODE_ENV === 'production';
 if (isProd) {
@@ -141,13 +141,6 @@ function loginIpRateLimit(req, res, next) {
     return;
   }
   next();
-}
-
-function constantTimeEqual(a, b) {
-  const ba = Buffer.from(String(a));
-  const bb = Buffer.from(String(b));
-  if (ba.length !== bb.length) return false;
-  return crypto.timingSafeEqual(ba, bb);
 }
 
 function clientIp(req) {
@@ -1092,8 +1085,9 @@ async function buildPnlWeekPayload(date) {
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.post('/api/login', loginIpRateLimit, wrap(async (req, res) => {
-  if (!accessPin) {
-    res.status(500).json({ error: 'DAILYFLASH_PIN is not configured on the backend.' });
+  const verifyPin = await loadPinVerifier(getDb);
+  if (!verifyPin) {
+    res.status(500).json({ error: 'No access PIN is set on the backend. Run "npm run set-pin" in backend/.' });
     return;
   }
 
@@ -1110,7 +1104,7 @@ app.post('/api/login', loginIpRateLimit, wrap(async (req, res) => {
   }
 
   const pin = String(req.body.pin ?? '').trim();
-  if (!pin || !constantTimeEqual(pin, accessPin)) {
+  if (!pin || !(await verifyPin(pin))) {
     const failedAttempts = lockout.failedAttempts + 1;
     const lockedUntil = failedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS
       ? new Date(Date.now() + LOGIN_LOCKOUT_MS).toISOString()
@@ -1167,6 +1161,10 @@ app.use('/api', (req, res, next) => {
   }
   next();
 });
+
+// Lets the email fetcher confirm a handed-over session works here before it falls back
+// to a PIN login (see getCloudToken in fetchEmailReport.js).
+app.get('/api/session', (_req, res) => res.json({ ok: true }));
 
 app.get('/api/seed', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
@@ -1351,6 +1349,7 @@ app.post('/api/email-import', (req, res) => {
     env: {
       ...process.env,
       ...(force ? { FORCE_IMPORT: 'true' } : {}),
+      DAILYFLASH_SYNC_TOKEN: createSession(),
       // Strip MONGODB_URI so importers write to fast local JSON files instead of doing
       // high-latency remote MongoDB round-trips per handler (~25s each). syncToCloud at
       // the end merges cloud data with local and pushes via the REST API.
@@ -1534,7 +1533,8 @@ app.listen(port, () => {
       const child = spawn(process.execPath, [importScript], {
         // FORCE_IMPORT reprocesses today's received emails and refreshes sheet-backed
         // sources on every 30-min run, matching the manual "Refresh Sources" button.
-        env: { ...process.env, FORCE_IMPORT: 'true' },
+        // DAILYFLASH_SYNC_TOKEN lets the run sync back to this server without the PIN in env.
+        env: { ...process.env, FORCE_IMPORT: 'true', DAILYFLASH_SYNC_TOKEN: createSession() },
         cwd: backendDir,
         stdio: 'inherit'
       });
