@@ -1,9 +1,11 @@
 import 'dotenv/config';
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import { MongoClient } from 'mongodb';
@@ -106,14 +108,26 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin) return callback(null, true);
-    if (!isProd && !allowedOrigins.length) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error(`Origin ${origin} not allowed by CORS`));
-  },
-  credentials: false
+// The dashboard is also served by this service (single Docker deploy), so a request
+// from the API's own host is always allowed; ALLOWED_ORIGINS covers separately hosted
+// frontends such as the old Vercel one.
+function isSameHost(req, origin) {
+  try {
+    const host = new URL(origin).host;
+    return host === req.get('host') || host === req.get('x-forwarded-host');
+  } catch {
+    return false;
+  }
+}
+
+app.use(cors((req, callback) => {
+  const origin = req.get('origin');
+  const allowed = !origin
+    || isSameHost(req, origin)
+    || (!isProd && !allowedOrigins.length)
+    || allowedOrigins.includes(origin);
+  if (!allowed) return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  return callback(null, { origin: true, credentials: false });
 }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -1538,6 +1552,32 @@ app.post('/api/ai-notes', wrap(async (req, res) => {
   }
   res.json({ text: json.content?.map((part) => part.text).join('\n') ?? '' });
 }));
+
+// Single-service deploy: the Docker image builds the dashboard into frontend/dist and
+// this API serves it — hashed /assets cached for good, index.html always revalidated,
+// and every non-API path falls back to index.html for the client-side router.
+const frontendDist = process.env.FRONTEND_DIST || path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+const frontendIndex = path.join(frontendDist, 'index.html');
+if (fsSync.existsSync(frontendIndex)) {
+  const dashboard = express.Router();
+  dashboard.use(compression());
+  dashboard.use(express.static(frontendDist, {
+    index: false,
+    setHeaders(res, filePath) {
+      res.setHeader('Cache-Control', /[\\/]assets[\\/]/.test(filePath)
+        ? 'public, max-age=31536000, immutable'
+        : 'no-cache');
+    }
+  }));
+  dashboard.get('*', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(frontendIndex);
+  });
+  app.use((req, res, next) => (/^\/api(\/|$)/.test(req.path) || req.path === '/health'
+    ? next()
+    : dashboard(req, res, next)));
+  console.log(`Serving the dashboard from ${frontendDist}`);
+}
 
 // Global error handler — sends JSON instead of crashing.
 app.use((err, req, res, _next) => {

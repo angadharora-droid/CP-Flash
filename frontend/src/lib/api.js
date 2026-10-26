@@ -1,4 +1,9 @@
-const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').replace(/\/+$/, '');
+// A production build without VITE_API_BASE is the single Railway service, where the
+// API serves the dashboard itself — so call our own origin. A separately hosted build
+// (Vercel) sets VITE_API_BASE; local dev talks to the backend on :4000.
+const API_BASE = (
+  import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://localhost:4000' : window.location.origin)
+).replace(/\/+$/, '');
 const REQUEST_TIMEOUT_MS = 30000;
 const RETRY_DELAY_MS = 1200;
 
