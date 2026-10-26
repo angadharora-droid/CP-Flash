@@ -524,7 +524,13 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
 
       {viewMode === 'day' ? (
         <section className="space-y-5">
-          <ReportArrivalsCard date={date} authToken={authToken} importSource={data?.importSource} />
+          <ReportArrivalsCard
+            date={date}
+            authToken={authToken}
+            importSource={data?.importSource}
+            onFetchNow={onRefreshSources}
+            fetching={sourceRefreshRunning}
+          />
           <div id="daily-bank" className="scroll-mt-24">
             <BankPositionTable rows={data?.bankPosition ?? []} />
           </div>

@@ -125,8 +125,8 @@ export async function getSourceStatus(date, token) {
 
 // Logs in to the report mailbox server-side (headers only), so allow well past the
 // default timeout on a cold check.
-export async function getMailboxStatus(date, token) {
-  return apiFetch(`/api/mailbox-status?date=${encodeURIComponent(date)}`, {
+export async function getMailboxStatus(date, token, { refresh = false } = {}) {
+  return apiFetch(`/api/mailbox-status?date=${encodeURIComponent(date)}${refresh ? '&refresh=true' : ''}`, {
     headers: authHeaders(token)
   }, 'Unable to check the mailbox', 100000);
 }

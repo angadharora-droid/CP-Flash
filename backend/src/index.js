@@ -1246,6 +1246,8 @@ app.get('/api/source-status', wrap(async (req, res) => {
 // answers are cached briefly so opening the card doesn't log in to IMAP every time.
 const MAILBOX_SCAN_TTL_MS = 5 * 60 * 1000;
 const MAILBOX_SCAN_TIMEOUT_MS = 90 * 1000;
+// The card's "Re-check" skips the cache, but never more than once per this interval.
+const MAILBOX_RECHECK_MIN_MS = 30 * 1000;
 const mailboxScans = new Map();
 
 function runMailboxScan(date) {
@@ -1283,7 +1285,8 @@ app.get('/api/mailbox-status', wrap(async (req, res) => {
     return;
   }
   let scan = mailboxScans.get(date);
-  if (!scan || Date.now() - scan.at > MAILBOX_SCAN_TTL_MS) {
+  const recheck = req.query.refresh === 'true' && scan && Date.now() - scan.at > MAILBOX_RECHECK_MIN_MS;
+  if (!scan || Date.now() - scan.at > MAILBOX_SCAN_TTL_MS || recheck) {
     for (const [key, entry] of mailboxScans) {
       if (Date.now() - entry.at > MAILBOX_SCAN_TTL_MS) mailboxScans.delete(key);
     }
