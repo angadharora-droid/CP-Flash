@@ -13,7 +13,7 @@ import { readAttachmentPreview } from './attachmentPreview.js';
 import { buildSeedData } from './excel.js';
 import { collectFlags } from './flags.js';
 import { createDailyFlashPdf } from './reportPdf.js';
-import { buildSourceStatus } from './sources.js';
+import { buildSourceStatus, mailboxBySource } from './sources.js';
 import { canonicalizeOccupancyMix, canonicalMixName, canonicalUnit, mergeSeedKpiRows, normalizeFnbKpiRows, normalizeHotelKpiRows, normalizeRabbitCategoryBreakdown, settlementModes, UNITS } from './schema.js';
 import { encryptJson, decryptJson, isEncryptionEnabled } from './crypto.js';
 import { readDailyJson, writeDailyJson, readGenericJson, writeGenericJson } from './dailyStore.js';
@@ -1234,8 +1234,68 @@ app.post('/api/fixed-costs', wrap(async (req, res) => {
 app.get('/api/source-status', wrap(async (req, res) => {
   const date = req.query.date || dateKey();
   const seed = buildSeedData();
-  const saved = await readDailyData(date);
-  res.json(buildSourceStatus({ ...mergeDailyData(seed, saved), date }));
+  const [saved, previous] = await Promise.all([
+    readDailyData(date),
+    readDailyData(isoDate(addDays(parseIsoDate(date), -1)))
+  ]);
+  res.json(buildSourceStatus({ ...mergeDailyData(seed, saved), date }, previous));
+}));
+
+// Report Arrivals asks whether each report is sitting in the mailbox. The fetcher's
+// --scan-mailbox mode answers from headers and attachment names alone (read-only);
+// answers are cached briefly so opening the card doesn't log in to IMAP every time.
+const MAILBOX_SCAN_TTL_MS = 5 * 60 * 1000;
+const MAILBOX_SCAN_TIMEOUT_MS = 90 * 1000;
+const mailboxScans = new Map();
+
+function runMailboxScan(date) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [emailImportScript, `--scan-mailbox=${date}`], {
+      cwd: backendDir,
+      env: { ...process.env, MONGODB_URI: '' },
+      windowsHide: true
+    });
+    let output = '';
+    const timer = setTimeout(() => child.kill(), MAILBOX_SCAN_TIMEOUT_MS);
+    child.stdout.on('data', (chunk) => { output += chunk; });
+    child.stderr.on('data', (chunk) => { output += chunk; });
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.on('exit', (code) => {
+      clearTimeout(timer);
+      const line = output.split('\n').find((l) => l.startsWith('MAILBOX_SCAN '));
+      if (line) {
+        resolve(JSON.parse(line.slice('MAILBOX_SCAN '.length)));
+        return;
+      }
+      const lastLine = output.trim().split('\n').at(-1)?.replace(/^\[[^\]]+\]\s*(FATAL:\s*)?/, '');
+      reject(new Error(lastLine || `scan exited with code ${code}`));
+    });
+  });
+}
+
+app.get('/api/mailbox-status', wrap(async (req, res) => {
+  const date = String(req.query.date || dateKey());
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: 'date must be YYYY-MM-DD' });
+    return;
+  }
+  let scan = mailboxScans.get(date);
+  if (!scan || Date.now() - scan.at > MAILBOX_SCAN_TTL_MS) {
+    for (const [key, entry] of mailboxScans) {
+      if (Date.now() - entry.at > MAILBOX_SCAN_TTL_MS) mailboxScans.delete(key);
+    }
+    scan = { at: Date.now(), promise: runMailboxScan(date) };
+    mailboxScans.set(date, scan);
+    scan.promise.catch(() => mailboxScans.delete(date));
+  }
+  try {
+    res.json(mailboxBySource(await scan.promise));
+  } catch (err) {
+    res.status(502).json({ error: `Mailbox check failed: ${err.message}` });
+  }
 }));
 
 async function getPnlPeriod(date) {

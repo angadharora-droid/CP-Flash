@@ -1,5 +1,37 @@
 const valueFields = ['actual', 'mtd', 'ytd', 'revenueToday', 'purchasesToday', 'fixedCost', 'mtdNetProfit', 'ytdNetProfit'];
 
+// Every forced import run re-stamps *ImportedAt, so it reads "2:00 PM" for a mail that
+// came at 4:29 AM. The fetcher also records the mail's own send time under this key.
+export function receivedAtKey(importedAtKey) {
+  if (!importedAtKey) return null;
+  return importedAtKey === 'importedAt' ? 'receivedAt' : importedAtKey.replace(/ImportedAt$/, 'ReceivedAt');
+}
+
+// Google Sheet sources are re-read on every run, so "imported" says nothing about whether
+// anyone updated the sheet. These fingerprint what each sheet writes so a day can be
+// checked against the previous one; null means there is nothing to compare.
+const BANK_FIELDS = ['actualBalance', 'fdTotal', 'chequesIssued', 'chequeTotalAmount', 'netBalance'];
+function bankFingerprint(data) {
+  const rows = (data?.bankPosition ?? []).filter((row) => BANK_FIELDS.some((field) => isFilled(row[field])));
+  return rows.length ? JSON.stringify(rows.map((row) => [row.unit, row.account, ...BANK_FIELDS.map((field) => row[field])])) : null;
+}
+
+const COST_SHEET_KPIS = ['Food Purchase Today', 'Liquor Purchase Today', 'Total Purchase'];
+function costSheetFingerprint(unit) {
+  return (data) => {
+    const kpis = (data?.fnb?.[unit] ?? [])
+      .filter((row) => COST_SHEET_KPIS.includes(row.name))
+      .map((row) => [row.name, row.actual]);
+    const purchases = (data?.pnl ?? []).find((row) => row.unit === unit)?.purchasesToday;
+    return kpis.some(([, actual]) => isFilled(actual)) || isFilled(purchases) ? JSON.stringify([kpis, purchases]) : null;
+  };
+}
+
+function purosoulFlashFingerprint(data) {
+  const rows = (data?.purosoulSku ?? []).filter((row) => isFilled(row.produced) || isFilled(row.dispatched));
+  return rows.length ? JSON.stringify(rows.map((row) => [row.sku, row.produced, row.dispatched, row.clStock])) : null;
+}
+
 export const dailySources = [
   {
     id: 'bank-position',
@@ -9,6 +41,7 @@ export const dailySources = [
     paths: ['bankPosition'],
     meta: { importedAt: 'bankPositionImportedAt' },
     cadence: 'Daily',
+    compare: bankFingerprint,
     sheetUrl: 'https://docs.google.com/spreadsheets/d/1X_e5_fMfaaMHnlKkqHpYZyWBSsaXzvHf/'
   },
   {
@@ -180,6 +213,7 @@ export const dailySources = [
       reportLabels: { pabloCostFile: 'Cost Sheet' }
     },
     cadence: 'Daily',
+    compare: costSheetFingerprint('Pablo'),
     sheetUrl: 'https://docs.google.com/spreadsheets/d/1SliCSYQIhRekgYy-6YN0nn5nFtlZQooH/'
   },
   {
@@ -195,6 +229,7 @@ export const dailySources = [
       reportLabels: { daliCostFile: 'Cost Sheet' }
     },
     cadence: 'Daily',
+    compare: costSheetFingerprint('Dali'),
     sheetUrl: 'https://docs.google.com/spreadsheets/d/1cgU6utD59v57HwlunQtSBCsVfpiMwX7F/'
   },
   {
@@ -316,7 +351,8 @@ export const dailySources = [
       importedAt: 'purosoulFlashImportedAt',
       reportLabels: { purosoulFlashFile: 'Dispatch & Production Sheet' }
     },
-    cadence: 'Daily'
+    cadence: 'Daily',
+    compare: purosoulFlashFingerprint
   }
 ];
 
@@ -360,26 +396,69 @@ function pickMeta(importSource, source) {
     .map((report) => report.file)
     .filter((file) => /\.(xlsx|xls|csv|pdf)$/i.test(String(file)));
   const importedFile = reports[0]?.file ?? '';
+  // Every file the source is expected to bring, fetched or not, so a partial delivery
+  // (e.g. Amravati's House report missing) shows which file is still outstanding.
+  const expectedReports = fileKeys.map((key) => {
+    const file = importSourceValue(importSource, key);
+    const fetched = isFilled(file) && (!source.meta.filePattern || source.meta.filePattern.test(String(file)));
+    return { key, label: source.meta.reportLabels?.[key] ?? source.label, fetched, file: fetched ? file : '' };
+  });
   const importedAtFields = source.meta.importedAtFields ?? [source.meta.importedAt];
-  const importedAt = importedAtFields
+  const latest = (keys) => keys
     .map((key) => importSourceValue(importSource, key))
     .filter(isFilled)
     .sort()
     .at(-1) ?? '';
+  const importedAt = latest(importedAtFields);
 
   return {
     file: importedFile,
     reportFiles,
     reports,
+    expectedReports,
     importedAt,
+    receivedAt: importedAt ? latest(importedAtFields.map(receivedAtKey)) : '',
     notes: importedAt ? (importSource[source.meta.notes] ?? '') : '',
     pendingNote: source.meta.pendingNote ?? ''
   };
 }
 
-export function buildSourceStatus(data = {}) {
+// Groups a mailbox scan (fetchEmailReport.js --scan-mailbox) by source: the inbox mails
+// each source's handlers would file under the scanned date. Sources no mail handler
+// feeds (the Google Sheets) are left out — "in the mailbox" doesn't apply to them.
+export function mailboxBySource(scan) {
+  const handlerKeys = new Set(scan.handlerKeys ?? []);
+  const sources = {};
+  for (const source of dailySources) {
+    const keys = source.meta?.importedAtFields ?? [source.meta?.importedAt];
+    if (!keys.some((key) => handlerKeys.has(key))) continue;
+    // One mail can feed several of a source's handlers (Rabbit's Petpooja set) — list it once.
+    const seen = new Set();
+    sources[source.id] = (scan.mails ?? [])
+      .filter((mail) => keys.includes(mail.importSourceKey))
+      .filter((mail) => {
+        const id = `${mail.sentAt}|${mail.subject}`;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map(({ subject, from, sentAt, files }) => ({ subject, from, sentAt, files }))
+      .sort((a, b) => b.sentAt.localeCompare(a.sentAt));
+  }
+  return {
+    date: scan.date,
+    checkedAt: scan.checkedAt,
+    error: scan.error ?? '',
+    sources,
+    unrecognised: scan.unrecognised ?? []
+  };
+}
+
+// previousData is the prior calendar day's saved record (or null); it only feeds the
+// sheet sources' same-as-previous-day check.
+export function buildSourceStatus(data = {}, previousData = null) {
   const importSource = data.importSource ?? {};
-  const sources = dailySources.map((source) => {
+  const sources = dailySources.map(({ compare, ...source }) => {
     const meta = pickMeta(importSource, source);
 
     // For sources tied to a specific hotel unit, filter KPI-row arrays to that unit
@@ -397,13 +476,24 @@ export function buildSourceStatus(data = {}) {
     const hasImport = isFilled(meta.importedAt) || hasRabbitKpis;
     const status = hasImport ? 'Imported' : hasData ? 'Entered' : 'Pending';
 
+    let sameAsPreviousDay = null;
+    if (compare && status !== 'Pending' && previousData) {
+      const current = compare(data);
+      const previous = compare(previousData);
+      if (current && previous) sameAsPreviousDay = current === previous;
+    }
+
     return {
       ...source,
       status,
       importedAt: meta.importedAt || (hasRabbitKpis ? data.date : ''),
+      receivedAt: meta.receivedAt ?? '',
       file: meta.file,
       reportFiles: meta.reportFiles ?? [],
       reports: meta.reports ?? [],
+      expectedReports: meta.expectedReports ?? [],
+      comparesWithPreviousDay: Boolean(compare),
+      sameAsPreviousDay,
       notes: meta.notes || (status === 'Pending' ? meta.pendingNote : '')
     };
   });
@@ -413,6 +503,7 @@ export function buildSourceStatus(data = {}) {
     imported: sources.filter((source) => source.status === 'Imported').length,
     entered: sources.filter((source) => source.status === 'Entered').length,
     pending: sources.filter((source) => source.status === 'Pending').length,
+    sameAsPreviousDay: sources.filter((source) => source.sameAsPreviousDay === true).length,
     sources
   };
 }

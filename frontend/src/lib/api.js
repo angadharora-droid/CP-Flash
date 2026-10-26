@@ -123,6 +123,14 @@ export async function getSourceStatus(date, token) {
   }, 'Unable to load source status');
 }
 
+// Logs in to the report mailbox server-side (headers only), so allow well past the
+// default timeout on a cold check.
+export async function getMailboxStatus(date, token) {
+  return apiFetch(`/api/mailbox-status?date=${encodeURIComponent(date)}`, {
+    headers: authHeaders(token)
+  }, 'Unable to check the mailbox', 100000);
+}
+
 export async function getPnlPeriod(date, token, options = {}) {
   return apiFetch(`/api/pnl-period?date=${encodeURIComponent(date)}`, {
     ...options,

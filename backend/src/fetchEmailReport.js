@@ -24,7 +24,8 @@ import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import { readDaily, writeDaily, readDailyJson, closeDailyStore } from './dailyStore.js';
+import { readDaily, writeDaily, readDailyJson, closeDailyStore, withDateLock } from './dailyStore.js';
+import { receivedAtKey } from './sources.js';
 import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
 import { importOccupancyMix, readOccupancyMixNett } from './importOccupancyMix.js';
@@ -263,9 +264,12 @@ function hcpMailDate(parsed, runDate) {
 // before. The widened lookback also surfaces older mail, and filing a five-day-old
 // report under the run date would overwrite a good day with a stale one — so anchor
 // anything sent before the run date on its own send date instead.
+// "On schedule" means sent the morning AFTER the run date: a mail sent ON the run date
+// covers the day before. With >= here, when a day's Occupancy Analysis never came
+// (25 Oct 2026), the run filed the 24th's mail — the 23rd's report — under the 24th.
 function runDateOrSentAnchor(parsed, runDate) {
   const sentIst = emailIstDate(parsed);
-  if (!sentIst || sentIst >= runDate) return runDate;
+  if (!sentIst || sentIst > runDate) return runDate;
   return sentDateMinusOne(parsed, runDate) ?? runDate;
 }
 
@@ -850,6 +854,21 @@ async function processMessage(parsed, date, existingData, touchedDates, reproces
 // run, the newest HCP mail for a given handler + business date wins.
 const hcpFiledThisRun = new Set();
 
+// Records when the mail behind an import was sent, next to the handler's *ImportedAt —
+// which every forced run re-stamps — so Report Arrivals can show when a report came in.
+async function stampReceivedAt(date, importSourceKey, parsed) {
+  const key = receivedAtKey(importSourceKey);
+  const sentMs = parsed.date instanceof Date ? parsed.date.getTime() : Date.parse(parsed.date ?? '');
+  if (!key || !date || !Number.isFinite(sentMs)) return;
+  const sentAt = new Date(sentMs).toISOString();
+  await withDateLock(date, async () => {
+    const data = await readDaily(date);
+    if (!data || data.importSource?.[key] === sentAt) return;
+    data.importSource = { ...(data.importSource ?? {}), [key]: sentAt };
+    await writeDaily(date, data);
+  });
+}
+
 async function runHandler(handler, parsed, date, existingData, touchedDates, runDate = date, reprocess = false) {
   log(`  → Handler: ${handler.name}`);
 
@@ -921,6 +940,7 @@ async function runHandler(handler, parsed, date, existingData, touchedDates, run
       const filedDate = result?.date ?? targetDate;
       touchedDates?.add(targetDate);
       touchedDates?.add(filedDate);
+      await stampReceivedAt(filedDate, handler.importSourceKey, parsed);
       if (isHcpBundle) {
         hcpFiledThisRun.add(`${handler.name}|${targetDate}`);
         hcpFiledThisRun.add(`${handler.name}|${filedDate}`);
@@ -1290,7 +1310,97 @@ function mergeReportData(existingData = {}, localData = {}) {
   return merged;
 }
 
-run()
+// ── Mailbox scan (Report Arrivals) ──────────────────────────────────────────────
+// `node fetchEmailReport.js --scan-mailbox=YYYY-MM-DD` lists the inbox mails each
+// handler would file under that business date, plus that day's mails no handler
+// recognises. Headers and attachment names only — nothing is downloaded or imported.
+// A mail is dated the way the first run to see it would (run date = its IST send
+// date − 1) with the handlers' own rules; an undated HCP bundle gets the sent − 1
+// fallback, since its content check needs the attachment itself.
+const SCAN_WINDOW_DAYS = 8;
+
+function attachmentsFromStructure(node, out = []) {
+  if (!node) return out;
+  const filename = node.dispositionParameters?.filename || node.parameters?.name;
+  if (filename) out.push({ filename, contentType: node.type, size: node.size });
+  for (const child of node.childNodes ?? []) attachmentsFromStructure(child, out);
+  return out;
+}
+
+// Just enough of mailparser's shape for the handlers' matches/businessDate rules.
+function headerOnlyMessage(msg) {
+  const from = msg.envelope?.from ?? [];
+  return {
+    subject: msg.envelope?.subject ?? '',
+    date: msg.envelope?.date ? new Date(msg.envelope.date) : null,
+    from: {
+      text: from.map((addr) => (addr.name ? `${addr.name} <${addr.address}>` : addr.address)).join(', '),
+      value: from.map((addr) => ({ name: addr.name, address: addr.address }))
+    },
+    attachments: attachmentsFromStructure(msg.bodyStructure)
+  };
+}
+
+async function scanMailbox(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '')) throw new Error(`Bad scan date "${date}"`);
+  const result = {
+    date,
+    checkedAt: new Date().toISOString(),
+    handlerKeys: [...new Set(HANDLERS.map((handler) => handler.importSourceKey).filter(Boolean))],
+    mails: [],
+    unrecognised: []
+  };
+  if (!EMAIL_PASS) return { ...result, error: 'REPORT_EMAIL_PASSWORD is not set' };
+
+  const client = new ImapFlow({ host: IMAP_HOST, port: IMAP_PORT, secure: IMAP_SECURE, auth: { user: EMAIL_USER, pass: EMAIL_PASS }, logger: false });
+  await client.connect();
+  try {
+    const lock = await client.getMailboxLock('INBOX', { readOnly: true });
+    try {
+      const seqs = await client.search({
+        since: new Date(`${date}T00:00:00+05:30`),
+        before: new Date(`${addDaysIso(date, SCAN_WINDOW_DAYS + 1)}T00:00:00+05:30`)
+      });
+      if (!seqs.length) return result;
+      for await (const msg of client.fetch(seqs, { envelope: true, bodyStructure: true })) {
+        const parsed = headerOnlyMessage(msg);
+        const sentIst = emailIstDate(parsed);
+        if (!sentIst) continue;
+        const runDate = addDaysIso(sentIst, -1);
+        const summary = {
+          subject: parsed.subject,
+          from: parsed.from.value[0]?.address ?? '',
+          sentAt: parsed.date.toISOString(),
+          files: parsed.attachments.map((att) => att.filename)
+        };
+        const primary = HANDLERS.find((handler) => handler.matches(parsed.subject, parsed));
+        if (!primary) {
+          if (runDate === date) result.unrecognised.push(summary);
+          continue;
+        }
+        const handlers = [primary, ...HANDLERS.filter((h) => h !== primary && h.bundled && h.matches(parsed.subject, parsed))];
+        for (const handler of handlers) {
+          const target = handler.businessDate
+            ? ((await handler.businessDate(parsed, runDate)) ?? runDate)
+            : runDateOrSentAnchor(parsed, runDate);
+          if (target === date) result.mails.push({ ...summary, handler: handler.name, importSourceKey: handler.importSourceKey });
+        }
+      }
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout();
+  }
+  return result;
+}
+
+const scanArg = process.argv.find((arg) => arg.startsWith('--scan-mailbox='));
+const main = scanArg
+  ? async () => console.log(`MAILBOX_SCAN ${JSON.stringify(await scanMailbox(scanArg.slice('--scan-mailbox='.length)))}`)
+  : run;
+
+main()
   .catch((err) => {
     log(`FATAL: ${err.message}`);
     if (err.response) log(`Server: ${err.response}`);
