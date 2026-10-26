@@ -58,6 +58,9 @@ if (process.env.CLOUD_API_URL && (process.env.DAILYFLASH_PIN || process.env.DAIL
   process.env.MONGODB_URI = '';
   console.log(`[${new Date().toISOString()}] Cloud sync configured — using fast local-JSON mode (skipping direct MongoDB writes).`);
 }
+// "https://host/" would build "https://host//api/…", which the server answers with the
+// dashboard page rather than the API — so drop trailing slashes once, here.
+const CLOUD_API_URL = String(process.env.CLOUD_API_URL || '').replace(/\/+$/, '');
 const SHEET_REFRESH_MINUTES = Number(process.env.SHEET_REFRESH_MINUTES) || 30;
 const SHEET_REFRESH_MS = SHEET_REFRESH_MINUTES * 60 * 1000;
 const TIME_SALES_IMPORT_VERSION = 3;
@@ -1171,7 +1174,7 @@ async function clearManualSalesSourcesNotImported(date, runData) {
 // One login for the whole run — the previous per-date login multiplied round
 // trips and burned the login rate limit when many dates needed syncing.
 async function getCloudToken() {
-  const cloudUrl = process.env.CLOUD_API_URL;
+  const cloudUrl = CLOUD_API_URL;
   if (!cloudUrl) return null;
   // A backend that spawns this run hands over a session it signed itself. That only
   // works when CLOUD_API_URL is the same backend (the hosted scheduler), so check it
@@ -1206,7 +1209,7 @@ async function getCloudToken() {
 }
 
 async function syncToCloud(date, token) {
-  const cloudUrl = process.env.CLOUD_API_URL;
+  const cloudUrl = CLOUD_API_URL;
   if (!cloudUrl) {
     log('Cloud sync skipped — CLOUD_API_URL not set.');
     return;
@@ -1227,7 +1230,13 @@ async function syncToCloud(date, token) {
     const existingRes = await fetch(`${cloudUrl}/api/seed?date=${date}`, {
       headers: { authorization: `Bearer ${token}` }
     });
-    const existingJson = existingRes.ok ? await existingRes.json() : null;
+    // Without the cloud copy to merge into, pushing would replace the real record with
+    // this run's (often seed-based) local one — so a failed read stops the sync.
+    if (!existingRes.ok) throw new Error(`Reading the cloud copy failed: ${existingRes.status} — not pushing.`);
+    if (!/json/i.test(existingRes.headers.get('content-type') ?? '')) {
+      throw new Error(`${cloudUrl} answered with a web page, not the API — check CLOUD_API_URL. Not pushing.`);
+    }
+    const existingJson = await existingRes.json();
     const dataWithPreviews = await attachReportPreviews(localData, ATTACH_DIR, log);
     const dataToPush = mergeReportData(existingJson?.saved, dataWithPreviews);
 
@@ -1277,6 +1286,20 @@ function mergePnlRows(existingRows = [], incomingRows = []) {
   return [...byUnit.values()];
 }
 
+// True when a value carries real data rather than the seed's blanks ("" / [] / {} and
+// row identifiers alone).
+const IDENTITY_KEYS = new Set(['unit', 'account', 'sku', 'id', 'name', 'section', 'direction', 'target']);
+function hasData(value) {
+  if (Array.isArray(value)) return value.some(hasData);
+  if (value && typeof value === 'object') {
+    return Object.entries(value).some(([key, nested]) => !IDENTITY_KEYS.has(key) && hasData(nested));
+  }
+  return filled(value);
+}
+
+// Never pushed from a run: global config the server owns.
+const SERVER_OWNED_KEYS = ['fixedCosts', 'workbook'];
+
 function mergeReportData(existingData = {}, localData = {}) {
   existingData ??= {};
   localData ??= {};
@@ -1293,6 +1316,24 @@ function mergeReportData(existingData = {}, localData = {}) {
       ...(localData.settlement ?? {})
     }
   };
+
+  // A container starts every deploy with an empty disk, so a run's local record for an
+  // older date is often the seed plus one sheet's values. Its untouched keys are blank
+  // template values (bankPosition rows of "", banquetToday []) and must not replace the
+  // real record: a key or settlement entry from the run only wins when it has data.
+  // (Before this, the first sync after a deploy blanked ~45 days of bank positions.)
+  for (const key of Object.keys(localData)) {
+    if (key === 'importSource' || key === 'settlement') continue;
+    if (!hasData(localData[key]) && hasData(existingData[key])) merged[key] = existingData[key];
+  }
+  for (const key of Object.keys(localData.settlement ?? {})) {
+    if (!hasData(localData.settlement[key]) && hasData(existingData.settlement?.[key])) {
+      merged.settlement[key] = existingData.settlement[key];
+    }
+  }
+  for (const key of SERVER_OWNED_KEYS) {
+    if (existingData[key] !== undefined) merged[key] = existingData[key];
+  }
 
   for (const key of ['hotels', 'rabbits', 'cpDelivery', 'mickys', 'purosoul']) {
     merged[key] = mergeKpiRows(existingData[key], localData[key]);

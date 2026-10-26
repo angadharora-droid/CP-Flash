@@ -196,6 +196,19 @@ function authToken(req) {
   return String(req.query.token ?? '');
 }
 
+// Env for an import run this server spawns. The run pushes its results back through the
+// API so this server's cache sees them: to CLOUD_API_URL when set (on a PC that is the
+// cloud service), otherwise to this same server over loopback — so the hosted service
+// needs no public URL of its own. The session token spares it a PIN login.
+function importRunEnv(extra = {}) {
+  return {
+    ...process.env,
+    CLOUD_API_URL: String(process.env.CLOUD_API_URL || '').replace(/\/+$/, '') || `http://127.0.0.1:${port}`,
+    DAILYFLASH_SYNC_TOKEN: createSession(),
+    ...extra
+  };
+}
+
 function appendEmailImportOutput(chunk) {
   const text = String(chunk ?? '');
   emailImportJob.output = `${emailImportJob.output}${text}`.slice(-12000);
@@ -1423,15 +1436,13 @@ app.post('/api/email-import', (req, res) => {
 
   const child = spawn(process.execPath, [emailImportScript], {
     cwd: backendDir,
-    env: {
-      ...process.env,
+    env: importRunEnv({
       ...(force ? { FORCE_IMPORT: 'true' } : {}),
-      DAILYFLASH_SYNC_TOKEN: createSession(),
       // Strip MONGODB_URI so importers write to fast local JSON files instead of doing
       // high-latency remote MongoDB round-trips per handler (~25s each). syncToCloud at
       // the end merges cloud data with local and pushes via the REST API.
       MONGODB_URI: ''
-    },
+    }),
     windowsHide: true
   });
 
@@ -1573,7 +1584,9 @@ if (fsSync.existsSync(frontendIndex)) {
     res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(frontendIndex);
   });
-  app.use((req, res, next) => (/^\/api(\/|$)/.test(req.path) || req.path === '/health'
+  // "//api/…" (a base URL with a trailing slash) is still an API call — never answer it
+  // with the dashboard page.
+  app.use((req, res, next) => (/^\/+api(\/|$)/.test(req.path) || /^\/+health$/.test(req.path)
     ? next()
     : dashboard(req, res, next)));
   console.log(`Serving the dashboard from ${frontendDist}`);
@@ -1607,7 +1620,7 @@ app.listen(port, () => {
   }, 8000);
 
   // Keep Render free tier alive — ping self every 14 minutes.
-  const selfUrl = process.env.CLOUD_API_URL;
+  const selfUrl = String(process.env.CLOUD_API_URL || '').replace(/\/+$/, '');
   if (selfUrl) {
     setInterval(() => {
       fetch(`${selfUrl}/health`).catch(() => {});
@@ -1636,8 +1649,7 @@ app.listen(port, () => {
       const child = spawn(process.execPath, [importScript], {
         // FORCE_IMPORT reprocesses today's received emails and refreshes sheet-backed
         // sources on every 30-min run, matching the manual "Refresh Sources" button.
-        // DAILYFLASH_SYNC_TOKEN lets the run sync back to this server without the PIN in env.
-        env: { ...process.env, FORCE_IMPORT: 'true', DAILYFLASH_SYNC_TOKEN: createSession() },
+        env: importRunEnv({ FORCE_IMPORT: 'true' }),
         cwd: backendDir,
         stdio: 'inherit'
       });
