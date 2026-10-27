@@ -483,7 +483,7 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
           {sourceRefreshError ? (
             <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-error/20 bg-error/10 px-3 py-1.5 text-[11px] font-bold text-error">
               <span className="material-symbols-outlined text-[14px]" aria-hidden>error</span>
-              <span className="max-w-[200px] truncate">{sourceRefreshError}</span>
+              <span className="max-w-[200px] truncate" title={sourceRefreshError}>{sourceRefreshError}</span>
             </div>
           ) : null}
           <button

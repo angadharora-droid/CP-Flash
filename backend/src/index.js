@@ -214,6 +214,75 @@ function appendEmailImportOutput(chunk) {
   emailImportJob.output = `${emailImportJob.output}${text}`.slice(-12000);
 }
 
+// Every import run — the Refresh button's and the scheduler's — starts here, one at a
+// time. They used to be tracked apart, so a click during a scheduled run opened a
+// second mail-server login (which the server resets) and raced on the same daily files.
+// A run past the limit is stopped so a hung mail connection can't hold "Fetching…" forever.
+const IMPORT_TIME_LIMIT_MS = 10 * 60 * 1000;
+
+function lastErrorLine(output) {
+  const line = output.split('\n').reverse().find((text) => /ERROR|FATAL/.test(text)) ?? '';
+  return line.replace(/^\[[^\]]*\]\s*/, '').trim();
+}
+
+function startEmailImport({ force, trigger }) {
+  if (emailImportJob.running) return false;
+  const job = {
+    running: true,
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    exitCode: null,
+    error: '',
+    output: '',
+    force
+  };
+  emailImportJob = job;
+  console.log(`[${job.startedAt}] Running ${trigger} import…`);
+
+  const child = spawn(process.execPath, [emailImportScript], {
+    cwd: backendDir,
+    env: importRunEnv({
+      ...(force ? { FORCE_IMPORT: 'true' } : {}),
+      // Strip MONGODB_URI so importers write to fast local JSON files instead of doing
+      // high-latency remote MongoDB round-trips per handler (~25s each). syncToCloud at
+      // the end merges cloud data with local and pushes via the REST API.
+      MONGODB_URI: ''
+    }),
+    windowsHide: true
+  });
+
+  // Also echo to the server log, so a button run shows up there like a scheduled one.
+  const onOutput = (chunk) => {
+    appendEmailImportOutput(chunk);
+    process.stdout.write(chunk);
+  };
+  child.stdout.on('data', onOutput);
+  child.stderr.on('data', onOutput);
+
+  const timer = setTimeout(() => {
+    job.error = `Stopped after ${IMPORT_TIME_LIMIT_MS / 60000} minutes without finishing.`;
+    child.kill();
+  }, IMPORT_TIME_LIMIT_MS);
+
+  const finish = (code) => {
+    if (!job.running) return;
+    clearTimeout(timer);
+    job.running = false;
+    job.finishedAt = new Date().toISOString();
+    job.exitCode = code;
+    if (code !== 0 && !job.error) job.error = lastErrorLine(job.output) || `Import failed (exit ${code}).`;
+    invalidateReportCaches();
+    console.log(`[${job.finishedAt}] Import finished (exit ${code})${job.error ? ` — ${job.error}` : ''}`);
+  };
+  child.on('error', (err) => {
+    job.error = err.message;
+    appendEmailImportOutput(`\n${err.message}\n`);
+    finish(1);
+  });
+  child.on('exit', (code) => finish(code ?? 1));
+  return true;
+}
+
 function emailImportStatus() {
   return {
     running: emailImportJob.running,
@@ -1418,52 +1487,10 @@ app.get('/api/email-import', (_req, res) => {
 });
 
 app.post('/api/email-import', (req, res) => {
-  if (emailImportJob.running) {
-    res.json({ ok: true, alreadyRunning: true, ...emailImportStatus() });
-    return;
-  }
-
   const force = req.body?.force === true || req.query.force === 'true';
-  emailImportJob = {
-    running: true,
-    startedAt: new Date().toISOString(),
-    finishedAt: null,
-    exitCode: null,
-    error: '',
-    output: '',
-    force
-  };
-
-  const child = spawn(process.execPath, [emailImportScript], {
-    cwd: backendDir,
-    env: importRunEnv({
-      ...(force ? { FORCE_IMPORT: 'true' } : {}),
-      // Strip MONGODB_URI so importers write to fast local JSON files instead of doing
-      // high-latency remote MongoDB round-trips per handler (~25s each). syncToCloud at
-      // the end merges cloud data with local and pushes via the REST API.
-      MONGODB_URI: ''
-    }),
-    windowsHide: true
-  });
-
-  child.stdout.on('data', appendEmailImportOutput);
-  child.stderr.on('data', appendEmailImportOutput);
-  child.on('error', (err) => {
-    emailImportJob.running = false;
-    emailImportJob.finishedAt = new Date().toISOString();
-    emailImportJob.exitCode = 1;
-    emailImportJob.error = err.message;
-    invalidateReportCaches();
-    appendEmailImportOutput(`\n${err.message}\n`);
-  });
-  child.on('exit', (code) => {
-    emailImportJob.running = false;
-    emailImportJob.finishedAt = new Date().toISOString();
-    emailImportJob.exitCode = code ?? 0;
-    invalidateReportCaches();
-  });
-
-  res.json({ ok: true, started: true, ...emailImportStatus() });
+  // A run already going (often the scheduler's) is joined rather than doubled.
+  const started = startEmailImport({ force, trigger: 'manual' });
+  res.json({ ok: true, ...(started ? { started: true } : { alreadyRunning: true }), ...emailImportStatus() });
 });
 
 app.get('/api/source-report-preview', wrap(async (req, res) => {
@@ -1635,32 +1662,12 @@ app.listen(port, () => {
   // Enable by setting ENABLE_CLOUD_IMPORT=true in Render environment variables.
   // Also requires: REPORT_EMAIL_PASSWORD, REPORT_EMAIL, REPORT_IMAP_HOST on Render.
   if (process.env.ENABLE_CLOUD_IMPORT === 'true') {
-    const importScript = path.join(__dirname, 'fetchEmailReport.js');
-    const backendDir = path.resolve(__dirname, '..');
-    let importRunning = false;
-
+    // force reprocesses today's received emails and refreshes sheet-backed sources on
+    // every run, matching the manual "Refresh Sources" button.
     const runImport = () => {
-      if (importRunning) {
-        console.log(`[${new Date().toISOString()}] Import skipped because the previous run is still active.`);
-        return;
+      if (!startEmailImport({ force: true, trigger: 'scheduled' })) {
+        console.log(`[${new Date().toISOString()}] Scheduled import skipped — another import is still running.`);
       }
-      importRunning = true;
-      console.log(`[${new Date().toISOString()}] Running scheduled import…`);
-      const child = spawn(process.execPath, [importScript], {
-        // FORCE_IMPORT reprocesses today's received emails and refreshes sheet-backed
-        // sources on every 30-min run, matching the manual "Refresh Sources" button.
-        env: importRunEnv({ FORCE_IMPORT: 'true' }),
-        cwd: backendDir,
-        stdio: 'inherit'
-      });
-      child.on('exit', (code) => {
-        importRunning = false;
-        console.log(`[${new Date().toISOString()}] Import finished (exit ${code ?? 0})`);
-      });
-      child.on('error', (err) => {
-        importRunning = false;
-        console.error(`[${new Date().toISOString()}] Import failed to start: ${err.message}`);
-      });
     };
 
     // The host runs UTC, so the schedule is computed in IST explicitly.

@@ -969,6 +969,30 @@ async function runHandler(handler, parsed, date, existingData, touchedDates, run
   }
 }
 
+// The mail server sometimes drops a login outright ("read ECONNRESET" at the 2026-10-27
+// 2 PM sweep). A second try a few seconds later usually gets through.
+const IMAP_CONNECT_ATTEMPTS = 3;
+async function connectImap() {
+  for (let attempt = 1; ; attempt += 1) {
+    const client = new ImapFlow({
+      host: IMAP_HOST,
+      port: IMAP_PORT,
+      secure: IMAP_SECURE,
+      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+      logger: false
+    });
+    try {
+      await client.connect();
+      return client;
+    } catch (err) {
+      client.close();
+      if (attempt >= IMAP_CONNECT_ATTEMPTS) throw err;
+      log(`Mail server connection failed (${err.message}) — retrying in ${attempt * 10}s.`);
+      await new Promise((resolve) => setTimeout(resolve, attempt * 10_000));
+    }
+  }
+}
+
 async function run() {
   const date = yesterday();
   // Every daily JSON a handler writes to — synced to the cloud at the end. Seeded with
@@ -983,20 +1007,15 @@ async function run() {
     log('FORCE_IMPORT enabled: rebuilding sources for this run.');
   }
 
+  // Whether the inbox was actually read. A run whose mail half failed must not treat
+  // "no Tally mail seen" as "no Tally mail sent" (see clearManualSalesSourcesNotImported).
+  let mailRead = false;
   if (!EMAIL_PASS) {
     log('Email import skipped: REPORT_EMAIL_PASSWORD is not set in backend/.env.');
   } else {
-    const client = new ImapFlow({
-      host: IMAP_HOST,
-      port: IMAP_PORT,
-      secure: IMAP_SECURE,
-      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-      logger: false
-    });
-
     log(`Connecting to ${IMAP_HOST}:${IMAP_PORT} as ${EMAIL_USER}`);
     try {
-      await client.connect();
+      const client = await connectImap();
       const lock = await client.getMailboxLock('INBOX');
 
       try {
@@ -1036,18 +1055,21 @@ async function run() {
     }
 
     log('All emails processed.');
+    mailRead = true;
       } finally {
         lock.release();
         await client.logout();
         log('Disconnected.');
       }
     } catch (err) {
-      log(`Email import ERROR: ${err.message}`);
+      log(`Email import ERROR: could not read the mailbox — ${err.message}`);
       log('Continuing with Google Sheets imports and cloud sync.');
     }
+    // The run still refreshes the sheets and syncs, but reports itself failed.
+    if (!mailRead) process.exitCode = 1;
   }
 
-  if (forceImport) {
+  if (forceImport && mailRead) {
     await clearManualSalesSourcesNotImported(date, existingData);
   }
 
@@ -1215,7 +1237,8 @@ async function syncToCloud(date, token) {
     return;
   }
   if (!token) {
-    log(`Cloud sync skipped for ${date} — no auth token (login failed).`);
+    log(`Cloud sync ERROR for ${date} — no auth token (login failed).`);
+    process.exitCode = 1;
     return;
   }
 
@@ -1249,6 +1272,8 @@ async function syncToCloud(date, token) {
     log(`Cloud sync done for ${date}.`);
   } catch (err) {
     log(`Cloud sync ERROR: ${err.message}`);
+    // The dashboard never saw this run's data, so the run did not work.
+    process.exitCode = 1;
   }
 }
 

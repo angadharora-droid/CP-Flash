@@ -469,11 +469,15 @@ export default function App() {
     setSourceRefreshError('');
     try {
       let status = await runEmailImport(authToken, { force: true });
-      for (let attempt = 0; status?.running && attempt < 60; attempt += 1) {
+      // The server stops a run at 10 minutes, so this outlasts any run it lets finish.
+      const giveUpAt = Date.now() + 11 * 60 * 1000;
+      while (status?.running && Date.now() < giveUpAt) {
         await wait(5000);
         status = await getEmailImportStatus(authToken);
       }
       await handleRefresh();
+      if (status?.running) setSourceRefreshError('Still fetching in the background — check again shortly.');
+      else if (status?.error) setSourceRefreshError(status.error);
     } catch (err) {
       setSourceRefreshError(err.message);
     } finally {
