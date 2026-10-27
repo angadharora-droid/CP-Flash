@@ -356,6 +356,20 @@ export const dailySources = [
   }
 ];
 
+// A source with no import stamp only counts as "Entered" from data no other report
+// writes. CP Nagpur's `hotels` rows come from the night audit, occupancy, covers and
+// forecast mails alike, so the forecast landing says nothing about the night audit.
+// `pnl` is a roll-up — revenue derived from other reports' KPIs, fixedCost stamped on
+// every row from the global config — so it never shows who supplied the day's data.
+const pathWriters = new Map();
+for (const { unit, paths } of dailySources) {
+  for (const key of paths) pathWriters.set(`${unit}|${key}`, (pathWriters.get(`${unit}|${key}`) ?? 0) + 1);
+}
+
+function ownPaths(source) {
+  return source.paths.filter((key) => key !== 'pnl' && pathWriters.get(`${source.unit}|${key}`) === 1);
+}
+
 function isFilled(value) {
   return value !== null && value !== undefined && String(value).trim() !== '';
 }
@@ -366,7 +380,7 @@ function hasEnteredValue(value) {
 
   return Object.entries(value).some(([key, nested]) => {
     if (valueFields.includes(key)) return isFilled(nested);
-    if (['target', 'name', 'unit', 'section', 'id', 'direction', 'sku'].includes(key)) return false;
+    if (['target', 'name', 'unit', 'account', 'section', 'id', 'direction', 'sku'].includes(key)) return false;
     return hasEnteredValue(nested);
   });
 }
@@ -461,17 +475,20 @@ export function buildSourceStatus(data = {}, previousData = null) {
   const sources = dailySources.map(({ compare, ...source }) => {
     const meta = pickMeta(importSource, source);
 
-    // For sources tied to a specific hotel unit, filter KPI-row arrays to that unit
-    // so CP Nagpur data doesn't make CP NM sources appear as "Entered".
+    // Narrow each path to the source's own unit so CP Nagpur data doesn't make CP NM
+    // sources (or Pablo's settlement Dali's) appear as "Entered".
     function pathData(key) {
       const val = data[key];
-      if (Array.isArray(val) && source.unit && source.unit !== 'Bank Statement') {
-        return val.filter((r) => r.unit === source.unit || r.unit === `${source.unit}s`);
-      }
-      return val;
+      const unit = source.unit;
+      if (!unit || unit === 'Bank Statement' || !val || typeof val !== 'object') return val;
+      if (Array.isArray(val)) return val.filter((r) => r.unit === unit || r.unit === `${unit}s`);
+      // settlement is { mode: { unit: amount } }
+      if (key === 'settlement') return Object.values(val).map((byUnit) => byUnit?.[unit] ?? byUnit?.[`${unit}s`]);
+      // fnb, topItems, occupancyMixByUnit are { unit: ... }
+      return unit in val ? val[unit] : val;
     }
 
-    const hasData = source.paths.some((key) => hasEnteredValue(pathData(key)));
+    const hasData = ownPaths(source).some((key) => hasEnteredValue(pathData(key)));
     const hasRabbitKpis = source.id === 'rabbits-sales' && hasEnteredValue(data.rabbits);
     const hasImport = isFilled(meta.importedAt) || hasRabbitKpis;
     const status = hasImport ? 'Imported' : hasData ? 'Entered' : 'Pending';
