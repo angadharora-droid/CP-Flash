@@ -24,7 +24,7 @@ import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import { readDaily, writeDaily, readDailyJson, closeDailyStore, withDateLock } from './dailyStore.js';
+import { readDaily, writeDaily, readDailyJson, writeDailyJson, closeDailyStore, withDateLock } from './dailyStore.js';
 import { receivedAtKey } from './sources.js';
 import { importHotelReport } from './importHotelReport.js';
 import { importOccupancyReport } from './importOccupancyReport.js';
@@ -872,15 +872,76 @@ async function stampReceivedAt(date, importSourceKey, parsed) {
   });
 }
 
+// `date` is the bundle's effective business date (possibly detected by an
+// earlier content-dated handler in the same email); `runDate` is the run's
+// default. Handlers with a businessDate rule (CP NM filename dates) override.
+async function handlerTargetDate(handler, parsed, date) {
+  return handler.businessDate
+    ? ((await handler.businessDate(parsed, date)) ?? date)
+    : runDateOrSentAnchor(parsed, date);
+}
+
+// Why runHandler would skip a handler as already imported for targetDate, or null when
+// it would run. Reads only the mail's headers (subject, sender, sent date, attachment
+// names), so the download step asks it too before fetching a mail in full.
+async function alreadyImportedReason(handler, parsed, targetDate, existingData, runDate, reprocess) {
+  // Content-dated handlers (validatesDate: forecast/events) must NOT be
+  // pre-skipped off the run-date record: they derive the true business date
+  // while running and are idempotent. Pre-skipping them dropped the older of
+  // two manually-sent bundles arriving in the same run (e.g. Sunday's and
+  // Monday's HCP REPORT both sent on Monday).
+  if (!handler.importSourceKey || handler.validatesDate) return null;
+
+  if (targetDate === runDate) {
+    if (!existingData?.importSource?.[handler.importSourceKey]) return null;
+    const att = findSpreadsheet(parsed);
+    const existingFileKey = handler.importSourceKey.replace(/ImportedAt$/, 'File');
+    const existingVersionKey = handler.importSourceKey.replace(/ImportedAt$/, 'Version');
+    const existingFile = existingData?.importSource?.[existingFileKey] ?? '';
+    const existingVersionIsCurrent = !handler.importVersion
+      || existingData?.importSource?.[existingVersionKey] === handler.importVersion;
+    const importedFileIsCurrent = handler.currentFile
+      ? handler.currentFile(String(existingFile)) && (!att?.filename || handler.currentFile(String(att.filename)))
+      : true;
+    return importedFileIsCurrent && existingVersionIsCurrent ? 'Already imported today — skipping.' : null;
+  }
+
+  // Backdated email (e.g. occ-mix/pos-sales following a backdated bundle date):
+  // dedupe against the target date's own saved record, not the run-date record
+  // (a FORCE_IMPORT of recent mail reprocesses regardless — imports are idempotent).
+  if (reprocess) return null;
+  const targetData = await readDaily(targetDate);
+  // A date carrying only the auto "no sale done" marker must not block a
+  // covering email — reprocessing is idempotent and lets real (or corrected)
+  // data replace a marker that was written before the date's mail arrived.
+  const notesKey = handler.importSourceKey.replace(/ImportedAt$/, 'Notes');
+  const noSaleMarked = /no sale done/i.test(String(targetData?.importSource?.[notesKey] ?? ''));
+  return targetData?.importSource?.[handler.importSourceKey] && !noSaleMarked
+    ? `Already imported for ${targetDate} — skipping.`
+    : null;
+}
+
+// Whether processMessage would run any handler on this mail, decided from its headers.
+// HCP mail is always fetched: an undated one takes its business date from the
+// attachment contents (resolveHcpMailDate), which headers can't show.
+async function needsDownload(header, runDate, existingData, reprocess) {
+  const subject = header.subject || '';
+  const primary = HANDLERS.find((h) => h.matches(subject, header));
+  if (!primary) return false;
+  if (reprocess) return true;
+  const handlers = [primary, ...HANDLERS.filter((h) => h !== primary && h.bundled && h.matches(subject, header))];
+  for (const handler of handlers) {
+    if (handler.hcpBundle) return true;
+    const targetDate = await handlerTargetDate(handler, header, runDate);
+    if (!(await alreadyImportedReason(handler, header, targetDate, existingData, runDate, reprocess))) return true;
+  }
+  return false;
+}
+
 async function runHandler(handler, parsed, date, existingData, touchedDates, runDate = date, reprocess = false) {
   log(`  → Handler: ${handler.name}`);
 
-  // `date` is the bundle's effective business date (possibly detected by an
-  // earlier content-dated handler in the same email); `runDate` is the run's
-  // default. Handlers with a businessDate rule (CP NM filename dates) override.
-  const targetDate = handler.businessDate
-    ? ((await handler.businessDate(parsed, date)) ?? date)
-    : runDateOrSentAnchor(parsed, date);
+  const targetDate = await handlerTargetDate(handler, parsed, date);
   if (targetDate !== runDate) {
     log(`  Business date: ${targetDate} (run date ${runDate}).`);
   }
@@ -891,45 +952,15 @@ async function runHandler(handler, parsed, date, existingData, touchedDates, run
     return;
   }
 
-  // Content-dated handlers (validatesDate: forecast/events) must NOT be
-  // pre-skipped off the run-date record: they derive the true business date
-  // while running and are idempotent. Pre-skipping them dropped the older of
-  // two manually-sent bundles arriving in the same run (e.g. Sunday's and
-  // Monday's HCP REPORT both sent on Monday).
+  const skipReason = await alreadyImportedReason(handler, parsed, targetDate, existingData, runDate, reprocess);
+  if (skipReason) {
+    log(`  ${skipReason}`);
+    return;
+  }
   if (handler.importSourceKey && !handler.validatesDate && targetDate === runDate
     && existingData?.importSource?.[handler.importSourceKey]) {
-    const att = findSpreadsheet(parsed);
-    const existingFileKey = handler.importSourceKey.replace(/ImportedAt$/, 'File');
-    const existingVersionKey = handler.importSourceKey.replace(/ImportedAt$/, 'Version');
-    const existingFile = existingData?.importSource?.[existingFileKey] ?? '';
-    const existingVersionIsCurrent = !handler.importVersion
-      || existingData?.importSource?.[existingVersionKey] === handler.importVersion;
-    const importedFileIsCurrent = handler.currentFile
-      ? handler.currentFile(String(existingFile)) && (!att?.filename || handler.currentFile(String(att.filename)))
-      : true;
-
-    if (importedFileIsCurrent && existingVersionIsCurrent) {
-      log(`  Already imported today — skipping.`);
-      return;
-    }
-
+    const existingFile = existingData.importSource[handler.importSourceKey.replace(/ImportedAt$/, 'File')] ?? '';
     log(`  Re-importing because saved file "${existingFile}" does not match ${handler.name}.`);
-  }
-
-  // Backdated email (e.g. occ-mix/pos-sales following a backdated bundle date):
-  // dedupe against the target date's own saved record, not the run-date record
-  // (a FORCE_IMPORT of recent mail reprocesses regardless — imports are idempotent).
-  if (handler.importSourceKey && !handler.validatesDate && targetDate !== runDate && !reprocess) {
-    const targetData = await readDaily(targetDate);
-    // A date carrying only the auto "no sale done" marker must not block a
-    // covering email — reprocessing is idempotent and lets real (or corrected)
-    // data replace a marker that was written before the date's mail arrived.
-    const notesKey = handler.importSourceKey.replace(/ImportedAt$/, 'Notes');
-    const noSaleMarked = /no sale done/i.test(String(targetData?.importSource?.[notesKey] ?? ''));
-    if (targetData?.importSource?.[handler.importSourceKey] && !noSaleMarked) {
-      log(`  Already imported for ${targetDate} — skipping.`);
-      return;
-    }
   }
 
   try {
@@ -1008,6 +1039,13 @@ async function run() {
   const touchedDates = new Set([date]);
   const forceImport = process.env.FORCE_IMPORT === 'true';
 
+  // One login for the whole run, taken up front: the cloud copy also tells this run
+  // what is already imported (see hydrateFromCloud).
+  const cloudSyncConfigured = Boolean(process.env.CLOUD_API_URL
+    && (process.env.DAILYFLASH_PIN || process.env.DAILYFLASH_SYNC_TOKEN));
+  const cloudToken = cloudSyncConfigured ? await getCloudToken() : null;
+  await hydrateFromCloud(cloudToken);
+
   // Load existing data once — used to skip sources already imported this run
   let existingData = (await readDailyJson(date)) ?? { importSource: {} };
   if (process.env.FORCE_IMPORT === 'true') {
@@ -1043,23 +1081,29 @@ async function run() {
     if (!seqs.length) {
       log('No emails in the period — nothing to import.');
     } else {
-      // Bulk-fetch all message sources in a single IMAP FETCH (vs. one round-trip per email).
-      const sources = [];
-      for await (const msg of client.fetch(seqs, { source: true })) {
-        sources.push(msg.source);
+      // Headers first, then the full mail only where a handler will import it. Fetching
+      // every message with its attachments up front (231 mails on 2026-10-28) ran past the
+      // 10-minute run limit, so runs were stopped before they saved anything.
+      const headers = [];
+      for await (const msg of client.fetch(seqs, { uid: true, envelope: true, bodyStructure: true })) {
+        headers.push({ uid: msg.uid, header: headerOnlyMessage(msg) });
       }
-      // Parse all MIME bodies in parallel — pure CPU work, no shared state.
-      const parsedAll = await Promise.all(sources.map((src) => simpleParser(src)));
+      let fetched = 0;
       // Handlers stay sequential: they share the daily JSON / Mongo doc; parallelising them
       // would race on read-modify-write of the same record.
-      for (const parsed of parsedAll.reverse()) {
+      for (const { uid, header } of headers.reverse()) {
         // FORCE_IMPORT (the 30-min scheduler and the "Refresh Sources" button) rebuilds
         // a mail from scratch rather than deduping against what its date already holds.
         // Keep that to the window it covered before the lookback widened, so a routine
         // refresh doesn't re-run every handler over a week of mail on each pass.
-        const reprocess = forceImport && (emailIstDate(parsed) ?? '') >= istIso(0);
-        await processMessage(parsed, date, existingData, touchedDates, reprocess);
+        const reprocess = forceImport && (emailIstDate(header) ?? '') >= istIso(0);
+        if (!(await needsDownload(header, date, existingData, reprocess))) continue;
+        const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
+        if (!msg?.source) continue;
+        fetched += 1;
+        await processMessage(await simpleParser(msg.source), date, existingData, touchedDates, reprocess);
       }
+      log(`Fetched ${fetched} of ${headers.length} email(s) in full — the rest have no handler or are already imported.`);
     }
 
     log('All emails processed.');
@@ -1145,13 +1189,11 @@ async function run() {
   // (forward-looking reports and multi-day sheets may touch dates other than the
   // run date). Login once, then sync in small batches so a backfill of many dates
   // doesn't open dozens of simultaneous requests against the cloud API.
-  if (!process.env.CLOUD_API_URL || !(process.env.DAILYFLASH_PIN || process.env.DAILYFLASH_SYNC_TOKEN)) {
+  if (!cloudSyncConfigured) {
     log('Cloud sync skipped — CLOUD_API_URL not set, or neither DAILYFLASH_PIN nor a backend session is available.');
     return;
   }
   const syncDates = [...touchedDates].sort();
-  const cloudToken = await getCloudToken();
-  const SYNC_BATCH = 5;
   for (let i = 0; i < syncDates.length; i += SYNC_BATCH) {
     await Promise.all(syncDates.slice(i, i + SYNC_BATCH).map((d) => syncToCloud(d, cloudToken)));
   }
@@ -1199,6 +1241,39 @@ async function clearManualSalesSourcesNotImported(date, runData) {
     await writeDaily(date, data);
     log('Cleared manual sales sources not found in this forced refresh.');
   }
+}
+
+const SYNC_BATCH = 5;
+
+// A run the hosted backend spawns has no Mongo (index.js strips MONGODB_URI) and, after
+// every deploy, an empty data dir — so each run took a week of mail and 45 days of sheet
+// rows as new. Copy the dashboard's saved record into each missing local file first, so
+// "already imported" checks and the sheet importers' unchanged-row skips see real data.
+// 46 days covers the sheet importers' 45-day window and the mail lookback.
+const HYDRATE_DAYS = 46;
+async function hydrateFromCloud(token) {
+  if (!token || process.env.MONGODB_URI) return;
+  const dates = Array.from({ length: HYDRATE_DAYS }, (_, i) => istIso(-1 - i));
+  let copied = 0;
+  let failed = false;
+  for (let i = 0; i < dates.length && !failed; i += SYNC_BATCH) {
+    await Promise.all(dates.slice(i, i + SYNC_BATCH).map(async (date) => {
+      if (await readDailyJson(date)) return;
+      try {
+        const res = await fetch(`${CLOUD_API_URL}/api/seed?date=${date}`, { headers: { authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error(`${res.status}`);
+        const { saved } = await res.json();
+        if (!saved) return;
+        await writeDailyJson(date, saved);
+        copied += 1;
+      } catch (err) {
+        // One line, not one per day: the same cause (a wrong CLOUD_API_URL) fails them all.
+        if (!failed) log(`Cloud copy ERROR for ${date}: ${err.message} — checking imports against local files only.`);
+        failed = true;
+      }
+    }));
+  }
+  if (copied) log(`Copied ${copied} saved day(s) from the dashboard to check what is already imported.`);
 }
 
 // One login for the whole run — the previous per-date login multiplied round
