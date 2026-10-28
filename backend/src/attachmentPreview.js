@@ -107,7 +107,9 @@ export async function attachReportPreviews(data = {}, attachmentsDir, log = () =
       reportPreviews[file] = await readAttachmentPreview(file, attachmentsDir);
       _previewCache.set(file, reportPreviews[file]);
     } catch (err) {
-      log(`Report preview skipped for ${file}: ${err.message}`);
+      // A file another host imported isn't here (a fresh Railway container has no
+      // attachments) — expected, and on a long sync it was hundreds of log lines.
+      if (err.code !== 'ENOENT') log(`Report preview skipped for ${file}: ${err.message}`);
     }
   }
 

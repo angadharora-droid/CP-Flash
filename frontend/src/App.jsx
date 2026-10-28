@@ -476,9 +476,18 @@ export default function App() {
       if (status?.running) handleRefresh();
       // The server stops a run at 10 minutes, so this outlasts any run it lets finish.
       const giveUpAt = Date.now() + 11 * 60 * 1000;
+      let failedChecks = 0;
       while (status?.running && Date.now() < giveUpAt) {
         await wait(5000);
-        status = await getEmailImportStatus(authToken);
+        // A dropped connection (ERR_HTTP2_PING_FAILED on 2026-10-28) fails one check while
+        // the import carries on server-side — only a run of failures ends the wait.
+        try {
+          status = await getEmailImportStatus(authToken);
+          failedChecks = 0;
+        } catch (err) {
+          failedChecks += 1;
+          if (failedChecks >= 6) throw err;
+        }
       }
       await handleRefresh();
       if (status?.running) setSourceRefreshError('Still fetching in the background — check again shortly.');

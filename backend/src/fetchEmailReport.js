@@ -921,6 +921,23 @@ async function alreadyImportedReason(handler, parsed, targetDate, existingData, 
     : null;
 }
 
+// The day's importedAt when this exact mail (or a newer one for the same report) is
+// already filed under targetDate — stampReceivedAt records each import's sent time —
+// else null. A corrected resend is sent later, so it still gets through. Without this,
+// a "no sale done" day never counts as imported (see alreadyImportedReason) and its mail
+// was downloaded again on every run: 3 of the 5 minute-long fetches on 2026-10-28.
+async function importedFromThisMail(handler, header, targetDate) {
+  const key = receivedAtKey(handler.importSourceKey);
+  const sentMs = header.date instanceof Date ? header.date.getTime() : NaN;
+  if (!key || !Number.isFinite(sentMs)) return null;
+  const source = (await readDaily(targetDate))?.importSource ?? {};
+  const versionKey = handler.importSourceKey.replace(/ImportedAt$/, 'Version');
+  if (handler.importVersion && source[versionKey] !== handler.importVersion) return null;
+  return source[handler.importSourceKey] && Date.parse(source[key] ?? '') >= sentMs
+    ? source[handler.importSourceKey]
+    : null;
+}
+
 // Whether processMessage would run any handler on this mail, decided from its headers.
 // HCP mail is always fetched: an undated one takes its business date from the
 // attachment contents (resolveHcpMailDate), which headers can't show.
@@ -928,13 +945,19 @@ async function needsDownload(header, runDate, existingData, reprocess) {
   const subject = header.subject || '';
   const primary = HANDLERS.find((h) => h.matches(subject, header));
   if (!primary) return false;
-  if (reprocess) return true;
   const handlers = [primary, ...HANDLERS.filter((h) => h !== primary && h.bundled && h.matches(subject, header))];
+  const seen = {};
   for (const handler of handlers) {
     if (handler.hcpBundle) return true;
     const targetDate = await handlerTargetDate(handler, header, runDate);
-    if (!(await alreadyImportedReason(handler, header, targetDate, existingData, runDate, reprocess))) return true;
+    if (await alreadyImportedReason(handler, header, targetDate, existingData, runDate, reprocess)) continue;
+    const importedAt = await importedFromThisMail(handler, header, targetDate);
+    if (!importedAt) return true;
+    if (targetDate === runDate) seen[handler.importSourceKey] = importedAt;
   }
+  // Count the run-date sources this mail already filled as seen, as running it would, so
+  // clearManualSalesSourcesNotImported doesn't blank a Tally day it merely didn't re-read.
+  existingData.importSource = { ...(existingData.importSource ?? {}), ...seen };
   return false;
 }
 
@@ -1088,6 +1111,7 @@ async function run() {
       for await (const msg of client.fetch(seqs, { uid: true, envelope: true, bodyStructure: true })) {
         headers.push({ uid: msg.uid, header: headerOnlyMessage(msg) });
       }
+      log(`Read ${headers.length} mail headers.`);
       let fetched = 0;
       // Handlers stay sequential: they share the daily JSON / Mongo doc; parallelising them
       // would race on read-modify-write of the same record.
@@ -1095,12 +1119,16 @@ async function run() {
         // FORCE_IMPORT (the 30-min scheduler and the "Refresh Sources" button) rebuilds
         // a mail from scratch rather than deduping against what its date already holds.
         // Keep that to the window it covered before the lookback widened, so a routine
-        // refresh doesn't re-run every handler over a week of mail on each pass.
+        // refresh doesn't re-run every handler over a week of mail on each pass. Even
+        // then a mail is skipped once that exact mail is filed (importedFromThisMail).
         const reprocess = forceImport && (emailIstDate(header) ?? '') >= istIso(0);
         if (!(await needsDownload(header, date, existingData, reprocess))) continue;
+        const fetchStarted = Date.now();
         const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
         if (!msg?.source) continue;
         fetched += 1;
+        const fetchSecs = Math.round((Date.now() - fetchStarted) / 1000);
+        if (fetchSecs > 10) log(`Slow download: "${header.subject}" (${Math.round(msg.source.length / 1024)} KB) took ${fetchSecs}s.`);
         await processMessage(await simpleParser(msg.source), date, existingData, touchedDates, reprocess);
       }
       log(`Fetched ${fetched} of ${headers.length} email(s) in full — the rest have no handler or are already imported.`);
