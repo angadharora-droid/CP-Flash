@@ -969,8 +969,16 @@ async function runHandler(handler, parsed, date, existingData, touchedDates, run
   }
 }
 
+// ImapFlow reports any refused command as just "Command failed"; the server's own reason
+// (Rediff's "AUTHFAIL: IDPERROR[V]: Verification Required…" on 2026-10-28) is in responseText.
+function imapErrorText(err) {
+  const detail = err.responseText || err.message;
+  return err.authenticationFailed ? `login refused (${detail})` : detail;
+}
+
 // The mail server sometimes drops a login outright ("read ECONNRESET" at the 2026-10-27
-// 2 PM sweep). A second try a few seconds later usually gets through.
+// 2 PM sweep). A second try a few seconds later usually gets through. A refused login
+// does not: retrying it only adds failed attempts to an account the provider has locked.
 const IMAP_CONNECT_ATTEMPTS = 3;
 async function connectImap() {
   for (let attempt = 1; ; attempt += 1) {
@@ -986,8 +994,8 @@ async function connectImap() {
       return client;
     } catch (err) {
       client.close();
-      if (attempt >= IMAP_CONNECT_ATTEMPTS) throw err;
-      log(`Mail server connection failed (${err.message}) — retrying in ${attempt * 10}s.`);
+      if (err.authenticationFailed || attempt >= IMAP_CONNECT_ATTEMPTS) throw err;
+      log(`Mail server connection failed (${imapErrorText(err)}) — retrying in ${attempt * 10}s.`);
       await new Promise((resolve) => setTimeout(resolve, attempt * 10_000));
     }
   }
@@ -1062,7 +1070,7 @@ async function run() {
         log('Disconnected.');
       }
     } catch (err) {
-      log(`Email import ERROR: could not read the mailbox — ${err.message}`);
+      log(`Email import ERROR: could not read the mailbox — ${imapErrorText(err)}`);
       log('Continuing with Google Sheets imports and cloud sync.');
     }
     // The run still refreshes the sheets and syncs, but reports itself failed.

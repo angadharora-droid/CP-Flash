@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import BankPositionTable from '../components/BankPositionTable';
 import DataTable from '../components/DataTable';
 import FnbOutletSalesChart from '../components/FnbOutletSalesChart';
@@ -25,6 +25,19 @@ import {
 } from '../lib/calculations';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Ticks on its own so the dashboard doesn't re-render every second while an import runs.
+function ElapsedSince({ since }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const start = Date.parse(since ?? '');
+  if (!Number.isFinite(start)) return null;
+  const secs = Math.max(0, Math.floor((now - start) / 1000));
+  return <span className="tabular-nums"> · {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, '0')}</span>;
+}
 
 function fmtDate(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');
@@ -331,7 +344,7 @@ function collectWeeklyFlagKpis(data) {
   ];
 }
 
-export default function DashboardPage({ data, date, authToken, period, onRefreshSources, sourceRefreshRunning = false, sourceRefreshError = '' }) {
+export default function DashboardPage({ data, date, authToken, period, onRefreshSources, sourceRefreshRunning = false, sourceRefreshStartedAt = null, sourceRefreshError = '' }) {
   const [viewMode, setViewMode] = useState('day');
   const roomRevenueRows = (data?.hotels ?? []).filter(
     (row) => row.unit === 'CP Nagpur' && row.section === 'Room Revenue & Occupancy'
@@ -490,12 +503,13 @@ export default function DashboardPage({ data, date, authToken, period, onRefresh
             type="button"
             onClick={onRefreshSources}
             disabled={!onRefreshSources || sourceRefreshRunning}
+            title={sourceRefreshRunning ? 'Pulling new reports from the mailbox — a full run takes a few minutes. The dashboard reloads when it finishes.' : undefined}
             className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-outline-variant/70 bg-surface-container px-3 text-[11.5px] font-medium text-on-surface-variant transition-all hover:border-primary/40 hover:bg-surface-container-high hover:text-on-surface active:scale-95 disabled:opacity-50"
           >
             <span className={`material-symbols-outlined text-[15px] text-primary ${sourceRefreshRunning ? 'animate-spin' : ''}`} aria-hidden>
               sync
             </span>
-            {sourceRefreshRunning ? 'Refreshing...' : 'Refresh'}
+            {sourceRefreshRunning ? <>Fetching mail<ElapsedSince since={sourceRefreshStartedAt} /></> : 'Refresh'}
           </button>
           <div className="inline-flex gap-0.5 rounded-xl border border-outline-variant/60 bg-surface-container p-1">
             {options.map((option) => {

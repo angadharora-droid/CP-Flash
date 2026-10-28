@@ -284,6 +284,7 @@ export default function App() {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
   const [sourceRefreshRunning, setSourceRefreshRunning] = useState(false);
   const [sourceRefreshError, setSourceRefreshError] = useState('');
+  const [sourceRefreshStartedAt, setSourceRefreshStartedAt] = useState(null);
   const [period, setPeriod] = useState(null);
   const [periodRefreshKey, setPeriodRefreshKey] = useState(0);
   const [sourceReportPreview, setSourceReportPreview] = useState(null);
@@ -469,6 +470,10 @@ export default function App() {
     setSourceRefreshError('');
     try {
       let status = await runEmailImport(authToken, { force: true });
+      // A run takes minutes, and a click often joins a scheduled one already under way —
+      // so reload what the last finished run brought in now instead of only at the end.
+      setSourceRefreshStartedAt(status?.startedAt ?? null);
+      if (status?.running) handleRefresh();
       // The server stops a run at 10 minutes, so this outlasts any run it lets finish.
       const giveUpAt = Date.now() + 11 * 60 * 1000;
       while (status?.running && Date.now() < giveUpAt) {
@@ -482,6 +487,7 @@ export default function App() {
       setSourceRefreshError(err.message);
     } finally {
       setSourceRefreshRunning(false);
+      setSourceRefreshStartedAt(null);
     }
   }, [authToken, handleRefresh, sourceRefreshRunning]);
 
@@ -518,6 +524,7 @@ export default function App() {
           period={period}
           onRefreshSources={handleRefreshSources}
           sourceRefreshRunning={sourceRefreshRunning}
+          sourceRefreshStartedAt={sourceRefreshStartedAt}
           sourceRefreshError={sourceRefreshError}
         />
       );
@@ -536,7 +543,7 @@ export default function App() {
     if (activeKey === 'settlement') return <SettlementPage {...common} />;
     if (activeKey === 'aop') return <AopTargetsPage authToken={authToken} />;
     return <AiPage data={enrichedData} authToken={authToken} />;
-  }, [renderedActive, enrichedData, data, date, authToken, period, openSourceReportPreview, handleRefresh, handleRefreshSources, sourceRefreshRunning, sourceRefreshError, onSaveFixedCosts]);
+  }, [renderedActive, enrichedData, data, date, authToken, period, openSourceReportPreview, handleRefresh, handleRefreshSources, sourceRefreshRunning, sourceRefreshStartedAt, sourceRefreshError, onSaveFixedCosts]);
 
   const lockApp = React.useCallback(() => {
     ssoLogout(); // ends the portal session too; no-op unless VITE_AUTH_URL is set
